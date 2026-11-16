@@ -1,0 +1,11 @@
+// Prisma schema: https://pris.ly/d/prisma-schema
+// Models are added feature by feature, each through an approved plan (docs/plans).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
