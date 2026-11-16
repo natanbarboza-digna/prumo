@@ -31,7 +31,12 @@ describe("getGoalProgress", () => {
   it("is zero without linked tracks", async () => {
     const goal = await createGoal(input());
 
-    await expect(getGoalProgress(goal.id)).resolves.toEqual({ done: 0, total: 0 });
+    await expect(getGoalProgress(goal.id)).resolves.toEqual({
+      done: 0,
+      total: 0,
+      steps: { done: 0, total: 0 },
+      actions: { done: 0, total: 0 },
+    });
   });
 
   it("sums the steps of every linked track and ignores other goals", async () => {
@@ -42,7 +47,33 @@ describe("getGoalProgress", () => {
     await addTrack(other.id, ["DONE"]);
     await addTrack(null, ["DONE"]);
 
-    await expect(getGoalProgress(goal.id)).resolves.toEqual({ done: 3, total: 5 });
+    await expect(getGoalProgress(goal.id)).resolves.toMatchObject({
+      done: 3,
+      total: 5,
+      steps: { done: 3, total: 5 },
+    });
+  });
+
+  it("adds the linked PDI actions, leaving cancelled ones out", async () => {
+    const goal = await createGoal(input());
+    await addTrack(goal.id, ["DONE", "NOT_STARTED"]);
+    const cycle = await db.pdiCycle.create({
+      data: { title: "Ciclo", startDate: new Date("2026-01-01"), endDate: new Date("2026-12-31") },
+    });
+    const area = await db.pdiArea.create({ data: { cycleId: cycle.id, name: "Área" } });
+    const category = await db.actionCategory.create({ data: { name: "Curso" } });
+    for (const status of ["DONE", "IN_PROGRESS", "CANCELLED"] as const) {
+      await db.pdiAction.create({
+        data: { areaId: area.id, categoryId: category.id, title: "Ação", status, goalId: goal.id },
+      });
+    }
+
+    await expect(getGoalProgress(goal.id)).resolves.toEqual({
+      done: 2,
+      total: 4,
+      steps: { done: 1, total: 2 },
+      actions: { done: 1, total: 2 },
+    });
   });
 });
 

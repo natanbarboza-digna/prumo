@@ -42,6 +42,14 @@ export function requiredDateOnly(emptyMessage = "Informe uma data.") {
   );
 }
 
+/** Required reference to another record by UUID (a select with no choice sends ""). */
+export function requiredUuid(message: string) {
+  return z
+    .string({ error: message })
+    .trim()
+    .refine((value) => UUID_PATTERN.test(value), { error: message });
+}
+
 /** Optional reference to another record by UUID; blank becomes null. */
 export function optionalUuid(message: string) {
   return z

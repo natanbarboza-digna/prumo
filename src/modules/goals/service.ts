@@ -66,19 +66,31 @@ export async function deleteGoal(id: string): Promise<void> {
   await withNotFound(id, () => db.goal.delete({ where: { id } }));
 }
 
-export type GoalProgress = { done: number; total: number };
+export type Progress = { done: number; total: number };
+
+/** Overall progress plus the share of each kind of item. */
+export type GoalProgress = Progress & { steps: Progress; actions: Progress };
 
 /**
- * Aggregated progress of everything linked to the goal. For now that is the
- * steps of its tracks; PDI actions and routines join in later roadmap steps.
+ * Aggregated progress of what is linked to the goal: the steps of its tracks
+ * and its PDI actions (cancelled actions leave the count). Routines repeat and
+ * have no "done", so they show adherence on the goal page instead.
  */
 export async function getGoalProgress(goalId: string): Promise<GoalProgress> {
   const linkedSteps = { track: { goalId } };
-  const [total, done] = await Promise.all([
+  const linkedActions = { goalId, status: { not: "CANCELLED" as const } };
+  const [stepsTotal, stepsDone, actionsTotal, actionsDone] = await Promise.all([
     db.trackStep.count({ where: linkedSteps }),
     db.trackStep.count({ where: { ...linkedSteps, status: "DONE" } }),
+    db.pdiAction.count({ where: linkedActions }),
+    db.pdiAction.count({ where: { goalId, status: "DONE" } }),
   ]);
-  return { done, total };
+  return {
+    done: stepsDone + actionsDone,
+    total: stepsTotal + actionsTotal,
+    steps: { done: stepsDone, total: stepsTotal },
+    actions: { done: actionsDone, total: actionsTotal },
+  };
 }
 
 function toData(input: GoalInput) {
