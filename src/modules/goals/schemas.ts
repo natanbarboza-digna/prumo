@@ -3,31 +3,17 @@ import { z } from "zod";
 // enums.ts holds only plain constants (no database client), so this file is
 // safe to import from Client Components such as the goal form.
 import { GoalStatus } from "@/generated/prisma/enums";
-import { isValidDateOnly } from "@/lib/dates";
-
-/** Turns blank strings (and missing values) into null after trimming. */
-const optionalText = z
-  .string()
-  .trim()
-  .optional()
-  .transform((value) => (value ? value : null));
+import { optionalDateOnly, optionalText, requiredText } from "@/lib/form-fields";
 
 /**
  * Single source of truth for goal input: the form validates with it in the
  * browser and the Server Action validates again on the server.
  */
 export const goalInputSchema = z.object({
-  title: z.string().trim().min(1, "Informe um título.").max(120, "Use no máximo 120 caracteres."),
-  description: z
-    .string()
-    .trim()
-    .max(2000, "Use no máximo 2000 caracteres.")
-    .optional()
-    .transform((value) => (value ? value : null)),
+  title: requiredText(120),
+  description: optionalText(2000),
   status: z.enum(GoalStatus, { error: "Escolha um status válido." }).default("NOT_STARTED"),
-  targetDate: optionalText.refine((value) => value === null || isValidDateOnly(value), {
-    error: "Informe uma data válida.",
-  }),
+  targetDate: optionalDateOnly(),
 });
 
 /** The `?status=` filter of the goal list: unknown values fall back to "no filter". */

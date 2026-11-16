@@ -2,6 +2,7 @@ import { Prisma, type Goal as GoalRow } from "@/generated/prisma/client";
 import type { GoalStatus } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { formatDateOnly, parseDateOnly } from "@/lib/dates";
+import { isUuid } from "@/lib/form-fields";
 import type { GoalInput } from "@/modules/goals/schemas";
 
 /** A goal as the rest of the app sees it: date-only fields as "YYYY-MM-DD". */
@@ -22,8 +23,6 @@ export class GoalNotFoundError extends Error {
   }
 }
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /** Statuses for which a passed target date still matters. */
 const OPEN_STATUSES: ReadonlySet<GoalStatus> = new Set(["NOT_STARTED", "IN_PROGRESS"]);
 
@@ -43,7 +42,7 @@ export async function listGoals(filter: { status?: GoalStatus } = {}): Promise<G
 export async function getGoal(id: string): Promise<Goal> {
   // The id column is a Postgres UUID: anything else would make the query fail
   // instead of simply not matching, so treat it as "not found" up front.
-  if (!UUID_PATTERN.test(id)) throw new GoalNotFoundError(id);
+  if (!isUuid(id)) throw new GoalNotFoundError(id);
   const row = await db.goal.findUnique({ where: { id } });
   if (!row) throw new GoalNotFoundError(id);
   return toGoal(row);
@@ -88,7 +87,7 @@ function toGoal(row: GoalRow): Goal {
 
 /** Maps Prisma's "record not found" (P2025) and malformed ids to GoalNotFoundError. */
 async function withNotFound<T>(id: string, operation: () => Promise<T>): Promise<T> {
-  if (!UUID_PATTERN.test(id)) throw new GoalNotFoundError(id);
+  if (!isUuid(id)) throw new GoalNotFoundError(id);
   try {
     return await operation();
   } catch (error) {
