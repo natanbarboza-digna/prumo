@@ -89,7 +89,7 @@ Nomes de entidades e campos em inglês no código. Os campos abaixo são o ponto
 - `PdiAction`: areaId, categoryId, title, description, expectedResult, dueDate, status (`NOT_STARTED`, `IN_PROGRESS`, `DONE`, `CANCELLED`), evidence, managerComment, goalId (opcional)
 - `PdiCheckIn`: cycleId, date, summary, nextSteps, managerNotes
 
-Premissa a validar: os campos de `PdiCycle`, `PdiArea`, `PdiAction` e `PdiCheckIn` são um padrão genérico, não o formulário real da empresa. Antes de implementar o módulo PDI, pergunte ao dono do projeto se os campos conferem.
+Os campos de `PdiCycle`, `PdiArea`, `PdiAction` e `PdiCheckIn` foram validados pelo dono do projeto contra o formulário da empresa (plano 004).
 
 ## Regras de negócio
 
@@ -150,5 +150,4 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 
 - **Autenticação.** Hoje não há login nem tabela de usuário, porque a aplicação roda só na máquina do dono. É obrigatória antes de qualquer deploy fora dela; vai exigir adicionar `userId` às entidades por migration.
 - **Deploy.** Ainda não definido (roda só localmente).
-- **Campos do PDI.** Validar com o formulário real da empresa (ver premissa no Modelo de domínio).
 - **Importação de PDI por arquivo.** Fora de escopo por enquanto; o cadastro é manual.
