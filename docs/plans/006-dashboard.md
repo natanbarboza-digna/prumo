@@ -1,6 +1,6 @@
 # 006 — Painel inicial
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-16**, aprovado no mesmo dia com as propostas das perguntas (ver "Decisões")
 Branch: `feat/dashboard`
 
 ## Objetivo
@@ -132,9 +132,21 @@ CLAUDE.md                                          (lista de reaproveitamento, s
 - Sem migration (o schema não muda).
 - Plano atualizado se o escopo mudar; `CLAUDE.md` atualizado se surgir algo reaproveitável.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **Registrar rotinas no painel.** Proposta: sim, com os mesmos botões da tela Hoje, porque é a ação mais frequente e o painel é a primeira tela que se abre. A alternativa é só o resumo e o link "Abrir Hoje".
-2. **Horizonte dos próximos prazos.** Proposta: 14 dias.
-3. **Objetivos na lista de prazos.** Proposta: sim, objetivos não concluídos com data-alvo entram junto com etapas e ações.
-4. **Link "Início" na navegação.** Proposta: não adicionar, porque o nome no cabeçalho já leva ao painel.
+- **Prazos sem selo de atraso.** O grupo "Atrasados" já diz que o item está atrasado; cada item mostra "Venceu em _data_" em vermelho, "Vence hoje" ou "Vence em _data_" (`dueText`).
+- **Textos no singular:** "Falta 1 dia" e "Terminou há 1 dia" (o plano dizia "faltam N dias" para todos).
+- **`daysBetween`** foi para `src/lib/dates.ts`, com testes, porque é cálculo de datas e não regra do painel. `rules.ts` ficou só com `groupDeadlines` e as constantes (horizonte de 14 dias, limite de 10 prazos e de 5 objetivos/trilhas).
+- **Primeiro uso** conta as rotinas direto no banco (`db.routine.count()`), já que `listRoutines` calcula a adesão de cada uma e o painel só precisa saber se existe alguma.
+- **Trilhas em andamento** aparecem na ordem da lista de trilhas (as mais recentes primeiro).
+- **Objetivos no painel** usam a barra `Progress` direto: `GoalProgressSummary` é uma seção inteira com `h2` e `id` fixo, feita para a página do objetivo.
+- **Componentes de apoio** `DashboardCard` (seção com `h2` e link "Ver todos") e `EmptyCardText` (mensagem de lista vazia com o link da próxima ação), em `src/components/dashboard/dashboard-card.tsx`.
+- **Revalidação:** `setStepStatusAction` (concluir/reabrir etapa) também passou a revalidar `/tracks` e `/`; antes só fazia `refresh()` da página atual.
+- **Bloco de boas-vindas** tem o título "Por onde começar".
+
+## Decisões
+
+1. As rotinas do dia podem ser registradas no painel, com os mesmos botões da tela Hoje.
+2. O horizonte dos próximos prazos é de 14 dias.
+3. Objetivos não concluídos com data-alvo entram na lista de prazos.
+4. A navegação não ganha link "Início"; o nome no cabeçalho leva ao painel.

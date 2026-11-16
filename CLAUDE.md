@@ -50,7 +50,7 @@ src/
     goals/  tracks/  routines/  pdi/  settings/categories/
   components/           componentes da aplicação
   components/ui/        componentes do shadcn/ui
-  modules/<dominio>/    um diretório por domínio: goals, tracks, routines, pdi, categories
+  modules/<dominio>/    um diretório por domínio: goals, tracks, routines, pdi, categories, dashboard (só leitura)
     schemas.ts          schemas Zod
     service.ts          regras de negócio e acesso ao banco
     actions.ts          Server Actions (validam com Zod e chamam o service)
@@ -125,7 +125,8 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 - **Banco:** IDs em UUID v7 (`@default(uuid(7)) @db.Uuid`); nomes de tabelas, colunas e enums em snake_case no banco (`@@map`/`@map`), camelCase no TypeScript. Datas sem hora são colunas `@db.Date` e circulam na aplicação como string `AAAA-MM-DD` (conversão em `src/lib/dates.ts`, feita no service).
 - **Testes de banco:** `npm test` (integração) e `npm run test:e2e` usam o mesmo banco `_test` e limpam os dados; não rode os dois ao mesmo tempo. Helpers em `src/test/test-database.ts` e, para testes que precisam de uma ação de PDI, `src/test/pdi-fixtures.ts`; o `resetDatabase` dos e2e recria as categorias padrão. O Playwright roda com 1 worker pelo mesmo motivo; helpers de e2e em `e2e/helpers.ts`.
 - **Prisma 7:** depois de `npx prisma migrate dev`, rode `npx prisma generate` (o `migrate dev` não gera mais o cliente).
-- **Reaproveite antes de criar:** campos Zod em `src/lib/form-fields.ts`; erros do Prisma (P2025, P2002, P2003) em `src/lib/prisma-errors.ts`; formulários com o hook `src/components/forms/use-schema-form.ts` + `FormActions` (opção `readForm` para campos repetidos, como grupos de checkbox); opções de objetivo e de categoria dos formulários em `src/modules/goals/options.ts` e `src/modules/categories/options.ts`; exclusão com `ConfirmDeleteButton` e outras confirmações com `ConfirmActionButton`; botões de form com `SubmitButton`; regras puras de rotina (dia previsto, estado, adesão, período de evidência) em `src/modules/routines/rules.ts`, que não acessa o banco e pode ser importado pelos services de rotinas e de PDI sem importação circular; "esta ação aceita rotina?" com `routineBlocker` (`src/modules/pdi/service.ts`).
+- **Reaproveite antes de criar:** campos Zod em `src/lib/form-fields.ts`; erros do Prisma (P2025, P2002, P2003) em `src/lib/prisma-errors.ts`; formulários com o hook `src/components/forms/use-schema-form.ts` + `FormActions` (opção `readForm` para campos repetidos, como grupos de checkbox); opções de objetivo e de categoria dos formulários em `src/modules/goals/options.ts` e `src/modules/categories/options.ts`; exclusão com `ConfirmDeleteButton` e outras confirmações com `ConfirmActionButton`; botões de form com `SubmitButton`; regras puras de rotina (dia previsto, estado, adesão, período de evidência) em `src/modules/routines/rules.ts`, que não acessa o banco e pode ser importado pelos services de rotinas e de PDI sem importação circular; "esta ação aceita rotina?" com `routineBlocker` (`src/modules/pdi/service.ts`); diferença em dias entre datas com `daysBetween` (`src/lib/dates.ts`); blocos do painel com `DashboardCard` e `EmptyCardText`.
+- **Painel inicial:** `/` mostra dados de todos os módulos via `getDashboard` (`src/modules/dashboard/service.ts`). Toda Server Action que muda dados deve revalidar também `/` (cada módulo tem sua função `revalidate…Screens`).
 
 ### Front-end
 
