@@ -5,6 +5,21 @@ import { addDays, eachDay, formatDateOnly, parseDateOnly, weekdayOf } from "@/li
 import { isUuid } from "@/lib/form-fields";
 import { isRecordNotFound } from "@/lib/prisma-errors";
 import { GoalNotFoundError } from "@/modules/goals/service";
+import {
+  ActionFinishedError,
+  CategoryDisallowsRoutineError,
+  CycleClosedError,
+  PdiActionNotFoundError,
+  routineBlocker,
+} from "@/modules/pdi/service";
+import {
+  ADHERENCE_DAYS,
+  type Adherence,
+  HISTORY_DAYS,
+  computeAdherence,
+  isScheduledOn,
+  routineStateOn,
+} from "@/modules/routines/rules";
 import type { RoutineInput, RoutineLogInput } from "@/modules/routines/schemas";
 
 // ---------------------------------------------------------------------------
@@ -20,34 +35,19 @@ export type Routine = {
   startDate: string;
   endDate: string | null;
   goal: { id: string; title: string } | null;
+  /** The PDI action the routine was created from, if any. */
+  pdiAction: { id: string; title: string; cycleId: string } | null;
   createdAt: Date;
   updatedAt: Date;
 };
 
 export type RoutineLog = { date: string; status: RoutineLogStatus; note: string | null };
 
-export type Adherence = {
-  scheduled: number;
-  done: number;
-  skipped: number;
-  missed: number;
-  /** Done days as a whole percentage of the scheduled days (0 when none). */
-  rate: number;
-};
-
 export type RoutineSummary = Routine & { adherence: Adherence };
 
 /** A day on the "Today" screen or in a routine's history, with its log if any. */
 export type RoutineDay = { routine: Routine; log: RoutineLog | null };
 export type HistoryDay = { date: string; log: RoutineLog | null };
-
-export type RoutineState = "UPCOMING" | "ACTIVE" | "ENDED";
-
-type Schedule = Pick<Routine, "weekdays" | "startDate" | "endDate">;
-
-/** How far back adherence and history look, counting today. */
-export const ADHERENCE_DAYS = 30;
-export const HISTORY_DAYS = 14;
 
 export class RoutineNotFoundError extends Error {
   constructor(id: string) {
@@ -78,65 +78,12 @@ export class RoutineNotScheduledError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// Pure rules
-// ---------------------------------------------------------------------------
-
-export function isScheduledOn(routine: Schedule, date: string): boolean {
-  // "YYYY-MM-DD" strings compare correctly as plain text.
-  return (
-    routine.startDate <= date &&
-    (routine.endDate === null || date <= routine.endDate) &&
-    routine.weekdays.includes(weekdayOf(date))
-  );
-}
-
-export function routineStateOn(routine: Schedule, today: string): RoutineState {
-  if (routine.startDate > today) return "UPCOMING";
-  if (routine.endDate !== null && routine.endDate < today) return "ENDED";
-  return "ACTIVE";
-}
-
-/**
- * Adherence over the scheduled days of a period. Days after today never count,
- * and today only counts once logged, since it is not over yet. Skipped days
- * count as not done. Logs on days that are no longer scheduled are ignored.
- */
-export function computeAdherence(
-  routine: Schedule,
-  logs: readonly Pick<RoutineLog, "date" | "status">[],
-  period: { from: string; to: string },
-  today: string,
-): Adherence {
-  const statusByDate = new Map(logs.map((log) => [log.date, log.status]));
-  const last = period.to < today ? period.to : today;
-  let scheduled = 0;
-  let done = 0;
-  let skipped = 0;
-
-  for (const date of eachDay(period.from, last)) {
-    if (!isScheduledOn(routine, date)) continue;
-    const status = statusByDate.get(date);
-    if (date === today && status === undefined) continue;
-    scheduled++;
-    if (status === "DONE") done++;
-    if (status === "SKIPPED") skipped++;
-  }
-
-  return {
-    scheduled,
-    done,
-    skipped,
-    missed: scheduled - done - skipped,
-    rate: scheduled === 0 ? 0 : Math.round((done / scheduled) * 100),
-  };
-}
-
-// ---------------------------------------------------------------------------
 // Routines
 // ---------------------------------------------------------------------------
 
 const routineInclude = {
   goal: { select: { id: true, title: true } },
+  pdiAction: { select: { id: true, title: true, area: { select: { cycleId: true } } } },
 } satisfies Prisma.RoutineInclude;
 
 // Earliest time first, routines without a time last, then alphabetical.
@@ -185,9 +132,20 @@ export async function getRoutine(id: string): Promise<Routine> {
   return toRoutine(row);
 }
 
-export async function createRoutine(input: RoutineInput): Promise<Routine> {
+/**
+ * Creates a routine, optionally linked to the PDI action it puts into practice.
+ * The link is only set here: editing a routine never changes it.
+ */
+export async function createRoutine(
+  input: RoutineInput,
+  pdiActionId: string | null = null,
+): Promise<Routine> {
   await assertGoalExists(input.goalId);
-  const row = await db.routine.create({ data: toData(input), include: routineInclude });
+  if (pdiActionId !== null) await assertActionTakesRoutine(pdiActionId);
+  const row = await db.routine.create({
+    data: { ...toData(input), pdiActionId },
+    include: routineInclude,
+  });
   return toRoutine(row);
 }
 
@@ -321,6 +279,28 @@ async function assertGoalExists(goalId: string | null): Promise<void> {
   if (count === 0) throw new GoalNotFoundError(goalId);
 }
 
+/** The rule lives here, not only in the hidden button: see the PDI errors. */
+async function assertActionTakesRoutine(actionId: string): Promise<void> {
+  if (!isUuid(actionId)) throw new PdiActionNotFoundError(actionId);
+  const action = await db.pdiAction.findUnique({
+    where: { id: actionId },
+    select: {
+      status: true,
+      category: { select: { allowsRoutine: true } },
+      area: { select: { cycle: { select: { id: true, status: true } } } },
+    },
+  });
+  if (!action) throw new PdiActionNotFoundError(actionId);
+  switch (routineBlocker(action, action.area.cycle.status)) {
+    case "CYCLE_CLOSED":
+      throw new CycleClosedError(action.area.cycle.id);
+    case "ACTION_FINISHED":
+      throw new ActionFinishedError(actionId);
+    case "CATEGORY":
+      throw new CategoryDisallowsRoutineError(actionId);
+  }
+}
+
 async function withNotFound<T>(id: string, operation: () => Promise<T>): Promise<T> {
   try {
     return await operation();
@@ -348,6 +328,11 @@ function toRoutine(row: RoutineRow): Routine {
     startDate: formatDateOnly(row.startDate),
     endDate: row.endDate === null ? null : formatDateOnly(row.endDate),
     goal: row.goal,
+    pdiAction: row.pdiAction && {
+      id: row.pdiAction.id,
+      title: row.pdiAction.title,
+      cycleId: row.pdiAction.area.cycleId,
+    },
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

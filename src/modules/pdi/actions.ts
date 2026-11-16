@@ -32,6 +32,7 @@ import {
   PdiAreaNotFoundError,
   PdiCheckInNotFoundError,
   PdiCycleNotFoundError,
+  RoutineOutcomeRequiredError,
   closeCycle,
   createAction,
   createArea,
@@ -297,12 +298,20 @@ export async function createActionAction(
   redirect(`/pdi/${cycleId}`);
 }
 
+const ROUTINE_OUTCOME_MESSAGE = "Escolha o que fazer com as rotinas vinculadas.";
+
 export async function updateActionAction(
   actionId: string,
   _previous: ActionFormState,
   formData: FormData,
 ): Promise<ActionFormState> {
-  const values = readFields<ActionFormValues>(formData, actionFields);
+  const values: ActionFormValues = {
+    ...readFields<ActionFormValues>(formData, actionFields),
+    // An unchecked radio group sends nothing; any other value is left for Zod
+    // to reject.
+    routineOutcome: (readText(formData, "routineOutcome") || undefined) as
+      ActionFormValues["routineOutcome"] | undefined,
+  };
   const parsed = actionInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
 
@@ -310,6 +319,9 @@ export async function updateActionAction(
   try {
     cycleId = (await updateAction(actionId, parsed.data)).cycleId;
   } catch (error) {
+    if (error instanceof RoutineOutcomeRequiredError) {
+      return { errors: { routineOutcome: [ROUTINE_OUTCOME_MESSAGE] }, values };
+    }
     const errors = actionReferenceErrors(error);
     if (errors) return { errors, values };
     return commonErrors(error, values, "Esta ação não existe mais.");

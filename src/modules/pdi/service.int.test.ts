@@ -14,6 +14,7 @@ import {
   CategoryArchivedError,
   CycleClosedError,
   PdiActionNotFoundError,
+  RoutineOutcomeRequiredError,
   PdiAreaNotFoundError,
   PdiCheckInNotFoundError,
   PdiCycleNotFoundError,
@@ -27,15 +28,21 @@ import {
   deleteCheckIn,
   deleteCycle,
   getAction,
+  getActionDetail,
   getCycle,
+  getRoutineEvidenceByAction,
   listActionsForGoal,
   listCycles,
+  listRoutinesInEffect,
   reopenCycle,
   updateAction,
   updateArea,
   updateCheckIn,
   updateCycle,
 } from "@/modules/pdi/service";
+import type { RoutineInput } from "@/modules/routines/schemas";
+import { createRoutine, getRoutine, logRoutine } from "@/modules/routines/service";
+import { pdiActionFixture } from "@/test/pdi-fixtures";
 
 const MISSING_ID = "0190a3e4-0000-7000-8000-000000000000";
 
@@ -405,5 +412,234 @@ describe("check-ins", () => {
   it.each([MISSING_ID, "not-a-uuid"])("throws PdiCheckInNotFoundError for %j", async (id) => {
     await expect(updateCheckIn(id, checkInInput())).rejects.toBeInstanceOf(PdiCheckInNotFoundError);
     await expect(deleteCheckIn(id)).rejects.toBeInstanceOf(PdiCheckInNotFoundError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Routines linked to actions (plan 005)
+// ---------------------------------------------------------------------------
+
+// 2026-11-16 is a Monday.
+const today = "2026-11-16";
+
+function routineInput(overrides: Partial<RoutineInput> = {}): RoutineInput {
+  return {
+    title: "Praticar",
+    description: null,
+    weekdays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+    timeOfDay: null,
+    startDate: "2026-11-02",
+    endDate: null,
+    goalId: null,
+    ...overrides,
+  };
+}
+
+const done = { status: "DONE" as const, note: null };
+
+/** The action as the edit form would send it, with a new status. */
+function finish(
+  fixture: Awaited<ReturnType<typeof pdiActionFixture>>,
+  status: "DONE" | "CANCELLED" | "IN_PROGRESS",
+  routineOutcome?: "END" | "UNLINK",
+): ActionInput {
+  return {
+    ...actionInput(fixture.area.id, fixture.category.id, { title: fixture.action.title, status }),
+    routineOutcome,
+  };
+}
+
+describe("action evidence", () => {
+  it("shows the linked routines with adherence inside the cycle, and their logs newest first", async () => {
+    const fixture = await pdiActionFixture({
+      cycle: { startDate: "2026-01-01", endDate: "2026-11-10" },
+    });
+    const routine = await createRoutine(routineInput(), fixture.action.id);
+    await logRoutine(routine.id, "2026-11-03", done, today);
+    await logRoutine(routine.id, "2026-11-04", { status: "SKIPPED", note: "Viagem" }, today);
+    // After the cycle ended: not evidence for this PDI.
+    await logRoutine(routine.id, "2026-11-12", done, today);
+
+    const detail = await getActionDetail(fixture.action.id, today);
+
+    expect(detail.action.id).toBe(fixture.action.id);
+    expect(detail.cycle).toMatchObject({ id: fixture.cycle.id, status: "PLANNED" });
+    expect(detail.areaName).toBe("Área");
+    expect(detail.routines).toHaveLength(1);
+    expect(detail.routines[0]).toMatchObject({
+      routine: { id: routine.id, title: "Praticar" },
+      period: { from: "2026-11-02", to: "2026-11-10" },
+      adherence: { scheduled: 9, done: 1, skipped: 1, missed: 7, rate: 11 },
+    });
+    expect(detail.logs).toEqual([
+      {
+        routineId: routine.id,
+        routineTitle: "Praticar",
+        date: "2026-11-04",
+        status: "SKIPPED",
+        note: "Viagem",
+      },
+      {
+        routineId: routine.id,
+        routineTitle: "Praticar",
+        date: "2026-11-03",
+        status: "DONE",
+        note: null,
+      },
+    ]);
+  });
+
+  it("shows a routine that has not started yet with no period", async () => {
+    const fixture = await pdiActionFixture();
+    await createRoutine(routineInput({ startDate: "2026-11-20" }), fixture.action.id);
+
+    const detail = await getActionDetail(fixture.action.id, today);
+
+    expect(detail.routines[0]).toMatchObject({ period: null, adherence: { scheduled: 0 } });
+  });
+
+  it("sums the adherence of every routine of each action in a cycle", async () => {
+    const fixture = await pdiActionFixture();
+    const morning = await createRoutine(
+      routineInput({ startDate: "2026-11-15" }),
+      fixture.action.id,
+    );
+    await createRoutine(routineInput({ startDate: "2026-11-15" }), fixture.action.id);
+    await logRoutine(morning.id, "2026-11-15", done, today);
+
+    const evidence = await getRoutineEvidenceByAction(fixture.cycle.id, today);
+
+    expect(evidence[fixture.action.id]).toEqual({
+      count: 2,
+      adherence: { scheduled: 2, done: 1, skipped: 0, missed: 1, rate: 50 },
+    });
+  });
+
+  it("leaves actions without routines out of the summary", async () => {
+    const fixture = await pdiActionFixture();
+
+    expect(await getRoutineEvidenceByAction(fixture.cycle.id, today)).toEqual({});
+  });
+
+  it("lists the routines still in effect (active or upcoming)", async () => {
+    const fixture = await pdiActionFixture();
+    const active = await createRoutine(routineInput({ title: "Ativa" }), fixture.action.id);
+    const upcoming = await createRoutine(
+      routineInput({ title: "Futura", startDate: "2026-11-20" }),
+      fixture.action.id,
+    );
+    await createRoutine(
+      routineInput({ title: "Encerrada", endDate: "2026-11-10" }),
+      fixture.action.id,
+    );
+
+    expect(await listRoutinesInEffect(fixture.action.id, today)).toEqual([
+      { id: active.id, title: "Ativa", upcoming: false },
+      { id: upcoming.id, title: "Futura", upcoming: true },
+    ]);
+  });
+});
+
+describe("finishing an action with linked routines", () => {
+  it.each(["DONE", "CANCELLED"] as const)(
+    "requires a choice when the action becomes %s",
+    async (status) => {
+      const fixture = await pdiActionFixture();
+      await createRoutine(routineInput(), fixture.action.id);
+
+      await expect(
+        updateAction(fixture.action.id, finish(fixture, status), today),
+      ).rejects.toBeInstanceOf(RoutineOutcomeRequiredError);
+      expect((await getAction(fixture.action.id)).status).toBe("IN_PROGRESS");
+    },
+  );
+
+  it("needs no choice without routines in effect", async () => {
+    const fixture = await pdiActionFixture();
+    await createRoutine(routineInput({ endDate: "2026-11-10" }), fixture.action.id);
+
+    const updated = await updateAction(fixture.action.id, finish(fixture, "DONE"), today);
+
+    expect(updated.status).toBe("DONE");
+  });
+
+  it("needs no choice when the action stays open", async () => {
+    const fixture = await pdiActionFixture();
+    await createRoutine(routineInput(), fixture.action.id);
+
+    const updated = await updateAction(fixture.action.id, finish(fixture, "IN_PROGRESS"), today);
+
+    expect(updated.status).toBe("IN_PROGRESS");
+  });
+
+  it("END ends the routine today and keeps the link", async () => {
+    const fixture = await pdiActionFixture();
+    const routine = await createRoutine(routineInput(), fixture.action.id);
+
+    await updateAction(fixture.action.id, finish(fixture, "DONE", "END"), today);
+
+    expect(await getRoutine(routine.id)).toMatchObject({
+      endDate: today,
+      pdiAction: { id: fixture.action.id },
+    });
+  });
+
+  it("END deletes a routine that has not started yet", async () => {
+    const fixture = await pdiActionFixture();
+    const routine = await createRoutine(
+      routineInput({ startDate: "2026-11-20" }),
+      fixture.action.id,
+    );
+
+    await updateAction(fixture.action.id, finish(fixture, "CANCELLED", "END"), today);
+
+    expect(await db.routine.count({ where: { id: routine.id } })).toBe(0);
+  });
+
+  it("UNLINK removes the link and keeps the routine going", async () => {
+    const fixture = await pdiActionFixture();
+    const routine = await createRoutine(routineInput(), fixture.action.id);
+
+    await updateAction(fixture.action.id, finish(fixture, "CANCELLED", "UNLINK"), today);
+
+    expect(await getRoutine(routine.id)).toMatchObject({ endDate: null, pdiAction: null });
+  });
+
+  it.each(["END", "UNLINK"] as const)(
+    "keeps an already ended routine linked with %s",
+    async (outcome) => {
+      const fixture = await pdiActionFixture();
+      const ended = await createRoutine(routineInput({ endDate: "2026-11-10" }), fixture.action.id);
+      await createRoutine(routineInput(), fixture.action.id);
+
+      await updateAction(fixture.action.id, finish(fixture, "DONE", outcome), today);
+
+      expect(await getRoutine(ended.id)).toMatchObject({
+        endDate: "2026-11-10",
+        pdiAction: { id: fixture.action.id },
+      });
+    },
+  );
+
+  it("does not touch the routines when a done action goes back to in progress", async () => {
+    const fixture = await pdiActionFixture();
+    const routine = await createRoutine(routineInput(), fixture.action.id);
+    await updateAction(fixture.action.id, finish(fixture, "DONE", "END"), today);
+
+    await updateAction(fixture.action.id, finish(fixture, "IN_PROGRESS"), today);
+
+    expect(await getRoutine(routine.id)).toMatchObject({
+      endDate: today,
+      pdiAction: { id: fixture.action.id },
+    });
+  });
+
+  it("deleting the action keeps the routine, unlinked", async () => {
+    const fixture = await pdiActionFixture();
+    const routine = await createRoutine(routineInput(), fixture.action.id);
+
+    await deleteAction(fixture.action.id);
+
+    expect((await getRoutine(routine.id)).pdiAction).toBeNull();
   });
 });

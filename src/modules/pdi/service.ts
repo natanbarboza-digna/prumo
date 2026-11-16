@@ -1,12 +1,24 @@
 import type { Prisma } from "@/generated/prisma/client";
-import type { PdiActionStatus, PdiCycleStatus } from "@/generated/prisma/enums";
+import type {
+  PdiActionStatus,
+  PdiCycleStatus,
+  RoutineLogStatus,
+  Weekday,
+} from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
-import { formatDateOnly, parseDateOnly } from "@/lib/dates";
+import { formatDateOnly, parseDateOnly, todayInAppTimeZone } from "@/lib/dates";
 import { isUuid } from "@/lib/form-fields";
 import { isRecordNotFound } from "@/lib/prisma-errors";
 import { CategoryNotFoundError } from "@/modules/categories/service";
 import { GoalNotFoundError } from "@/modules/goals/service";
 import type { ActionInput, AreaInput, CheckInInput, CycleInput } from "@/modules/pdi/schemas";
+import {
+  type Adherence,
+  type Period,
+  combineAdherence,
+  computeAdherence,
+  evidencePeriod,
+} from "@/modules/routines/rules";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,6 +79,37 @@ export type PdiCycle = PdiCycleSummary & {
 };
 
 /** An action shown on a goal page, with where it lives. */
+export type RoutineInEffect = { id: string; title: string; upcoming: boolean };
+
+export type EvidenceRoutine = {
+  id: string;
+  title: string;
+  weekdays: Weekday[];
+  timeOfDay: string | null;
+  startDate: string;
+  endDate: string | null;
+};
+
+export type EvidenceLog = {
+  routineId: string;
+  routineTitle: string;
+  date: string;
+  status: RoutineLogStatus;
+  note: string | null;
+};
+
+export type ActionDetail = {
+  action: PdiAction;
+  cycle: Omit<PdiCycleSummary, "progress">;
+  areaName: string;
+  /** Period null: the routine and the cycle do not overlap up to today. */
+  routines: { routine: EvidenceRoutine; period: Period | null; adherence: Adherence }[];
+  /** Logs inside each routine's evidence period, newest first. */
+  logs: EvidenceLog[];
+};
+
+export type RoutineEvidence = { count: number; adherence: Adherence };
+
 export type GoalPdiAction = PdiAction & { cycle: { id: string; title: string }; areaName: string };
 
 class NotFoundError extends Error {
@@ -139,6 +182,28 @@ export class CategoryArchivedError extends Error {
   }
 }
 
+export class CategoryDisallowsRoutineError extends Error {
+  constructor(actionId: string) {
+    super(`The category of PDI action ${actionId} does not allow routines`);
+    this.name = "CategoryDisallowsRoutineError";
+  }
+}
+
+export class RoutineOutcomeRequiredError extends Error {
+  constructor(actionId: string) {
+    super(`Choose what happens to the routines of PDI action ${actionId}`);
+    this.name = "RoutineOutcomeRequiredError";
+  }
+}
+
+/** Done or cancelled actions take no new routines. */
+export class ActionFinishedError extends Error {
+  constructor(actionId: string) {
+    super(`PDI action is done or cancelled: ${actionId}`);
+    this.name = "ActionFinishedError";
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Pure rules
 // ---------------------------------------------------------------------------
@@ -150,6 +215,26 @@ export function isActionOverdue(
   // "YYYY-MM-DD" strings compare correctly as plain text.
   const open = action.status === "NOT_STARTED" || action.status === "IN_PROGRESS";
   return open && action.dueDate !== null && action.dueDate < today;
+}
+
+export function isActionFinished(status: PdiActionStatus): boolean {
+  return status === "DONE" || status === "CANCELLED";
+}
+
+export type RoutineBlocker = "CYCLE_CLOSED" | "ACTION_FINISHED" | "CATEGORY";
+
+/**
+ * Why an action cannot get a new routine, or null when it can. The service
+ * enforces it on creation; the screens use it to show the button or explain.
+ */
+export function routineBlocker(
+  action: { status: PdiActionStatus; category: { allowsRoutine: boolean } },
+  cycleStatus: PdiCycleStatus,
+): RoutineBlocker | null {
+  if (cycleStatus === "CLOSED") return "CYCLE_CLOSED";
+  if (isActionFinished(action.status)) return "ACTION_FINISHED";
+  if (!action.category.allowsRoutine) return "CATEGORY";
+  return null;
 }
 
 /** Done actions out of all actions, leaving cancelled ones out of the count. */
@@ -300,16 +385,137 @@ export async function createAction(cycleId: string, input: ActionInput): Promise
   return toAction(row);
 }
 
-export async function updateAction(id: string, input: ActionInput): Promise<PdiAction> {
+/**
+ * Updates an action. When it becomes done or cancelled while linked routines
+ * are still in effect, `routineOutcome` says what happens to them: END ends
+ * them today (deleting the ones that have not started, which have no logs) and
+ * keeps the link as evidence; UNLINK keeps them going without the link.
+ * Routines that already ended stay linked either way.
+ */
+export async function updateAction(
+  id: string,
+  input: ActionInput,
+  today: string = todayInAppTimeZone(),
+): Promise<PdiAction> {
   const current = await findAction(id);
   await openCycle(current.area.cycleId);
   await assertActionReferences(current.area.cycleId, input, current.categoryId);
-  const row = await db.pdiAction.update({
-    where: { id },
-    data: toActionData(input),
-    include: actionInclude,
+
+  const inEffect = isActionFinished(input.status) ? await listRoutinesInEffect(id, today) : [];
+  if (inEffect.length > 0 && input.routineOutcome === undefined) {
+    throw new RoutineOutcomeRequiredError(id);
+  }
+
+  // One transaction: the action never ends up done with its routines untouched.
+  const row = await db.$transaction(async (tx) => {
+    if (inEffect.length > 0) {
+      const upcoming = inEffect.filter((routine) => routine.upcoming).map((routine) => routine.id);
+      const started = inEffect.filter((routine) => !routine.upcoming).map((routine) => routine.id);
+      if (input.routineOutcome === "END") {
+        await tx.routine.deleteMany({ where: { id: { in: upcoming } } });
+        await tx.routine.updateMany({
+          where: { id: { in: started } },
+          data: { endDate: parseDateOnly(today) },
+        });
+      } else {
+        await tx.routine.updateMany({
+          where: { id: { in: [...upcoming, ...started] } },
+          data: { pdiActionId: null },
+        });
+      }
+    }
+    return tx.pdiAction.update({
+      where: { id },
+      data: toActionData(input),
+      include: actionInclude,
+    });
   });
   return toAction(row);
+}
+
+/** Linked routines that have not ended: running (even if ending today) or upcoming. */
+export async function listRoutinesInEffect(
+  actionId: string,
+  today: string,
+): Promise<RoutineInEffect[]> {
+  const day = parseDateOnly(today);
+  const rows = await db.routine.findMany({
+    where: { pdiActionId: actionId, OR: [{ endDate: null }, { endDate: { gte: day } }] },
+    select: { id: true, title: true, startDate: true },
+    orderBy: [{ startDate: "asc" }, { title: "asc" }],
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    upcoming: formatDateOnly(row.startDate) > today,
+  }));
+}
+
+/** The action with its linked routines, their adherence in the cycle and their logs. */
+export async function getActionDetail(id: string, today: string): Promise<ActionDetail> {
+  if (!isUuid(id)) throw new PdiActionNotFoundError(id);
+  const row = await db.pdiAction.findUnique({
+    where: { id },
+    include: {
+      ...actionInclude,
+      area: { select: { cycleId: true, name: true, cycle: true } },
+      routines: { include: { logs: true }, orderBy: [{ startDate: "asc" }, { title: "asc" }] },
+    },
+  });
+  if (!row) throw new PdiActionNotFoundError(id);
+
+  const cycle = toCycleFields(row.area.cycle);
+  const logs: EvidenceLog[] = [];
+  const routines = row.routines.map((routineRow) => {
+    const routine = toEvidenceRoutine(routineRow);
+    const period = evidencePeriod(routine, cycle, today);
+    const routineLogs = routineRow.logs
+      .map((log) => ({ date: formatDateOnly(log.date), status: log.status, note: log.note }))
+      .filter((log) => period !== null && period.from <= log.date && log.date <= period.to);
+    logs.push(
+      ...routineLogs.map((log) => ({ routineId: routine.id, routineTitle: routine.title, ...log })),
+    );
+    const adherence =
+      period === null
+        ? combineAdherence([])
+        : computeAdherence(routine, routineLogs, period, today);
+    return { routine, period, adherence };
+  });
+  logs.sort((a, b) =>
+    a.date === b.date ? a.routineTitle.localeCompare(b.routineTitle) : a.date < b.date ? 1 : -1,
+  );
+
+  return { action: toAction(row), cycle, areaName: row.area.name, routines, logs };
+}
+
+/** Per action of the cycle (only the ones with routines): how many and their combined adherence. */
+export async function getRoutineEvidenceByAction(
+  cycleId: string,
+  today: string,
+): Promise<Record<string, RoutineEvidence>> {
+  const cycle = toCycleFields(await findCycle(cycleId));
+  const rows = await db.routine.findMany({
+    where: { pdiAction: { area: { cycleId } } },
+    include: { logs: { select: { date: true, status: true } } },
+  });
+
+  const byAction = new Map<string, Adherence[]>();
+  for (const row of rows) {
+    if (row.pdiActionId === null) continue;
+    const routine = toEvidenceRoutine(row);
+    const period = evidencePeriod(routine, cycle, today);
+    const logs = row.logs.map((log) => ({ date: formatDateOnly(log.date), status: log.status }));
+    const adherence =
+      period === null ? combineAdherence([]) : computeAdherence(routine, logs, period, today);
+    byAction.set(row.pdiActionId, [...(byAction.get(row.pdiActionId) ?? []), adherence]);
+  }
+
+  return Object.fromEntries(
+    [...byAction].map(([actionId, items]) => [
+      actionId,
+      { count: items.length, adherence: combineAdherence(items) },
+    ]),
+  );
 }
 
 export async function deleteAction(id: string): Promise<void> {
@@ -449,7 +655,21 @@ function toCycleData(input: CycleInput) {
 }
 
 function toActionData(input: ActionInput) {
-  return { ...input, dueDate: input.dueDate === null ? null : parseDateOnly(input.dueDate) };
+  // routineOutcome is an instruction for updateAction, not a column.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { routineOutcome, ...fields } = input;
+  return { ...fields, dueDate: fields.dueDate === null ? null : parseDateOnly(fields.dueDate) };
+}
+
+function toEvidenceRoutine(row: Prisma.RoutineGetPayload<object>): EvidenceRoutine {
+  return {
+    id: row.id,
+    title: row.title,
+    weekdays: row.weekdays,
+    timeOfDay: row.timeOfDay,
+    startDate: formatDateOnly(row.startDate),
+    endDate: row.endDate === null ? null : formatDateOnly(row.endDate),
+  };
 }
 
 function toCheckInData(input: CheckInInput) {

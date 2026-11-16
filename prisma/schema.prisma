@@ -111,11 +111,16 @@ model Routine {
   endDate     DateTime?    @map("end_date") @db.Date
   goalId      String?      @map("goal_id") @db.Uuid
   goal        Goal?        @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  // Set when the routine was created from a PDI action; deleting the action
+  // keeps the routine, unlinked.
+  pdiActionId String?      @map("pdi_action_id") @db.Uuid
+  pdiAction   PdiAction?   @relation(fields: [pdiActionId], references: [id], onDelete: SetNull)
   logs        RoutineLog[]
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
   @@index([goalId])
+  @@index([pdiActionId])
   @@map("routines")
 }
 
@@ -213,6 +218,7 @@ model PdiAction {
   managerComment String?         @map("manager_comment")
   goalId         String?         @map("goal_id") @db.Uuid
   goal           Goal?           @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  routines       Routine[]
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
 

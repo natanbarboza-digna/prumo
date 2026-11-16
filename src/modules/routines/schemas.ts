@@ -59,6 +59,14 @@ export const routineInputSchema = z
     when: (payload) => periodFields.safeParse(payload.value).success,
   });
 
+/**
+ * The PDI action a new routine comes from. Kept apart from the routine fields
+ * because only creation reads it: editing never changes the link.
+ */
+export const routineLinkSchema = z.object({
+  pdiActionId: optionalUuid("Ação de PDI inválida."),
+});
+
 export const routineLogInputSchema = z.object({
   status: z.enum(RoutineLogStatus, { error: "Escolha feito ou pulado." }),
   note: optionalText(500),

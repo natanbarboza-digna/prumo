@@ -8,11 +8,19 @@ import { z } from "zod";
 
 import { isValidDateOnly, todayInAppTimeZone } from "@/lib/dates";
 import { GoalNotFoundError } from "@/modules/goals/service";
+import { routineBlockerText } from "@/modules/pdi/labels";
+import {
+  ActionFinishedError,
+  CategoryDisallowsRoutineError,
+  CycleClosedError,
+  PdiActionNotFoundError,
+} from "@/modules/pdi/service";
 import {
   type RoutineFieldErrors,
   type RoutineFormValues,
   readRoutineForm,
   routineInputSchema,
+  routineLinkSchema,
   routineLogInputSchema,
 } from "@/modules/routines/schemas";
 import {
@@ -41,11 +49,22 @@ function revalidateRoutineScreens() {
   revalidatePath("/today");
   revalidatePath("/routines", "layout");
   revalidatePath("/goals", "layout");
+  // Logs of linked routines are evidence on the PDI pages.
+  revalidatePath("/pdi", "layout");
 }
 
 // ---------------------------------------------------------------------------
 // Routines
 // ---------------------------------------------------------------------------
+
+/** Why a routine could not be linked to the PDI action, for the form. */
+function linkError(error: unknown): string | null {
+  if (error instanceof PdiActionNotFoundError) return "Esta ação de PDI não existe mais.";
+  if (error instanceof CycleClosedError) return routineBlockerText.CYCLE_CLOSED;
+  if (error instanceof ActionFinishedError) return routineBlockerText.ACTION_FINISHED;
+  if (error instanceof CategoryDisallowsRoutineError) return routineBlockerText.CATEGORY;
+  return null;
+}
 
 export async function createRoutineAction(
   _previous: RoutineFormState,
@@ -54,16 +73,24 @@ export async function createRoutineAction(
   const values = readRoutineForm(formData);
   const parsed = routineInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
+  const link = routineLinkSchema.safeParse({ pdiActionId: formData.get("pdiActionId") ?? "" });
+  if (!link.success) return { formError: "Esta ação de PDI não existe mais.", values };
 
-  let routineId: string;
+  let destination: string;
   try {
-    routineId = (await createRoutine(parsed.data)).id;
+    const routine = await createRoutine(parsed.data, link.data.pdiActionId);
+    // Created from a PDI action: back to the action, where it shows as evidence.
+    destination = routine.pdiAction
+      ? `/pdi/${routine.pdiAction.cycleId}/actions/${routine.pdiAction.id}`
+      : `/routines/${routine.id}`;
   } catch (error) {
     if (error instanceof GoalNotFoundError) return { errors: goalGone, values };
+    const formError = linkError(error);
+    if (formError) return { formError, values };
     throw error;
   }
   revalidateRoutineScreens();
-  redirect(`/routines/${routineId}`);
+  redirect(destination);
 }
 
 export async function updateRoutineAction(

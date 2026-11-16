@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   readRoutineForm,
   routineInputSchema,
+  routineLinkSchema,
   routineLogInputSchema,
 } from "@/modules/routines/schemas";
 
@@ -158,5 +159,22 @@ describe("readRoutineForm", () => {
       endDate: "",
       goalId: "",
     });
+  });
+});
+
+describe("routineLinkSchema", () => {
+  const actionId = "0190a3e4-0000-7000-8000-000000000000";
+
+  it("accepts a PDI action id", () => {
+    expect(routineLinkSchema.parse({ pdiActionId: actionId })).toEqual({ pdiActionId: actionId });
+  });
+
+  it("turns a missing or empty id into null", () => {
+    expect(routineLinkSchema.parse({})).toEqual({ pdiActionId: null });
+    expect(routineLinkSchema.parse({ pdiActionId: "" })).toEqual({ pdiActionId: null });
+  });
+
+  it("rejects an id that is not a UUID", () => {
+    expect(routineLinkSchema.safeParse({ pdiActionId: "abc" }).success).toBe(false);
   });
 });

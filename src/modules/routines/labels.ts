@@ -1,5 +1,5 @@
 import type { RoutineLogStatus, Weekday } from "@/generated/prisma/enums";
-import type { Adherence } from "@/modules/routines/service";
+import type { Adherence } from "@/modules/routines/rules";
 
 export const weekdayShortLabels: Record<Weekday, string> = {
   MON: "Seg",

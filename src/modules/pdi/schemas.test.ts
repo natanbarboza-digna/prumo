@@ -73,6 +73,19 @@ describe("areaInputSchema", () => {
 describe("actionInputSchema", () => {
   const action = { areaId: UUID, categoryId: UUID, title: "Curso de oratória" };
 
+  it("accepts END or UNLINK as the outcome of linked routines, and no choice at all", () => {
+    expect(actionInputSchema.parse({ ...action, routineOutcome: "END" }).routineOutcome).toBe(
+      "END",
+    );
+    expect(actionInputSchema.parse({ ...action, routineOutcome: "UNLINK" }).routineOutcome).toBe(
+      "UNLINK",
+    );
+    expect(actionInputSchema.parse(action).routineOutcome).toBeUndefined();
+    expect(actionInputSchema.safeParse({ ...action, routineOutcome: "DELETE" }).success).toBe(
+      false,
+    );
+  });
+
   it("accepts the minimum input and fills defaults", () => {
     expect(actionInputSchema.parse(action)).toEqual({
       ...action,

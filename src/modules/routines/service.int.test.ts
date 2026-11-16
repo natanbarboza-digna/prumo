@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { db } from "@/lib/db";
+import { updateCategory } from "@/modules/categories/service";
 import { GoalNotFoundError, createGoal, deleteGoal } from "@/modules/goals/service";
+import {
+  ActionFinishedError,
+  CategoryDisallowsRoutineError,
+  CycleClosedError,
+  PdiActionNotFoundError,
+  closeCycle,
+  updateAction,
+} from "@/modules/pdi/service";
 import type { RoutineInput } from "@/modules/routines/schemas";
 import {
   FutureDateError,
@@ -20,6 +29,7 @@ import {
   logRoutine,
   updateRoutine,
 } from "@/modules/routines/service";
+import { pdiActionFixture } from "@/test/pdi-fixtures";
 
 const MISSING_ID = "0190a3e4-0000-7000-8000-000000000000";
 
@@ -285,5 +295,97 @@ describe("daily logs", () => {
       missed: 1,
       rate: 50,
     });
+  });
+});
+
+describe("routines created from a PDI action", () => {
+  it("links the routine to an action whose category allows routines", async () => {
+    const { action, cycle } = await pdiActionFixture();
+
+    const routine = await createRoutine(routineInput(), action.id);
+
+    expect(routine.pdiAction).toEqual({ id: action.id, title: action.title, cycleId: cycle.id });
+    expect((await getRoutine(routine.id)).pdiAction?.id).toBe(action.id);
+  });
+
+  it("allows more than one routine per action", async () => {
+    const { action } = await pdiActionFixture();
+
+    await createRoutine(routineInput({ title: "Manhã" }), action.id);
+    await createRoutine(routineInput({ title: "Noite" }), action.id);
+
+    expect(await db.routine.count({ where: { pdiActionId: action.id } })).toBe(2);
+  });
+
+  it("rejects an action whose category does not allow routines", async () => {
+    const { action } = await pdiActionFixture({ allowsRoutine: false });
+
+    await expect(createRoutine(routineInput(), action.id)).rejects.toBeInstanceOf(
+      CategoryDisallowsRoutineError,
+    );
+  });
+
+  it.each(["DONE", "CANCELLED"] as const)("rejects an action with status %s", async (status) => {
+    const { action } = await pdiActionFixture({ status });
+
+    await expect(createRoutine(routineInput(), action.id)).rejects.toBeInstanceOf(
+      ActionFinishedError,
+    );
+  });
+
+  it("rejects an action of a closed cycle", async () => {
+    const { action, cycle } = await pdiActionFixture();
+    await closeCycle(cycle.id);
+
+    await expect(createRoutine(routineInput(), action.id)).rejects.toBeInstanceOf(CycleClosedError);
+  });
+
+  it("rejects an action that does not exist", async () => {
+    await expect(createRoutine(routineInput(), MISSING_ID)).rejects.toBeInstanceOf(
+      PdiActionNotFoundError,
+    );
+    expect(await db.routine.count()).toBe(0);
+  });
+
+  it("keeps the link when the routine is edited", async () => {
+    const { action } = await pdiActionFixture();
+    const routine = await createRoutine(routineInput(), action.id);
+
+    const updated = await updateRoutine(routine.id, routineInput({ title: "Outro título" }));
+
+    expect(updated.pdiAction?.id).toBe(action.id);
+  });
+
+  it("keeps existing routines when the category stops allowing them, but blocks new ones", async () => {
+    const { action, category } = await pdiActionFixture();
+    const routine = await createRoutine(routineInput(), action.id);
+
+    await updateCategory(category.id, { name: category.name, allowsRoutine: false });
+
+    expect((await getRoutine(routine.id)).pdiAction?.id).toBe(action.id);
+    await expect(createRoutine(routineInput(), action.id)).rejects.toBeInstanceOf(
+      CategoryDisallowsRoutineError,
+    );
+  });
+
+  it("keeps existing routines when the action changes category", async () => {
+    const { action, area } = await pdiActionFixture();
+    const other = await pdiActionFixture({ allowsRoutine: false });
+    const routine = await createRoutine(routineInput(), action.id);
+
+    await updateAction(action.id, {
+      areaId: area.id,
+      categoryId: other.category.id,
+      title: action.title,
+      description: null,
+      expectedResult: null,
+      dueDate: null,
+      status: "IN_PROGRESS",
+      evidence: null,
+      managerComment: null,
+      goalId: null,
+    });
+
+    expect((await getRoutine(routine.id)).pdiAction?.id).toBe(action.id);
   });
 });

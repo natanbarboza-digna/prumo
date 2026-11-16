@@ -10,12 +10,8 @@ import { Button } from "@/components/ui/button";
 import { formatDateForDisplay, formatLongDate, todayInAppTimeZone } from "@/lib/dates";
 import { deleteRoutineAction, endRoutineAction } from "@/modules/routines/actions";
 import { scheduleText } from "@/modules/routines/labels";
-import {
-  HISTORY_DAYS,
-  getAdherence,
-  getRoutineHistory,
-  routineStateOn,
-} from "@/modules/routines/service";
+import { HISTORY_DAYS, routineStateOn } from "@/modules/routines/rules";
+import { getAdherence, getRoutineHistory } from "@/modules/routines/service";
 
 import { loadRoutine } from "./load-routine";
 
@@ -49,6 +45,17 @@ export default async function RoutinePage({ params }: PageProps<"/routines/[id]"
           ) : (
             <span className="text-muted-foreground">Sem objetivo vinculado</span>
           )}
+          {routine.pdiAction && (
+            <span>
+              Ação de PDI:{" "}
+              <Link
+                href={`/pdi/${routine.pdiAction.cycleId}/actions/${routine.pdiAction.id}`}
+                className="underline underline-offset-4"
+              >
+                {routine.pdiAction.title}
+              </Link>
+            </span>
+          )}
         </div>
 
         <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-[8rem_1fr]">
@@ -81,7 +88,7 @@ export default async function RoutinePage({ params }: PageProps<"/routines/[id]"
           <ConfirmDeleteButton
             action={deleteRoutineAction.bind(null, routine.id)}
             title="Excluir rotina?"
-            description={`“${routine.title}” e todo o seu histórico de registros serão excluídos. Essa ação não pode ser desfeita.`}
+            description={`“${routine.title}” e todo o seu histórico de registros serão excluídos${routine.pdiAction ? ", e os registros deixam de contar como evidência da ação de PDI" : ""}. Essa ação não pode ser desfeita.`}
             triggerLabel="Excluir rotina"
           />
         </div>

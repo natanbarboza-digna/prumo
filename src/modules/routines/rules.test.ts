@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { Weekday } from "@/generated/prisma/enums";
-import { computeAdherence, isScheduledOn, routineStateOn } from "@/modules/routines/service";
+import {
+  combineAdherence,
+  computeAdherence,
+  evidencePeriod,
+  isScheduledOn,
+  routineStateOn,
+} from "@/modules/routines/rules";
 
 // 2026-11-16 is a Monday.
 const today = "2026-11-16";
@@ -137,5 +143,63 @@ describe("computeAdherence", () => {
     ];
 
     expect(computeAdherence(routine, logs, week, today).rate).toBe(67);
+  });
+});
+
+describe("evidencePeriod", () => {
+  const cycle = { startDate: "2026-01-01", endDate: "2026-12-31" };
+
+  it("uses the routine's dates when it fits inside the cycle", () => {
+    const routine = { startDate: "2026-11-02", endDate: "2026-11-10" };
+
+    expect(evidencePeriod(routine, cycle, today)).toEqual({ from: "2026-11-02", to: "2026-11-10" });
+  });
+
+  it("starts at the cycle start when the routine began before it", () => {
+    const routine = { startDate: "2025-12-01", endDate: null };
+
+    expect(evidencePeriod(routine, cycle, today)).toEqual({ from: "2026-01-01", to: today });
+  });
+
+  it("stops today when the routine has no end", () => {
+    const routine = { startDate: "2026-11-02", endDate: null };
+
+    expect(evidencePeriod(routine, cycle, today)).toEqual({ from: "2026-11-02", to: today });
+  });
+
+  it("stops at the cycle end once the cycle is over", () => {
+    const routine = { startDate: "2026-06-01", endDate: null };
+    const past = { startDate: "2026-01-01", endDate: "2026-06-30" };
+
+    expect(evidencePeriod(routine, past, today)).toEqual({ from: "2026-06-01", to: "2026-06-30" });
+  });
+
+  it("is empty when the routine starts after today", () => {
+    expect(evidencePeriod({ startDate: "2026-11-20", endDate: null }, cycle, today)).toBeNull();
+  });
+
+  it("is empty when the routine starts after the cycle ends", () => {
+    const past = { startDate: "2026-01-01", endDate: "2026-06-30" };
+
+    expect(evidencePeriod({ startDate: "2026-07-01", endDate: null }, past, today)).toBeNull();
+  });
+});
+
+describe("combineAdherence", () => {
+  it("adds the days of every routine and weights the rate by scheduled days", () => {
+    const a = { scheduled: 10, done: 9, skipped: 1, missed: 0, rate: 90 };
+    const b = { scheduled: 2, done: 0, skipped: 0, missed: 2, rate: 0 };
+
+    expect(combineAdherence([a, b])).toEqual({
+      scheduled: 12,
+      done: 9,
+      skipped: 1,
+      missed: 2,
+      rate: 75,
+    });
+  });
+
+  it("has a rate of 0 without scheduled days", () => {
+    expect(combineAdherence([])).toEqual({ scheduled: 0, done: 0, skipped: 0, missed: 0, rate: 0 });
   });
 });

@@ -12,6 +12,10 @@ import {
   requiredUuid,
 } from "@/lib/form-fields";
 
+/** END: end the routine (keeps the link as evidence). UNLINK: keep it, without the link. */
+export const ROUTINE_OUTCOMES = ["END", "UNLINK"] as const;
+export type RoutineOutcome = (typeof ROUTINE_OUTCOMES)[number];
+
 const periodFields = z.object({
   startDate: requiredDateOnly("Informe a data de início."),
   endDate: requiredDateOnly("Informe a data de fim."),
@@ -56,6 +60,11 @@ export const actionInputSchema = z.object({
   evidence: optionalText(5000),
   managerComment: optionalText(5000),
   goalId: optionalUuid("Escolha um objetivo válido."),
+  // What happens to the linked routines still in effect when the action is
+  // done or cancelled. The service decides when it is required.
+  routineOutcome: z
+    .enum(ROUTINE_OUTCOMES, { error: "Escolha o que fazer com as rotinas vinculadas." })
+    .optional(),
 });
 
 export const checkInInputSchema = z.object({
