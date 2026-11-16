@@ -44,9 +44,10 @@ export type RoutineFormState = {
 
 const goalGone: RoutineFieldErrors = { goalId: ["Este objetivo não existe mais."] };
 
-/** Logs show up on "Hoje", on the routine pages and on goal pages. */
+/** Logs show up on "Hoje", on the dashboard, on the routine pages and on goal pages. */
 function revalidateRoutineScreens() {
   revalidatePath("/today");
+  revalidatePath("/");
   revalidatePath("/routines", "layout");
   revalidatePath("/goals", "layout");
   // Logs of linked routines are evidence on the PDI pages.

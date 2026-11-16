@@ -71,10 +71,11 @@ function readFields<Values>(formData: FormData, names: readonly (keyof Values & 
   return Object.fromEntries(names.map((name) => [name, readText(formData, name)])) as Values;
 }
 
-/** PDI data shows up on its own pages and on goal pages. */
+/** PDI data shows up on its own pages, on goal pages and on the dashboard. */
 function revalidatePdiScreens() {
   revalidatePath("/pdi", "layout");
   revalidatePath("/goals", "layout");
+  revalidatePath("/");
 }
 
 /**

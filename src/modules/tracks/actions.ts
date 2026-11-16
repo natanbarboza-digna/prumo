@@ -74,6 +74,12 @@ const goalGone: TrackFieldErrors = { goalId: ["Este objetivo não existe mais."]
 // Tracks
 // ---------------------------------------------------------------------------
 
+/** Tracks show up on their own pages and on the dashboard. */
+function revalidateTrackScreens() {
+  revalidatePath("/tracks");
+  revalidatePath("/");
+}
+
 export async function createTrackAction(
   _previous: TrackFormState,
   formData: FormData,
@@ -89,7 +95,7 @@ export async function createTrackAction(
     if (error instanceof GoalNotFoundError) return { errors: goalGone, values };
     throw error;
   }
-  revalidatePath("/tracks");
+  revalidateTrackScreens();
   redirect(`/tracks/${trackId}`);
 }
 
@@ -111,7 +117,7 @@ export async function updateTrackAction(
     }
     throw error;
   }
-  revalidatePath("/tracks");
+  revalidateTrackScreens();
   redirect(`/tracks/${id}`);
 }
 
@@ -122,7 +128,7 @@ export async function deleteTrackAction(id: string): Promise<void> {
     // Already gone: the outcome the user asked for, so carry on to the list.
     if (!(error instanceof TrackNotFoundError)) throw error;
   }
-  revalidatePath("/tracks");
+  revalidateTrackScreens();
   redirect("/tracks");
 }
 
@@ -147,7 +153,7 @@ export async function createStepAction(
     }
     throw error;
   }
-  revalidatePath("/tracks");
+  revalidateTrackScreens();
   redirect(`/tracks/${trackId}`);
 }
 
@@ -169,7 +175,7 @@ export async function updateStepAction(
     }
     throw error;
   }
-  revalidatePath("/tracks");
+  revalidateTrackScreens();
   redirect(`/tracks/${trackId}`);
 }
 
@@ -185,12 +191,13 @@ export async function deleteStepAction(stepId: string): Promise<void> {
     }
     throw error;
   }
-  revalidatePath("/tracks");
+  revalidateTrackScreens();
   redirect(`/tracks/${trackId}`);
 }
 
 export async function setStepStatusAction(stepId: string, status: TrackStepStatus): Promise<void> {
   await ignoreMissingStep(() => setStepStatus(stepId, statusSchema.parse(status)));
+  revalidateTrackScreens();
   // Stay on the same page and re-render it with the new data.
   refresh();
 }

@@ -33,6 +33,12 @@ function readGoalForm(formData: FormData): GoalFormValues {
   };
 }
 
+/** Goals show up on their own pages and on the dashboard. */
+function revalidateGoalScreens() {
+  revalidatePath("/goals");
+  revalidatePath("/");
+}
+
 export async function createGoalAction(
   _previous: GoalFormState,
   formData: FormData,
@@ -44,7 +50,7 @@ export async function createGoalAction(
   }
 
   const goal = await createGoal(parsed.data);
-  revalidatePath("/goals");
+  revalidateGoalScreens();
   redirect(`/goals/${goal.id}`);
 }
 
@@ -67,7 +73,7 @@ export async function updateGoalAction(
     }
     throw error;
   }
-  revalidatePath("/goals");
+  revalidateGoalScreens();
   redirect(`/goals/${id}`);
 }
 
@@ -78,6 +84,6 @@ export async function deleteGoalAction(id: string): Promise<void> {
     // Already gone: the outcome the user asked for, so carry on to the list.
     if (!(error instanceof GoalNotFoundError)) throw error;
   }
-  revalidatePath("/goals");
+  revalidateGoalScreens();
   redirect("/goals");
 }

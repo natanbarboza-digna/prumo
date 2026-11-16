@@ -42,6 +42,7 @@ function readCategoryForm(formData: FormData): CategoryFormValues {
 function revalidateCategoryScreens() {
   revalidatePath(LIST);
   revalidatePath("/pdi", "layout");
+  revalidatePath("/");
 }
 
 export async function createCategoryAction(
