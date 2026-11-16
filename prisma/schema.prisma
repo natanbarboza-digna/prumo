@@ -23,15 +23,16 @@ enum GoalStatus {
 }
 
 model Goal {
-  id          String     @id @default(uuid(7)) @db.Uuid
-  title       String     @db.VarChar(120)
+  id          String      @id @default(uuid(7)) @db.Uuid
+  title       String      @db.VarChar(120)
   description String?
-  status      GoalStatus @default(NOT_STARTED)
-  targetDate  DateTime?  @map("target_date") @db.Date
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
+  status      GoalStatus  @default(NOT_STARTED)
+  targetDate  DateTime?   @map("target_date") @db.Date
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
   tracks      Track[]
   routines    Routine[]
+  pdiActions  PdiAction[]
 
   @@index([status])
   @@map("goals")
@@ -131,4 +132,107 @@ model RoutineLog {
   // One log per routine per day; logging again replaces it.
   @@unique([routineId, date])
   @@map("routine_logs")
+}
+
+enum PdiCycleStatus {
+  PLANNED
+  ACTIVE
+  CLOSED
+
+  @@map("pdi_cycle_status")
+}
+
+enum PdiActionStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  DONE
+  CANCELLED
+
+  @@map("pdi_action_status")
+}
+
+model ActionCategory {
+  id            String      @id @default(uuid(7)) @db.Uuid
+  name          String      @unique @db.VarChar(60)
+  allowsRoutine Boolean     @default(false) @map("allows_routine")
+  archived      Boolean     @default(false)
+  actions       PdiAction[]
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@map("action_categories")
+}
+
+model PdiCycle {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  title           String         @db.VarChar(120)
+  startDate       DateTime       @map("start_date") @db.Date
+  endDate         DateTime       @map("end_date") @db.Date
+  status          PdiCycleStatus @default(PLANNED)
+  managerName     String?        @map("manager_name") @db.VarChar(120)
+  careerObjective String?        @map("career_objective")
+  selfAssessment  String?        @map("self_assessment")
+  managerFeedback String?        @map("manager_feedback")
+  finalRating     String?        @map("final_rating") @db.VarChar(60)
+  areas           PdiArea[]
+  checkIns        PdiCheckIn[]
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("pdi_cycles")
+}
+
+model PdiArea {
+  id              String      @id @default(uuid(7)) @db.Uuid
+  cycleId         String      @map("cycle_id") @db.Uuid
+  cycle           PdiCycle    @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  name            String      @db.VarChar(120)
+  description     String?
+  expectedOutcome String?     @map("expected_outcome")
+  actions         PdiAction[]
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  @@index([cycleId])
+  @@map("pdi_areas")
+}
+
+model PdiAction {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  areaId         String          @map("area_id") @db.Uuid
+  area           PdiArea         @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  categoryId     String          @map("category_id") @db.Uuid
+  category       ActionCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  title          String          @db.VarChar(160)
+  description    String?
+  expectedResult String?         @map("expected_result")
+  dueDate        DateTime?       @map("due_date") @db.Date
+  status         PdiActionStatus @default(NOT_STARTED)
+  evidence       String?
+  managerComment String?         @map("manager_comment")
+  goalId         String?         @map("goal_id") @db.Uuid
+  goal           Goal?           @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  @@index([areaId])
+  @@index([categoryId])
+  @@index([goalId])
+  @@map("pdi_actions")
+}
+
+model PdiCheckIn {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  cycleId      String   @map("cycle_id") @db.Uuid
+  cycle        PdiCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  date         DateTime @db.Date
+  summary      String
+  nextSteps    String?  @map("next_steps")
+  managerNotes String?  @map("manager_notes")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([cycleId, date])
+  @@map("pdi_check_ins")
 }

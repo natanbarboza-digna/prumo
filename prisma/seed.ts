@@ -1,10 +1,17 @@
-// Initial data. Run with `npx prisma db seed`.
-// Empty for now: the default action categories arrive in roadmap step 4,
-// together with the ActionCategory model. Keep every write idempotent (upsert).
+// Initial data. Run with `npx prisma db seed`. Every write is idempotent.
+import "dotenv/config";
 
-async function main(): Promise<void> {}
+import { db } from "../src/lib/db";
+import { ensureDefaultCategories } from "../src/modules/categories/defaults";
 
-main().catch((error: unknown) => {
-  console.error(error);
-  process.exit(1);
-});
+async function main(): Promise<void> {
+  await ensureDefaultCategories(db);
+  console.log("Categorias padrão conferidas.");
+}
+
+main()
+  .catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(() => db.$disconnect());
