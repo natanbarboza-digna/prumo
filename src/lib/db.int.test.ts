@@ -1,12 +1,8 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { db } from "@/lib/db";
 
 describe("db", () => {
-  afterAll(async () => {
-    await db.$disconnect();
-  });
-
   it("connects to the test database", async () => {
     // $queryRaw is a tagged template: values are sent as parameters, never
     // pasted into the SQL, so it is safe against SQL injection.

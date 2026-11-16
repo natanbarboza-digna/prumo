@@ -29,6 +29,7 @@ export default defineConfig({
           include: ["src/**/*.int.test.ts"],
           environment: "node",
           env: testEnv,
+          globalSetup: ["src/test/global-setup.ts"],
           setupFiles: ["src/test/integration-setup.ts"],
           // Tests share one database; running files one at a time avoids
           // one test's cleanup wiping another test's data.
