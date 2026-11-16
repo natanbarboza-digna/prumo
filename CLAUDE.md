@@ -28,16 +28,16 @@ Não adicione dependências fora desta lista sem perguntar antes.
 
 Estes scripts devem existir no `package.json` desde o scaffold:
 
-| Comando | O que faz |
-| --- | --- |
-| `docker compose up -d` | Sobe o PostgreSQL |
-| `npm run dev` | Servidor de desenvolvimento |
-| `npm run lint` | ESLint |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Vitest |
-| `npm run test:e2e` | Playwright |
-| `npx prisma migrate dev` | Cria e aplica migration |
-| `npx prisma db seed` | Dados iniciais (categorias padrão) |
+| Comando                  | O que faz                          |
+| ------------------------ | ---------------------------------- |
+| `docker compose up -d`   | Sobe o PostgreSQL                  |
+| `npm run dev`            | Servidor de desenvolvimento        |
+| `npm run lint`           | ESLint                             |
+| `npm run typecheck`      | `tsc --noEmit`                     |
+| `npm test`               | Vitest                             |
+| `npm run test:e2e`       | Playwright                         |
+| `npx prisma migrate dev` | Cria e aplica migration            |
+| `npx prisma db seed`     | Dados iniciais (categorias padrão) |
 
 ## Estrutura de pastas
 
@@ -65,17 +65,21 @@ Regras de negócio ficam em `service.ts`, nunca em componentes ou em `actions.ts
 Nomes de entidades e campos em inglês no código. Os campos abaixo são o ponto de partida; mudanças no modelo passam por plano aprovado.
 
 **Objetivos**
+
 - `Goal`: title, description, status (`NOT_STARTED`, `IN_PROGRESS`, `DONE`, `ARCHIVED`), targetDate
 
 **Trilhas**
+
 - `Track`: title, description, goalId (opcional)
 - `TrackStep`: trackId, title, order, status, dueDate, resourceUrl, notes
 
 **Rotina**
+
 - `Routine`: title, description, weekdays (dias da semana em que se aplica), timeOfDay (opcional), startDate, endDate (opcional), goalId (opcional), pdiActionId (opcional)
 - `RoutineLog`: routineId, date, status (`DONE`, `SKIPPED`), note. Único por (routineId, date)
 
 **PDI**
+
 - `PdiCycle`: title, startDate, endDate, status (`PLANNED`, `ACTIVE`, `CLOSED`), managerName, careerObjective, selfAssessment, managerFeedback, finalRating (opcional)
 - `PdiArea` (área de desenvolvimento ou competência): cycleId, name, description, expectedOutcome
 - `ActionCategory`: name, allowsRoutine (boolean), archived (boolean)

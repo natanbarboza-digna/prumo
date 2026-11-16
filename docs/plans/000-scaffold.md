@@ -52,21 +52,21 @@ Nenhuma. O `schema.prisma` fica só com `generator` e `datasource`.
 
 ## Versões (consultadas no npm em 2026-11-16)
 
-| Pacote | Versão | Observação |
-| --- | --- | --- |
-| Node | 26.10.0 (instalado) | |
-| next / create-next-app | 16.4.6 | |
-| react / react-dom | 19.3.1 | |
-| typescript | **6.0.3** | A 7.0.2 é a `latest`, mas o `typescript-eslint` (usado pelo `eslint-config-next`) só aceita `<6.1.0`. Fico na 6.0 até ele suportar a 7. |
-| prisma / @prisma/client | **7.10.1** | A tag `latest` da CLI `prisma` aponta para uma RC (`8.0.0-rc.33`), provavelmente um erro de publicação. Fixo a 7.10.1, igual ao `@prisma/client`. |
-| tailwindcss | 4.3.5 | |
-| shadcn (CLI) | 4.23.0 | |
-| zod | 4.6.7 | |
-| vitest | 5.1.0 | |
-| @playwright/test | 1.65.1 | |
-| eslint | 10.15.0 | Se o `eslint-config-next` der problema com a 10, uso a versão que o `create-next-app` instalar. |
-| prettier | 3.10.1 | |
-| PostgreSQL (imagem) | `postgres:18` | |
+| Pacote                  | Versão              | Observação                                                                                                                                        |
+| ----------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node                    | 26.10.0 (instalado) |                                                                                                                                                   |
+| next / create-next-app  | 16.4.6              |                                                                                                                                                   |
+| react / react-dom       | 19.3.1              |                                                                                                                                                   |
+| typescript              | **6.0.3**           | A 7.0.2 é a `latest`, mas o `typescript-eslint` (usado pelo `eslint-config-next`) só aceita `<6.1.0`. Fico na 6.0 até ele suportar a 7.           |
+| prisma / @prisma/client | **7.10.1**          | A tag `latest` da CLI `prisma` aponta para uma RC (`8.0.0-rc.33`), provavelmente um erro de publicação. Fixo a 7.10.1, igual ao `@prisma/client`. |
+| tailwindcss             | 4.3.5               |                                                                                                                                                   |
+| shadcn (CLI)            | 4.23.0              |                                                                                                                                                   |
+| zod                     | 4.6.7               |                                                                                                                                                   |
+| vitest                  | 5.1.0               |                                                                                                                                                   |
+| @playwright/test        | 1.65.1              |                                                                                                                                                   |
+| eslint                  | 10.15.0             | Se o `eslint-config-next` der problema com a 10, uso a versão que o `create-next-app` instalar.                                                   |
+| prettier                | 3.10.1              |                                                                                                                                                   |
+| PostgreSQL (imagem)     | `postgres:18`       |                                                                                                                                                   |
 
 Antes de escrever código de cada ferramenta, vou ler a documentação da versão instalada (principalmente Next 16, Prisma 7 e shadcn 4).
 
@@ -74,15 +74,15 @@ Antes de escrever código de cada ferramenta, vou ler a documentação da versã
 
 Não estão na lista do `CLAUDE.md`, mas são exigidas pela stack:
 
-| Pacote | Por quê |
-| --- | --- |
-| `@prisma/adapter-pg` + `pg` (+ `@types/pg`) | O Prisma 7 se conecta ao Postgres por um *driver adapter*; sem ele o cliente não conecta. |
-| `dotenv` | O Prisma 7 não carrega mais o `.env` sozinho, e o Vitest precisa carregar o `.env.test`. |
-| `tsx` | Executa o `prisma/seed.ts` (TypeScript) sem compilar antes. |
-| `vite` | É dependência par (*peer*) obrigatória do Vitest 5. |
-| `vite-tsconfig-paths` | Faz o alias `@/*` funcionar nos testes do Vitest. |
-| `eslint-config-prettier` | Desliga as regras do ESLint que conflitam com o Prettier. |
-| Dependências que o `shadcn init` instala (`clsx`, `tailwind-merge`, `class-variance-authority`, `lucide-react`, `tw-animate-css`) | Fazem parte do shadcn/ui, que já está aprovado. |
+| Pacote                                                                                                                            | Por quê                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `@prisma/adapter-pg` + `pg` (+ `@types/pg`)                                                                                       | O Prisma 7 se conecta ao Postgres por um _driver adapter_; sem ele o cliente não conecta. |
+| `dotenv`                                                                                                                          | O Prisma 7 não carrega mais o `.env` sozinho, e o Vitest precisa carregar o `.env.test`.  |
+| `tsx`                                                                                                                             | Executa o `prisma/seed.ts` (TypeScript) sem compilar antes.                               |
+| `vite`                                                                                                                            | É dependência par (_peer_) obrigatória do Vitest 5.                                       |
+| `vite-tsconfig-paths`                                                                                                             | Faz o alias `@/*` funcionar nos testes do Vitest.                                         |
+| `eslint-config-prettier`                                                                                                          | Desliga as regras do ESLint que conflitam com o Prettier.                                 |
+| Dependências que o `shadcn init` instala (`clsx`, `tailwind-merge`, `class-variance-authority`, `lucide-react`, `tw-animate-css`) | Fazem parte do shadcn/ui, que já está aprovado.                                           |
 
 ## Arquivos afetados (todos novos)
 
@@ -116,12 +116,12 @@ docs/plans/000-scaffold.md
 
 ## Testes
 
-| Tipo | Arquivo | O que verifica |
-| --- | --- | --- |
-| Unidade | `src/lib/smoke.test.ts` | Testa o `cn()` do shadcn (junta classes e resolve conflitos do Tailwind). É um teste real e barato, e prova que o Vitest e o alias `@/*` funcionam. |
-| Integração | `src/lib/db.int.test.ts` | Com o `.env.test`, o cliente de `src/lib/db.ts` executa `SELECT 1` e o banco conectado é o `personal_management_test`, nunca o de dev. |
-| E2E | `e2e/home.spec.ts` | Abre `/`, vê o título "Gestão Pessoal" e `lang="pt-BR"` no `<html>`; a página passa no axe; o botão de tema alterna para escuro. |
-| E2E | `e2e/not-found.spec.ts` | Uma rota inexistente mostra a página "não encontrada" em pt-BR, com link de volta ao início. |
+| Tipo       | Arquivo                  | O que verifica                                                                                                                                      |
+| ---------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unidade    | `src/lib/smoke.test.ts`  | Testa o `cn()` do shadcn (junta classes e resolve conflitos do Tailwind). É um teste real e barato, e prova que o Vitest e o alias `@/*` funcionam. |
+| Integração | `src/lib/db.int.test.ts` | Com o `.env.test`, o cliente de `src/lib/db.ts` executa `SELECT 1` e o banco conectado é o `personal_management_test`, nunca o de dev.              |
+| E2E        | `e2e/home.spec.ts`       | Abre `/`, vê o título "Gestão Pessoal" e `lang="pt-BR"` no `<html>`; a página passa no axe; o botão de tema alterna para escuro.                    |
+| E2E        | `e2e/not-found.spec.ts`  | Uma rota inexistente mostra a página "não encontrada" em pt-BR, com link de volta ao início.                                                        |
 
 ## Critério de pronto
 
