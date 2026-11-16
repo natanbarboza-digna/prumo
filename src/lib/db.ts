@@ -4,7 +4,10 @@ import { PrismaClient } from "@/generated/prisma/client";
 
 function createPrismaClient(): PrismaClient {
   const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
+  // Unit tests import services (and so this module) without a database; the
+  // client only connects on the first query, so it is safe to build it there.
+  // Integration tests check their own DATABASE_URL in src/test/integration-setup.ts.
+  if (!connectionString && process.env.NODE_ENV !== "test") {
     throw new Error("DATABASE_URL is not set. Copy .env.example to .env.");
   }
   return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
