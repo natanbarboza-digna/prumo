@@ -30,7 +30,49 @@ model Goal {
   targetDate  DateTime?  @map("target_date") @db.Date
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
+  tracks      Track[]
 
   @@index([status])
   @@map("goals")
+}
+
+enum TrackStepStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  DONE
+
+  @@map("track_step_status")
+}
+
+model Track {
+  id          String      @id @default(uuid(7)) @db.Uuid
+  title       String      @db.VarChar(120)
+  description String?
+  goalId      String?     @map("goal_id") @db.Uuid
+  // Deleting a goal keeps its tracks and only clears the link.
+  goal        Goal?       @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  steps       TrackStep[]
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@index([goalId])
+  @@map("tracks")
+}
+
+model TrackStep {
+  id          String          @id @default(uuid(7)) @db.Uuid
+  trackId     String          @map("track_id") @db.Uuid
+  track       Track           @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  title       String          @db.VarChar(160)
+  // "order" is an SQL reserved word, so the column is named "position".
+  order       Int             @map("position")
+  status      TrackStepStatus @default(NOT_STARTED)
+  dueDate     DateTime?       @map("due_date") @db.Date
+  resourceUrl String?         @map("resource_url") @db.VarChar(2000)
+  notes       String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@unique([trackId, order])
+  @@map("track_steps")
 }
