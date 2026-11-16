@@ -8,7 +8,10 @@ import { Suspense } from "react";
 
 import { cn } from "@/lib/utils";
 
-const links = [{ href: "/goals", label: "Objetivos" }];
+const links = [
+  { href: "/goals", label: "Objetivos" },
+  { href: "/tracks", label: "Trilhas" },
+];
 
 export function MainNav() {
   // The URL is per-request data, so Next requires reading it inside Suspense.

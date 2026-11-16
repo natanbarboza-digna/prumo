@@ -3,9 +3,12 @@ import Link from "next/link";
 
 import { DeleteGoalButton } from "@/components/goals/delete-goal-button";
 import { GoalStatusBadge, OverdueBadge } from "@/components/goals/goal-status-badge";
+import { TrackList } from "@/components/tracks/track-list";
+import { TrackProgress } from "@/components/tracks/track-progress";
 import { Button } from "@/components/ui/button";
 import { formatDateForDisplay, todayInAppTimeZone } from "@/lib/dates";
-import { isGoalOverdue } from "@/modules/goals/service";
+import { getGoalProgress, isGoalOverdue } from "@/modules/goals/service";
+import { listTracks } from "@/modules/tracks/service";
 
 import { loadGoal } from "./load-goal";
 
@@ -13,6 +16,10 @@ export const metadata: Metadata = { title: "Objetivo" };
 
 export default async function GoalPage({ params }: PageProps<"/goals/[id]">) {
   const goal = await loadGoal((await params).id);
+  const [tracks, progress] = await Promise.all([
+    listTracks({ goalId: goal.id }),
+    getGoalProgress(goal.id),
+  ]);
 
   return (
     <article className="max-w-2xl space-y-6">
@@ -42,6 +49,29 @@ export default async function GoalPage({ params }: PageProps<"/goals/[id]">) {
         </Button>
         <DeleteGoalButton goalId={goal.id} goalTitle={goal.title} />
       </div>
+
+      <section aria-labelledby="titulo-trilhas" className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h2 id="titulo-trilhas" className="text-xl font-semibold tracking-tight">
+            Trilhas
+          </h2>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/tracks/new?goalId=${goal.id}`}>Criar trilha</Link>
+          </Button>
+        </div>
+        {tracks.length === 0 ? (
+          <p className="text-muted-foreground">Nenhuma trilha vinculada a este objetivo.</p>
+        ) : (
+          <>
+            <TrackProgress
+              done={progress.done}
+              total={progress.total}
+              label={`Progresso do objetivo ${goal.title}`}
+            />
+            <TrackList tracks={tracks} showGoal={false} headingLevel="h3" />
+          </>
+        )}
+      </section>
     </article>
   );
 }
