@@ -1,0 +1,10 @@
+.next
+node_modules
+package-lock.json
+src/generated
+prisma/migrations
+playwright-report
+test-results
+coverage
+src/components/ui
+AGENTS.md
