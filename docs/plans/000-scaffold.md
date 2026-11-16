@@ -1,6 +1,6 @@
 # 000 — Scaffold
 
-Status: **aprovado em 2026-11-16** (dependências extras, commit inicial na `main` e porta 5432 aprovados; escopo ampliado com convenções de front-end, `next-themes` e `@axe-core/playwright`)
+Status: **implementado em 2026-11-16**, aprovado no mesmo dia (dependências extras, commit inicial na `main` e porta 5432 aprovados; escopo ampliado com convenções de front-end, `next-themes` e `@axe-core/playwright`)
 Branch: `chore/scaffold`
 
 ## Objetivo
@@ -129,6 +129,23 @@ docs/plans/000-scaffold.md
 - `npm run dev` abre a página inicial.
 - `npm run lint`, `npm run typecheck`, `npm test` e `npm run test:e2e` passando.
 - Commits atômicos na `chore/scaffold`, sem merge nem push.
+
+## Mudanças durante a implementação
+
+- **ESLint 9.39.5 em vez de 10**: os plugins `react`, `jsx-a11y` e `import` usados pelo `eslint-config-next` só aceitam até a 9.
+- **`vite-tsconfig-paths` removido**: o Vite 8 resolve os aliases do `tsconfig` nativamente (`resolve.tsconfigPaths`).
+- **shadcn 4 usa o pacote `cn`** (do mesmo autor, `shadcn-ui/cn`) no lugar de `clsx` + `tailwind-merge`, além de `radix-ui` e do próprio `shadcn` como devDependency (o CSS importa `shadcn/tailwind.css`). O componente `button` foi adicionado porque o botão de tema e as páginas de erro usam.
+- **Cache Components e Partial Prefetching ligados**: são o padrão do `create-next-app` 16 e a recomendação da documentação. Consequência para as próximas features: leitura de dados sem cache precisa ficar dentro de `<Suspense>` (ou de uma rota com `loading.tsx`), senão o dev overlay acusa "blocking route".
+- **`typecheck` roda `next typegen` antes do `tsc`**, porque os tipos globais `LayoutProps`/`PageProps` são gerados pelo Next.
+- **`postinstall: prisma generate`**: o cliente gerado em `src/generated/prisma` fica fora do git e é recriado a cada `npm install`.
+- **`allowScripts`** no `package.json` liberando os scripts de instalação de `prisma`, `@prisma/engines` e `esbuild` (o npm 11 bloqueia por padrão).
+- **Config do Vitest em `vitest.config.mts`** (ESM), para evitar o aviso do carregador do Vite.
+- **`src/test/integration-setup.ts`**: trava que impede os testes de integração de rodarem num banco cujo nome não termine em `_test`.
+- **Teste de integração** verifica `current_database()` em vez de `SELECT 1`, o que já prova a conexão e o banco certo.
+- **Playwright usa a porta 3100**, para não colidir com o `npm run dev`.
+- **Senha do Postgres** gerada aleatoriamente no `.env`/`.env.test` locais; o `docker-compose.yml` lê do `.env`.
+- **Zod** ainda não instalado: entra na etapa 1, junto com o primeiro schema.
+- **`npm audit`**: 12 avisos (baixo/moderado), todos em ferramentas de desenvolvimento (`shadcn` CLI e `typescript-eslint`, via `minimatch`/`deepmerge`); nada no código que roda no app. Não usei `npm audit fix --force`, que faria downgrade de pacotes.
 
 ## Decisões
 

@@ -16,9 +16,11 @@ O dono do projeto vem de Python/Django e está aprendendo Next.js e TypeScript. 
 - ESLint + Prettier
 - `next-themes` (tema claro/escuro) e `@axe-core/playwright` (verificação de acessibilidade nos e2e)
 
-Dependências de suporte já aprovadas: `@prisma/adapter-pg`, `pg`, `@types/pg`, `dotenv`, `tsx`, `vite`, `vite-tsconfig-paths`, `eslint-config-prettier` e as que o `shadcn` instala (`clsx`, `tailwind-merge`, `class-variance-authority`, `lucide-react`, `tw-animate-css`, primitivas Radix).
+Dependências de suporte já aprovadas: `@prisma/adapter-pg`, `pg`, `@types/pg`, `dotenv`, `tsx`, `vite`, `eslint-config-prettier` e as que o `shadcn` instala (`cn`, `class-variance-authority`, `lucide-react`, `tw-animate-css`, `radix-ui`, o próprio `shadcn` como devDependency por causa do `shadcn/tailwind.css`).
 
-Versões fixadas por incompatibilidade (revisar periodicamente): TypeScript 6.0 (o `typescript-eslint` ainda não aceita a 7) e Prisma 7.10 (a tag `latest` da CLI apontava para uma RC).
+Versões fixadas por incompatibilidade (revisar periodicamente): TypeScript 6.0 (o `typescript-eslint` ainda não aceita a 7), ESLint 9 (os plugins `react`, `jsx-a11y` e `import` do `eslint-config-next` ainda não aceitam a 10) e Prisma 7.10 (a tag `latest` da CLI apontava para uma RC).
+
+Scripts de instalação liberados no npm (`allowScripts` no `package.json`): `prisma`, `@prisma/engines` e `esbuild`. Ao atualizar um deles, o npm pede nova aprovação.
 
 Use as versões estáveis atuais no momento do scaffold e consulte a documentação da versão instalada antes de usar uma API do framework: não confie na memória para Next.js, Prisma ou shadcn/ui, porque mudam com frequência.
 
@@ -33,7 +35,8 @@ Estes scripts devem existir no `package.json` desde o scaffold:
 | `docker compose up -d`   | Sobe o PostgreSQL                  |
 | `npm run dev`            | Servidor de desenvolvimento        |
 | `npm run lint`           | ESLint                             |
-| `npm run typecheck`      | `tsc --noEmit`                     |
+| `npm run typecheck`      | `next typegen` + `tsc --noEmit`    |
+| `npm run format`         | Prettier                           |
 | `npm test`               | Vitest                             |
 | `npm run test:e2e`       | Playwright                         |
 | `npx prisma migrate dev` | Cria e aplica migration            |
