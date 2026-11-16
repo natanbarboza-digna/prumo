@@ -9,3 +9,28 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// Conventions: UUID v7 ids (unique and sortable by creation time) and
+// snake_case names in the database via @map/@@map, camelCase in TypeScript.
+
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  DONE
+  ARCHIVED
+
+  @@map("goal_status")
+}
+
+model Goal {
+  id          String     @id @default(uuid(7)) @db.Uuid
+  title       String     @db.VarChar(120)
+  description String?
+  status      GoalStatus @default(NOT_STARTED)
+  targetDate  DateTime?  @map("target_date") @db.Date
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("goals")
+}
