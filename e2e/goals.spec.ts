@@ -1,43 +1,15 @@
-import AxeBuilder from "@axe-core/playwright";
-import { type Page, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import { readTestDatabaseUrl, resetTestDatabase } from "../src/test/test-database";
+import {
+  combobox,
+  createGoal,
+  createTrack,
+  expectNoAxeViolations,
+  resetDatabase,
+  textbox,
+} from "./helpers";
 
-// Form fields are located with getByRole, which skips the hidden copies of
-// pages that Next keeps in the DOM for back navigation.
-// These tests share one database, so they run one after another in this file
-// and each starts from an empty database.
-test.describe.configure({ mode: "default" });
-
-test.beforeEach(async () => {
-  await resetTestDatabase(readTestDatabaseUrl());
-});
-
-type NewGoal = { title: string; description?: string; status?: string; targetDate?: string };
-
-async function createGoal(page: Page, goal: NewGoal) {
-  await page.goto("/goals/new");
-  await page.getByRole("textbox", { name: "Título", exact: true }).fill(goal.title);
-  if (goal.description)
-    await page
-      .getByRole("textbox", { name: "Descrição (opcional)", exact: true })
-      .fill(goal.description);
-  if (goal.status)
-    await page
-      .getByRole("combobox", { name: "Status", exact: true })
-      .selectOption({ label: goal.status });
-  if (goal.targetDate)
-    await page
-      .getByRole("textbox", { name: "Data-alvo (opcional)", exact: true })
-      .fill(goal.targetDate);
-  await page.getByRole("button", { name: "Criar objetivo" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: goal.title })).toBeVisible();
-}
-
-async function expectNoAxeViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).analyze();
-  expect(results.violations).toEqual([]);
-}
+test.beforeEach(resetDatabase);
 
 test("lista vazia convida a criar o primeiro objetivo", async ({ page }) => {
   await page.goto("/goals");
@@ -65,7 +37,7 @@ test("cria um objetivo e o mostra no detalhe e na lista", async ({ page }) => {
 
   // Coming back to the form after saving starts with empty fields.
   await page.getByRole("link", { name: "Novo objetivo" }).click();
-  await expect(page.getByRole("textbox", { name: "Título", exact: true })).toHaveValue("");
+  await expect(textbox(page, "Título")).toHaveValue("");
 });
 
 test("formulário sem título mostra o erro no campo", async ({ page }) => {
@@ -73,7 +45,7 @@ test("formulário sem título mostra o erro no campo", async ({ page }) => {
 
   await page.getByRole("button", { name: "Criar objetivo" }).click();
 
-  const title = page.getByRole("textbox", { name: "Título", exact: true });
+  const title = textbox(page, "Título");
   await expect(title).toHaveAccessibleName("Título");
   await expect(title).toBeFocused();
   await expect(title).toHaveAttribute("aria-invalid", "true");
@@ -85,9 +57,7 @@ test("arquivar tira o objetivo da lista padrão", async ({ page }) => {
   await createGoal(page, { title: "Correr 10 km" });
 
   await page.getByRole("link", { name: "Editar" }).click();
-  await page
-    .getByRole("combobox", { name: "Status", exact: true })
-    .selectOption({ label: "Arquivado" });
+  await combobox(page, "Status").selectOption({ label: "Arquivado" });
   await page.getByRole("button", { name: "Salvar alterações" }).click();
   await expect(page.getByRole("article").getByText("Arquivado")).toBeVisible();
 
@@ -144,4 +114,29 @@ test("lista, formulário e detalhe passam no axe", async ({ page }) => {
   await page.goto("/goals/new");
   await expect(page.getByRole("heading", { level: 1, name: "Novo objetivo" })).toBeVisible();
   await expectNoAxeViolations(page);
+});
+
+test("detalhe do objetivo mostra as trilhas vinculadas e o progresso agregado", async ({
+  page,
+}) => {
+  await createGoal(page, { title: "Virar especialista" });
+  await expect(page.getByText("Nenhuma trilha vinculada a este objetivo.")).toBeVisible();
+
+  // The goal page links to a new track with this goal preselected.
+  await page.getByRole("link", { name: "Criar trilha" }).click();
+  await expect(combobox(page, "Objetivo (opcional)")).toHaveValue(/.+/);
+  await textbox(page, "Título").fill("Arquitetura");
+  await page.getByRole("button", { name: "Criar trilha" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Arquitetura" })).toBeVisible();
+
+  await createTrack(page, { title: "Outra trilha" });
+
+  await page.goto("/tracks");
+  await page.getByRole("link", { name: "Arquitetura" }).click();
+  await page.getByRole("link", { name: "Virar especialista" }).click();
+
+  const tracks = page.getByRole("region", { name: "Trilhas" });
+  await expect(tracks.getByRole("link", { name: "Arquitetura" })).toBeVisible();
+  await expect(tracks.getByRole("link", { name: "Outra trilha" })).toHaveCount(0);
+  await expect(tracks.getByText("Nenhuma etapa ainda").first()).toBeVisible();
 });
