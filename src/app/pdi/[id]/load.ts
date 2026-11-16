@@ -6,6 +6,7 @@ import {
   PdiCheckInNotFoundError,
   PdiCycleNotFoundError,
   getAction,
+  getActionDetail,
   getArea,
   getCheckIn,
   getCycle,
@@ -29,6 +30,19 @@ export async function loadArea(cycleId: string, areaId: string) {
 
 export async function loadAction(cycleId: string, actionId: string) {
   return inCycle(cycleId, () => getAction(actionId), PdiActionNotFoundError);
+}
+
+/** The action with its routines and logs (the action page). */
+export async function loadActionDetail(cycleId: string, actionId: string, today: string) {
+  const detail = await inCycle(
+    cycleId,
+    async () => {
+      const value = await getActionDetail(actionId, today);
+      return { ...value, cycleId: value.action.cycleId };
+    },
+    PdiActionNotFoundError,
+  );
+  return detail;
 }
 
 export async function loadCheckIn(cycleId: string, checkInId: string) {

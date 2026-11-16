@@ -130,7 +130,7 @@ export async function addArea(page: Page, cycleTitle: string, name: string): Pro
   await expect(page.getByRole("heading", { level: 1, name: cycleTitle })).toBeVisible();
 }
 
-type NewAction = { title: string; category: string; goal?: string };
+type NewAction = { title: string; category: string; goal?: string; dueDate?: string };
 
 /** From a cycle page, adds an action to an area and waits back on that page. */
 export async function addAction(
@@ -143,6 +143,7 @@ export async function addAction(
   await expect(page.getByRole("heading", { level: 1, name: "Nova ação" })).toBeVisible();
   await textbox(page, "Título").fill(action.title);
   await combobox(page, "Categoria").selectOption({ label: action.category });
+  if (action.dueDate) await textbox(page, "Prazo (opcional)").fill(action.dueDate);
   if (action.goal) await combobox(page, "Objetivo (opcional)").selectOption({ label: action.goal });
   await page.getByRole("button", { name: "Adicionar ação" }).click();
   await expect(page.getByRole("heading", { level: 1, name: cycleTitle })).toBeVisible();

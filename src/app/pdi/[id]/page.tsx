@@ -16,7 +16,7 @@ import {
   deleteCycleAction,
   reopenCycleAction,
 } from "@/modules/pdi/actions";
-import { getActiveCycleId } from "@/modules/pdi/service";
+import { getActiveCycleId, getRoutineEvidenceByAction } from "@/modules/pdi/service";
 
 import { loadCycle } from "./load";
 
@@ -32,8 +32,11 @@ function Text({ value, empty }: { value: string | null; empty: string }) {
 
 export default async function CyclePage({ params }: PageProps<"/pdi/[id]">) {
   const cycle = await loadCycle((await params).id);
-  const activeCycleId = await getActiveCycleId();
   const today = todayInAppTimeZone();
+  const [activeCycleId, evidence] = await Promise.all([
+    getActiveCycleId(),
+    getRoutineEvidenceByAction(cycle.id, today),
+  ]);
   const editable = cycle.status !== "CLOSED";
 
   return (
@@ -170,6 +173,7 @@ export default async function CyclePage({ params }: PageProps<"/pdi/[id]">) {
                     today={today}
                     editable={editable}
                     headingLevel="h4"
+                    evidence={evidence}
                   />
                 )}
               </li>

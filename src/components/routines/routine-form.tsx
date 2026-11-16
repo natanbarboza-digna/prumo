@@ -32,6 +32,8 @@ type RoutineFormProps = {
   ) => Promise<FormState<RoutineFormValues>>;
   goals: GoalOption[];
   defaultValues: RoutineFormValues;
+  /** Creating from a PDI action: sent along, never edited in the form. */
+  pdiActionId?: string;
   submitLabel: string;
   cancelHref: string;
 };
@@ -40,6 +42,7 @@ export function RoutineForm({
   action,
   goals,
   defaultValues,
+  pdiActionId,
   submitLabel,
   cancelHref,
 }: RoutineFormProps) {
@@ -56,6 +59,7 @@ export function RoutineForm({
   return (
     <form {...form.formProps} className="space-y-6">
       <FormErrorMessage message={form.formError} />
+      {pdiActionId && <input type="hidden" name="pdiActionId" value={pdiActionId} />}
       <FieldGroup>
         <Field data-invalid={!!errors.title}>
           <FieldLabel htmlFor={id("title")}>Título</FieldLabel>

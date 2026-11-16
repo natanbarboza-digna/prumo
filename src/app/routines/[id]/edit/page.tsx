@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { PdiLinkNotice } from "@/components/routines/pdi-link-notice";
 import { RoutineForm } from "@/components/routines/routine-form";
 import { goalOptions } from "@/modules/goals/options";
 import { updateRoutineAction } from "@/modules/routines/actions";
@@ -15,6 +16,7 @@ export default async function EditRoutinePage({ params }: PageProps<"/routines/[
   return (
     <div className="max-w-2xl space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">Editar rotina</h1>
+      {routine.pdiAction && <PdiLinkNotice action={routine.pdiAction} />}
       <RoutineForm
         action={updateRoutineAction.bind(null, routine.id)}
         goals={goals}

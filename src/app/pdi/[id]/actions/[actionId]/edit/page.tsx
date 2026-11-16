@@ -4,7 +4,9 @@ import { ActionForm } from "@/components/pdi/action-form";
 import { ClosedCycleNotice } from "@/components/pdi/closed-cycle-notice";
 import { categoryOptions } from "@/modules/categories/options";
 import { goalOptions } from "@/modules/goals/options";
+import { todayInAppTimeZone } from "@/lib/dates";
 import { updateActionAction } from "@/modules/pdi/actions";
+import { listRoutinesInEffect } from "@/modules/pdi/service";
 
 import { loadAction, loadCycle } from "../../../load";
 
@@ -19,9 +21,10 @@ export default async function EditActionPage({
     return <ClosedCycleNotice cycleId={cycle.id} heading="Editar ação" />;
   }
 
-  const [categories, goals] = await Promise.all([
+  const [categories, goals, routinesInEffect] = await Promise.all([
     categoryOptions(action.category.id),
     goalOptions(action.goal),
+    listRoutinesInEffect(action.id, todayInAppTimeZone()),
   ]);
 
   return (
@@ -44,6 +47,7 @@ export default async function EditActionPage({
           managerComment: action.managerComment ?? "",
           goalId: action.goal?.id ?? "",
         }}
+        routinesInEffect={routinesInEffect}
         submitLabel="Salvar alterações"
         cancelHref={`/pdi/${cycle.id}`}
       />
