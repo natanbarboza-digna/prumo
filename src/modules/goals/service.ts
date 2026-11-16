@@ -77,19 +77,53 @@ export type GoalProgress = Progress & { steps: Progress; actions: Progress };
  * have no "done", so they show adherence on the goal page instead.
  */
 export async function getGoalProgress(goalId: string): Promise<GoalProgress> {
-  const linkedSteps = { track: { goalId } };
-  const linkedActions = { goalId, status: { not: "CANCELLED" as const } };
-  const [stepsTotal, stepsDone, actionsTotal, actionsDone] = await Promise.all([
-    db.trackStep.count({ where: linkedSteps }),
-    db.trackStep.count({ where: { ...linkedSteps, status: "DONE" } }),
-    db.pdiAction.count({ where: linkedActions }),
-    db.pdiAction.count({ where: { goalId, status: "DONE" } }),
+  const progress = await getGoalsProgress([goalId]);
+  return progress.get(goalId) ?? toGoalProgress({ done: 0, total: 0 }, { done: 0, total: 0 });
+}
+
+/**
+ * The same as getGoalProgress for several goals at once, with two queries in
+ * total instead of a few per goal (the dashboard lists many goals).
+ */
+export async function getGoalsProgress(
+  goalIds: readonly string[],
+): Promise<Map<string, GoalProgress>> {
+  if (goalIds.length === 0) return new Map();
+  const ids = [...goalIds];
+  const [steps, actions] = await Promise.all([
+    db.trackStep.findMany({
+      where: { track: { goalId: { in: ids } } },
+      select: { status: true, track: { select: { goalId: true } } },
+    }),
+    db.pdiAction.findMany({
+      where: { goalId: { in: ids }, status: { not: "CANCELLED" } },
+      select: { status: true, goalId: true },
+    }),
   ]);
+
+  const count = (items: { goalId: string | null; done: boolean }[], goalId: string): Progress => {
+    const mine = items.filter((item) => item.goalId === goalId);
+    return { done: mine.filter((item) => item.done).length, total: mine.length };
+  };
+  const stepItems = steps.map((step) => ({
+    goalId: step.track.goalId,
+    done: step.status === "DONE",
+  }));
+  const actionItems = actions.map((action) => ({
+    goalId: action.goalId,
+    done: action.status === "DONE",
+  }));
+  return new Map(
+    ids.map((id) => [id, toGoalProgress(count(stepItems, id), count(actionItems, id))]),
+  );
+}
+
+function toGoalProgress(steps: Progress, actions: Progress): GoalProgress {
   return {
-    done: stepsDone + actionsDone,
-    total: stepsTotal + actionsTotal,
-    steps: { done: stepsDone, total: stepsTotal },
-    actions: { done: actionsDone, total: actionsTotal },
+    done: steps.done + actions.done,
+    total: steps.total + actions.total,
+    steps,
+    actions,
   };
 }
 

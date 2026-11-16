@@ -30,9 +30,11 @@ import {
   getAction,
   getActionDetail,
   getCycle,
+  getLastCheckInDate,
   getRoutineEvidenceByAction,
   listActionsForGoal,
   listCycles,
+  listOpenActionsWithDueDate,
   listRoutinesInEffect,
   reopenCycle,
   updateAction,
@@ -641,5 +643,60 @@ describe("finishing an action with linked routines", () => {
     await deleteAction(fixture.action.id);
 
     expect((await getRoutine(routine.id)).pdiAction).toBeNull();
+  });
+});
+
+describe("dashboard queries", () => {
+  it("lists open actions with a due date from cycles that are not closed", async () => {
+    const { cycle, area, category: cat } = await setup({ title: "Atual" });
+    const categoryId = cat.id;
+    const add = (title: string, overrides: Partial<ActionInput> = {}) =>
+      createAction(cycle.id, actionInput(area.id, categoryId, { title, ...overrides }));
+    const open = await add("Aberta", { dueDate: "2026-11-20" });
+    const started = await add("Começada", { dueDate: "2026-11-10", status: "IN_PROGRESS" });
+    await add("Sem prazo", { dueDate: null });
+    await add("Concluída", { dueDate: "2026-11-10", status: "DONE" });
+    await add("Cancelada", { dueDate: "2026-11-10", status: "CANCELLED" });
+    const closed = await createCycle(cycleInput({ title: "Antigo" }));
+    const closedArea = await createArea(closed.id, areaInput());
+    await createAction(
+      closed.id,
+      actionInput(closedArea.id, categoryId, {
+        title: "Do ciclo encerrado",
+        dueDate: "2026-11-01",
+      }),
+    );
+    await closeCycle(closed.id);
+
+    const actions = await listOpenActionsWithDueDate();
+
+    expect(actions).toHaveLength(2);
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        {
+          id: open.id,
+          title: "Aberta",
+          dueDate: "2026-11-20",
+          cycle: { id: cycle.id, title: "Atual" },
+        },
+        {
+          id: started.id,
+          title: "Começada",
+          dueDate: "2026-11-10",
+          cycle: { id: cycle.id, title: "Atual" },
+        },
+      ]),
+    );
+  });
+
+  it("gives the date of the cycle's latest check-in, or null", async () => {
+    const { cycle } = await setup();
+    await expect(getLastCheckInDate(cycle.id)).resolves.toBeNull();
+
+    await createCheckIn(cycle.id, checkInInput("2026-03-01"));
+    await createCheckIn(cycle.id, checkInInput("2026-05-10"));
+    await createCheckIn(cycle.id, checkInInput("2026-04-02"));
+
+    await expect(getLastCheckInDate(cycle.id)).resolves.toBe("2026-05-10");
   });
 });

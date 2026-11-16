@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   addDays,
+  daysBetween,
   eachDay,
   formatDateForDisplay,
   formatLongDate,
@@ -102,5 +103,17 @@ describe("eachDay", () => {
 describe("formatLongDate", () => {
   it("writes the weekday and the date in pt-BR", () => {
     expect(formatLongDate("2026-11-16")).toBe("segunda-feira, 16 de novembro");
+  });
+});
+
+describe("daysBetween", () => {
+  it("counts the days from one date to another", () => {
+    expect(daysBetween("2026-11-16", "2026-11-16")).toBe(0);
+    expect(daysBetween("2026-11-16", "2026-11-30")).toBe(14);
+    expect(daysBetween("2026-12-31", "2027-01-01")).toBe(1);
+  });
+
+  it("is negative when the second date comes first", () => {
+    expect(daysBetween("2026-11-16", "2026-11-02")).toBe(-14);
   });
 });

@@ -41,6 +41,14 @@ export type TrackSummary = {
 
 export type TrackDetail = TrackSummary & { steps: TrackStep[] };
 
+/** A step not done yet that has a due date, with its track (for the dashboard). */
+export type OpenStep = {
+  id: string;
+  title: string;
+  dueDate: string;
+  track: { id: string; title: string };
+};
+
 export class TrackNotFoundError extends Error {
   constructor(id: string) {
     super(`Track not found: ${id}`);
@@ -220,6 +228,18 @@ export async function deleteStep(id: string): Promise<void> {
       UPDATE track_steps SET position = -position - 1
       WHERE track_id = ${step.trackId}::uuid AND position < 0`;
   });
+}
+
+export async function listOpenStepsWithDueDate(): Promise<OpenStep[]> {
+  const rows = await db.trackStep.findMany({
+    where: { status: { not: "DONE" }, dueDate: { not: null } },
+    select: { id: true, title: true, dueDate: true, track: { select: { id: true, title: true } } },
+  });
+  return rows.flatMap((row) =>
+    row.dueDate === null
+      ? []
+      : [{ id: row.id, title: row.title, dueDate: formatDateOnly(row.dueDate), track: row.track }],
+  );
 }
 
 async function withStepNotFound<T>(id: string, operation: () => Promise<T>): Promise<T> {

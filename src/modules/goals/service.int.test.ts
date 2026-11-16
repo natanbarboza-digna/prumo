@@ -8,6 +8,7 @@ import {
   deleteGoal,
   getGoal,
   getGoalProgress,
+  getGoalsProgress,
   listGoals,
   updateGoal,
 } from "@/modules/goals/service";
@@ -200,5 +201,57 @@ describe("deleteGoal", () => {
 
   it("throws GoalNotFoundError for a missing goal", async () => {
     await expect(deleteGoal(MISSING_ID)).rejects.toBeInstanceOf(GoalNotFoundError);
+  });
+});
+
+describe("getGoalsProgress", () => {
+  it("gives each goal the same progress as getGoalProgress", async () => {
+    const first = await createGoal(input({ title: "Primeiro" }));
+    const second = await createGoal(input({ title: "Segundo" }));
+    const empty = await createGoal(input({ title: "Vazio" }));
+    const track = await createTrack({ title: "Trilha", description: null, goalId: first.id });
+    const step = await createStep(track.id, {
+      title: "Etapa",
+      status: "NOT_STARTED",
+      dueDate: null,
+      resourceUrl: null,
+      notes: null,
+    });
+    await setStepStatus(step.id, "DONE");
+    await createStep(track.id, {
+      title: "Outra",
+      status: "IN_PROGRESS",
+      dueDate: null,
+      resourceUrl: null,
+      notes: null,
+    });
+    const cycle = await db.pdiCycle.create({
+      data: { title: "Ciclo", startDate: new Date("2026-01-01"), endDate: new Date("2026-12-31") },
+    });
+    const area = await db.pdiArea.create({ data: { cycleId: cycle.id, name: "Área" } });
+    const category = await db.actionCategory.create({ data: { name: "Curso" } });
+    for (const [goalId, status] of [
+      [first.id, "DONE"],
+      [second.id, "IN_PROGRESS"],
+      [second.id, "DONE"],
+      [second.id, "CANCELLED"],
+    ] as const) {
+      await db.pdiAction.create({
+        data: { areaId: area.id, categoryId: category.id, title: "Ação", status, goalId },
+      });
+    }
+
+    const progress = await getGoalsProgress([first.id, second.id, empty.id]);
+
+    for (const goal of [first, second, empty]) {
+      expect(progress.get(goal.id)).toEqual(await getGoalProgress(goal.id));
+    }
+    expect(progress.get(first.id)).toMatchObject({ done: 2, total: 3 });
+    expect(progress.get(second.id)).toMatchObject({ done: 1, total: 2 });
+    expect(progress.get(empty.id)).toMatchObject({ done: 0, total: 0 });
+  });
+
+  it("is empty for no goals", async () => {
+    await expect(getGoalsProgress([])).resolves.toEqual(new Map());
   });
 });

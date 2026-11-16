@@ -110,6 +110,14 @@ export type ActionDetail = {
 
 export type RoutineEvidence = { count: number; adherence: Adherence };
 
+/** An open action with a due date, from a cycle that is not closed (for the dashboard). */
+export type OpenAction = {
+  id: string;
+  title: string;
+  dueDate: string;
+  cycle: { id: string; title: string };
+};
+
 export type GoalPdiAction = PdiAction & { cycle: { id: string; title: string }; areaName: string };
 
 class NotFoundError extends Error {
@@ -536,6 +544,34 @@ export async function listActionsForGoal(goalId: string): Promise<GoalPdiAction[
   return rows.map((row) => ({ ...toAction(row), cycle: row.area.cycle, areaName: row.area.name }));
 }
 
+export async function listOpenActionsWithDueDate(): Promise<OpenAction[]> {
+  const rows = await db.pdiAction.findMany({
+    where: {
+      status: { in: ["NOT_STARTED", "IN_PROGRESS"] },
+      dueDate: { not: null },
+      area: { cycle: { status: { not: "CLOSED" } } },
+    },
+    select: {
+      id: true,
+      title: true,
+      dueDate: true,
+      area: { select: { cycle: { select: { id: true, title: true } } } },
+    },
+  });
+  return rows.flatMap((row) =>
+    row.dueDate === null
+      ? []
+      : [
+          {
+            id: row.id,
+            title: row.title,
+            dueDate: formatDateOnly(row.dueDate),
+            cycle: row.area.cycle,
+          },
+        ],
+  );
+}
+
 /**
  * The area must be in the action's cycle, the goal must exist and the category
  * must exist and not be archived, unless it is the one the action already had.
@@ -568,6 +604,16 @@ async function assertActionReferences(
 // ---------------------------------------------------------------------------
 // Check-ins
 // ---------------------------------------------------------------------------
+
+/** The date of the cycle's latest check-in, or null when there is none. */
+export async function getLastCheckInDate(cycleId: string): Promise<string | null> {
+  const row = await db.pdiCheckIn.findFirst({
+    where: { cycleId },
+    orderBy: { date: "desc" },
+    select: { date: true },
+  });
+  return row === null ? null : formatDateOnly(row.date);
+}
 
 export async function getCheckIn(id: string): Promise<PdiCheckIn> {
   return toCheckIn(await findCheckIn(id));

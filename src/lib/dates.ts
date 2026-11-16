@@ -64,6 +64,11 @@ export function addDays(value: string, days: number): string {
   return formatDateOnly(new Date(parseDateOnly(value).getTime() + days * DAY_IN_MS));
 }
 
+/** Days from `from` to `to` ("2026-11-16" → "2026-11-30" is 14); negative when `to` comes first. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((parseDateOnly(to).getTime() - parseDateOnly(from).getTime()) / DAY_IN_MS);
+}
+
 /** Every date from `from` to `to`, both included; empty when from > to. */
 export function eachDay(from: string, to: string): string[] {
   const days: string[] = [];

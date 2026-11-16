@@ -11,6 +11,7 @@ import {
   deleteStep,
   deleteTrack,
   getTrack,
+  listOpenStepsWithDueDate,
   listTracks,
   moveStep,
   setStepStatus,
@@ -215,5 +216,39 @@ describe("steps", () => {
     await expect(setStepStatus(id, "DONE")).rejects.toBeInstanceOf(TrackStepNotFoundError);
     await expect(moveStep(id, "up")).rejects.toBeInstanceOf(TrackStepNotFoundError);
     await expect(deleteStep(id)).rejects.toBeInstanceOf(TrackStepNotFoundError);
+  });
+});
+
+describe("listOpenStepsWithDueDate", () => {
+  it("lists the steps not done that have a due date, with their track", async () => {
+    const track = await createTrack(trackInput({ title: "Inglês" }));
+    const open = await createStep(track.id, stepInput({ title: "Aberta", dueDate: "2026-11-20" }));
+    const started = await createStep(
+      track.id,
+      stepInput({ title: "Começada", status: "IN_PROGRESS", dueDate: "2026-11-10" }),
+    );
+    await createStep(track.id, stepInput({ title: "Sem prazo" }));
+    const done = await createStep(track.id, stepInput({ title: "Feita", dueDate: "2026-11-01" }));
+    await setStepStatus(done.id, "DONE");
+
+    const steps = await listOpenStepsWithDueDate();
+
+    expect(steps).toHaveLength(2);
+    expect(steps).toEqual(
+      expect.arrayContaining([
+        {
+          id: open.id,
+          title: "Aberta",
+          dueDate: "2026-11-20",
+          track: { id: track.id, title: "Inglês" },
+        },
+        {
+          id: started.id,
+          title: "Começada",
+          dueDate: "2026-11-10",
+          track: { id: track.id, title: "Inglês" },
+        },
+      ]),
+    );
   });
 });
