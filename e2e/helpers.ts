@@ -3,10 +3,17 @@
 import AxeBuilder from "@axe-core/playwright";
 import { type Page, expect } from "@playwright/test";
 
-import { readTestDatabaseUrl, resetTestDatabase } from "../src/test/test-database";
+import {
+  readTestDatabaseUrl,
+  resetTestDatabase,
+  seedTestDatabase,
+} from "../src/test/test-database";
 
+/** Empties the test database and seeds the default action categories again. */
 export async function resetDatabase(): Promise<void> {
-  await resetTestDatabase(readTestDatabaseUrl());
+  const url = readTestDatabaseUrl();
+  await resetTestDatabase(url);
+  await seedTestDatabase(url);
 }
 
 export async function expectNoAxeViolations(page: Page): Promise<void> {
@@ -95,4 +102,48 @@ export async function createRoutine(page: Page, routine: NewRoutine): Promise<vo
   }
   await page.getByRole("button", { name: "Criar rotina" }).click();
   await expect(page.getByRole("heading", { level: 1, name: routine.title })).toBeVisible();
+}
+
+type NewCycle = {
+  title: string;
+  startDate: string;
+  endDate: string;
+  status?: "Planejado" | "Ativo";
+};
+
+/** Creates a PDI cycle through the form and waits on its detail page. */
+export async function createCycle(page: Page, cycle: NewCycle): Promise<void> {
+  await page.goto("/pdi/new");
+  await textbox(page, "Título").fill(cycle.title);
+  await textbox(page, "Início").fill(cycle.startDate);
+  await textbox(page, "Fim").fill(cycle.endDate);
+  if (cycle.status) await combobox(page, "Status").selectOption({ label: cycle.status });
+  await page.getByRole("button", { name: "Criar ciclo" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: cycle.title })).toBeVisible();
+}
+
+/** From a cycle page, adds an area and waits back on that page. */
+export async function addArea(page: Page, cycleTitle: string, name: string): Promise<void> {
+  await page.getByRole("link", { name: "Adicionar área" }).click();
+  await textbox(page, "Nome da área ou competência").fill(name);
+  await page.getByRole("button", { name: "Adicionar área" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: cycleTitle })).toBeVisible();
+}
+
+type NewAction = { title: string; category: string; goal?: string };
+
+/** From a cycle page, adds an action to an area and waits back on that page. */
+export async function addAction(
+  page: Page,
+  cycleTitle: string,
+  area: string,
+  action: NewAction,
+): Promise<void> {
+  await page.getByRole("link", { name: `Adicionar ação em ${area}` }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Nova ação" })).toBeVisible();
+  await textbox(page, "Título").fill(action.title);
+  await combobox(page, "Categoria").selectOption({ label: action.category });
+  if (action.goal) await combobox(page, "Objetivo (opcional)").selectOption({ label: action.goal });
+  await page.getByRole("button", { name: "Adicionar ação" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: cycleTitle })).toBeVisible();
 }

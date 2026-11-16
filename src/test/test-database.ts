@@ -5,6 +5,9 @@ import { execSync } from "node:child_process";
 import { config as loadEnv } from "dotenv";
 import { Client } from "pg";
 
+// Relative import: this file also runs in Playwright's process.
+import { DEFAULT_CATEGORIES } from "../modules/categories/defaults";
+
 /** Reads DATABASE_URL from .env.test and refuses anything not named *_test. */
 export function readTestDatabaseUrl(): string {
   const env: Record<string, string> = {};
@@ -48,6 +51,30 @@ export async function resetTestDatabase(url: string): Promise<void> {
     // with double quotes keeps any name valid as an SQL identifier.
     const tables = rows.map(({ tablename }) => `"${tablename.replaceAll('"', '""')}"`).join(", ");
     await client.query(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE`);
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * Creates the default action categories (the same list `npx prisma db seed`
+ * uses). Plain SQL instead of the Prisma client: the generated client is an ES
+ * module, which Playwright's CommonJS loader cannot import. Postgres 18's
+ * uuidv7() matches the ids Prisma would generate.
+ */
+export async function seedTestDatabase(url: string): Promise<void> {
+  assertTestDatabase(url);
+  const client = new Client({ connectionString: url });
+  await client.connect();
+  try {
+    for (const category of DEFAULT_CATEGORIES) {
+      await client.query(
+        `INSERT INTO action_categories (id, name, allows_routine, archived, created_at, updated_at)
+         VALUES (uuidv7(), $1, $2, false, now(), now())
+         ON CONFLICT (name) DO NOTHING`,
+        [category.name, category.allowsRoutine],
+      );
+    }
   } finally {
     await client.end();
   }
