@@ -1,6 +1,6 @@
 # 001 — Objetivos (CRUD)
 
-Status: **aprovado em 2026-11-16** (merge do scaffold na `main`, exclusão definitiva com confirmação, UUID v7 + snake_case e limites de campos aprovados)
+Status: **implementado em 2026-11-16**, aprovado no mesmo dia (merge do scaffold na `main`, exclusão definitiva com confirmação, UUID v7 + snake_case e limites de campos aprovados)
 Branch: `feat/goals-crud`
 
 ## Objetivo
@@ -167,9 +167,28 @@ CLAUDE.md                                    (convenções de ID/snake_case e no
 - Migration `add_goals` incluída.
 - Este plano atualizado se o escopo mudar durante a implementação.
 
-## Perguntas em aberto
+## Mudanças durante a implementação
 
-1. **Branch base.** O CLAUDE.md manda criar a branch a partir da `main`, mas o scaffold ainda está só na `chore/scaffold`. Você prefere **fazer o merge da `chore/scaffold` na `main`** antes (recomendo, e só faço com seu pedido) ou que eu crie a `feat/goals-crud` a partir da `chore/scaffold`?
-2. **Excluir ou só arquivar?** Proponho permitir exclusão definitiva, com confirmação, porque nada se vincula a objetivos ainda. Na etapa 2, quando as trilhas puderem apontar para um objetivo, excluir desfaz o vínculo (`goalId` vira `null`) em vez de apagar os itens. A alternativa é só permitir arquivar.
-3. **Convenções de banco.** Você aprova UUID v7 e snake_case no banco para todos os modelos?
-4. **Campos.** Os campos e limites (título até 120 e descrição até 2000 caracteres) servem para você?
+- **Enum no banco em snake_case** (`goal_status`, via `@@map`), seguindo a mesma convenção das tabelas.
+- **Componentes de objetivo em `src/components/goals/`** (`goal-form`, `goal-list`, `goal-filter`, `goal-status-badge`, `delete-goal-button`) em vez de soltos em `src/components/`.
+- **shadcn:** usei `field` (label + erro) e `native-select` no lugar de `label` + `select`. O `<select>` nativo funciona sem JavaScript e é acessível por padrão. O `field` trouxe `label` e `separator` como dependências.
+- **`goalStatusFilterSchema`** em `schemas.ts` (com testes): `?status=` inválido vira "sem filtro".
+- **`src/app/goals/[id]/load-goal.ts`**: converte `GoalNotFoundError` em `notFound()` para o detalhe e a edição.
+- **`src/app/goals/[id]/edit/loading.tsx`**: ao navegar do detalhe para a edição, o segmento `[id]` é reaproveitado, então o `loading.tsx` dele não cobre a página filha e o Next acusava leitura fora de Suspense.
+- **`MainNav` com `<Suspense>`**: ler `usePathname()` fora de Suspense é acusado pelo Next 16. O fallback é o mesmo menu sem destaque.
+- **Activity (páginas visitadas ficam escondidas no DOM):** com Cache Components, o Next esconde as últimas 3 rotas com `display: none` em vez de desmontá-las. Consequências tratadas:
+  - O formulário usa `useId` para os `id`s dos campos. Antes, o formulário escondido e o visível tinham `id`s iguais e o nome acessível saía duplicado ("Título Título").
+  - O formulário é limpo quando escondido após um envio válido, e o diálogo de exclusão é fechado quando a página é escondida.
+  - Nos e2e, campos são localizados com `getByRole`, que ignora elementos escondidos (`getByLabel` não ignora).
+- **`src/lib/db.ts`** não exige `DATABASE_URL` sob `NODE_ENV=test`, para os testes unitários poderem importar `service.ts` (o cliente só conecta na primeira consulta). Os testes de integração continuam com a trava de `_test`.
+- **Helpers de banco de teste** concentrados em `src/test/test-database.ts` (ler `.env.test`, migrar, limpar), usados pelo Vitest e pelo Playwright. O Playwright sempre sobe um servidor novo (`reuseExistingServer: false`) para garantir o banco de teste.
+- **Timeouts do Playwright** maiores (60 s por teste, 15 s por expectativa), porque o `next dev` compila cada rota na primeira visita.
+- **E2E extra:** depois de salvar, voltar a "Novo objetivo" mostra o formulário vazio.
+- **Testes de integração determinísticos:** ordem por `createdAt` e checagem de `updatedAt` fixam as datas via SQL, para não depender de duas gravações caírem em milissegundos diferentes.
+
+## Decisões
+
+1. Merge da `chore/scaffold` na `main` (fast-forward) e `feat/goals-crud` criada a partir dela.
+2. Exclusão definitiva permitida, com confirmação. Na etapa 2, excluir um objetivo desfaz o vínculo dos itens (`goalId` → `null`).
+3. UUID v7 e snake_case no banco para todos os modelos.
+4. Título até 120 e descrição até 2000 caracteres.

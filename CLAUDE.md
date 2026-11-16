@@ -121,6 +121,8 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 - Toda entrada de usuário é validada com Zod no servidor, mesmo que o formulário já valide.
 - Sem `any` e sem `@ts-ignore`; se for inevitável, comente o motivo.
 - Segredos só em `.env` (fora do git); mantenha `.env.example` atualizado.
+- **Banco:** IDs em UUID v7 (`@default(uuid(7)) @db.Uuid`); nomes de tabelas, colunas e enums em snake_case no banco (`@@map`/`@map`), camelCase no TypeScript. Datas sem hora são colunas `@db.Date` e circulam na aplicação como string `AAAA-MM-DD` (conversão em `src/lib/dates.ts`, feita no service).
+- **Testes de banco:** `npm test` (integração) e `npm run test:e2e` usam o mesmo banco `_test` e limpam os dados; não rode os dois ao mesmo tempo. Helpers em `src/test/test-database.ts`.
 
 ### Front-end
 
@@ -129,7 +131,8 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 - **Formulários:** mesmo schema Zod no cliente e no servidor; erros do servidor por campo via `useActionState`; botão desabilitado com indicação durante o envio; confirmação antes de ação destrutiva.
 - **Desempenho:** Server Components por padrão, `"use client"` no menor componente possível; `next/font` e `next/image`; nada de buscar dados no cliente quando o servidor pode entregar pronto.
 - **Responsivo e consistente:** mobile-first; cores, espaçamentos e raios só pelos tokens do tema (Tailwind/shadcn), sem valores arbitrários soltos. Tema claro/escuro via `next-themes`.
-- **Testes:** no Playwright, localize por papel e nome acessível (`getByRole`); cada página principal passa na verificação do axe.
+- **Testes:** no Playwright, localize por papel e nome acessível (`getByRole`); cada página principal passa na verificação do axe (espere o `h1` antes, para não analisar o "Carregando…").
+- **Cache Components / Activity (Next 16):** leitura de `params`, `searchParams`, `usePathname()` ou do banco precisa estar dentro de `<Suspense>` ou de uma rota com `loading.tsx` (inclusive rotas filhas, como `[id]/edit`). O Next mantém as últimas páginas visitadas escondidas no DOM: use `useId` para `id`s de campos, feche diálogos e limpe formulários já enviados num cleanup de `useLayoutEffect`, e nunca use `getByLabel` nos e2e (ele acha elementos escondidos).
 
 ## Roteiro
 
