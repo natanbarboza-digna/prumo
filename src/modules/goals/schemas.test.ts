@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { goalInputSchema } from "@/modules/goals/schemas";
+import { goalInputSchema, goalStatusFilterSchema } from "@/modules/goals/schemas";
+
+describe("goalStatusFilterSchema", () => {
+  it("accepts a known status", () => {
+    expect(goalStatusFilterSchema.parse("ARCHIVED")).toBe("ARCHIVED");
+  });
+
+  it.each([undefined, "", "PAUSED", ["DONE", "ARCHIVED"]])("ignores %j", (value) => {
+    expect(goalStatusFilterSchema.parse(value)).toBeUndefined();
+  });
+});
 
 function fieldErrors(input: unknown) {
   const result = goalInputSchema.safeParse(input);

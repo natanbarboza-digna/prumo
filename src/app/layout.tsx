@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 
+import { MainNav } from "@/components/main-nav";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -48,11 +49,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             Pular para o conteúdo
           </a>
           <header className="border-b">
-            <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
+            <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-4 px-4">
               <Link href="/" className="font-semibold">
                 Gestão Pessoal
               </Link>
-              <ThemeToggle />
+              <MainNav />
+              <div className="ml-auto">
+                <ThemeToggle />
+              </div>
             </div>
           </header>
           <main id="conteudo" className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">

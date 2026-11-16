@@ -30,6 +30,9 @@ export const goalInputSchema = z.object({
   }),
 });
 
+/** The `?status=` filter of the goal list: unknown values fall back to "no filter". */
+export const goalStatusFilterSchema = z.enum(GoalStatus).optional().catch(undefined);
+
 /** What the form sends (strings, possibly missing). */
 export type GoalFormValues = z.input<typeof goalInputSchema>;
 
