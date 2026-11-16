@@ -16,6 +16,10 @@ function Progress({
         "relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
         className
       )}
+      // Local fix: pass value to Radix so it sets aria-valuenow (the upstream
+      // component only used it for the bar width, leaving screen readers
+      // without the percentage).
+      value={value}
       {...props}
     >
       <ProgressPrimitive.Indicator
