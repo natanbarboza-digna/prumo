@@ -9,8 +9,10 @@ import { Suspense } from "react";
 import { cn } from "@/lib/utils";
 
 const links = [
+  { href: "/today", label: "Hoje" },
   { href: "/goals", label: "Objetivos" },
   { href: "/tracks", label: "Trilhas" },
+  { href: "/routines", label: "Rotinas" },
 ];
 
 export function MainNav() {
@@ -31,7 +33,7 @@ function ActiveNavLinks() {
 function NavLinks({ pathname }: { pathname: string | null }) {
   return (
     <nav aria-label="Principal">
-      <ul className="flex items-center gap-1">
+      <ul className="flex flex-wrap items-center gap-1">
         {links.map(({ href, label }) => {
           const active =
             pathname !== null && (pathname === href || pathname.startsWith(`${href}/`));

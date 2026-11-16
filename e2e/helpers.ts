@@ -59,3 +59,40 @@ export async function addStep(page: Page, trackTitle: string, step: NewStep): Pr
   await page.getByRole("button", { name: "Adicionar etapa" }).click();
   await expect(page.getByRole("heading", { level: 1, name: trackTitle })).toBeVisible();
 }
+
+type NewRoutine = {
+  title: string;
+  /** Checkbox names ("Segunda-feira"); every day when omitted. */
+  days?: string[];
+  timeOfDay?: string;
+  startDate?: string;
+  endDate?: string;
+  goal?: string;
+};
+
+const ALL_DAYS = [
+  "Segunda-feira",
+  "Terça-feira",
+  "Quarta-feira",
+  "Quinta-feira",
+  "Sexta-feira",
+  "Sábado",
+  "Domingo",
+];
+
+/** Creates a routine through the form and waits on its detail page. */
+export async function createRoutine(page: Page, routine: NewRoutine): Promise<void> {
+  await page.goto("/routines/new");
+  await textbox(page, "Título").fill(routine.title);
+  for (const day of routine.days ?? ALL_DAYS) {
+    await page.getByRole("checkbox", { name: day, exact: true }).check();
+  }
+  if (routine.timeOfDay) await textbox(page, "Horário (opcional)").fill(routine.timeOfDay);
+  if (routine.startDate) await textbox(page, "Início").fill(routine.startDate);
+  if (routine.endDate) await textbox(page, "Fim (opcional)").fill(routine.endDate);
+  if (routine.goal) {
+    await combobox(page, "Objetivo (opcional)").selectOption({ label: routine.goal });
+  }
+  await page.getByRole("button", { name: "Criar rotina" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: routine.title })).toBeVisible();
+}

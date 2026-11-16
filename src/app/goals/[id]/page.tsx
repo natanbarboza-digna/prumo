@@ -3,11 +3,13 @@ import Link from "next/link";
 
 import { DeleteGoalButton } from "@/components/goals/delete-goal-button";
 import { GoalStatusBadge, OverdueBadge } from "@/components/goals/goal-status-badge";
+import { RoutineList } from "@/components/routines/routine-list";
 import { TrackList } from "@/components/tracks/track-list";
 import { TrackProgress } from "@/components/tracks/track-progress";
 import { Button } from "@/components/ui/button";
 import { formatDateForDisplay, todayInAppTimeZone } from "@/lib/dates";
 import { getGoalProgress, isGoalOverdue } from "@/modules/goals/service";
+import { listRoutines } from "@/modules/routines/service";
 import { listTracks } from "@/modules/tracks/service";
 
 import { loadGoal } from "./load-goal";
@@ -16,9 +18,11 @@ export const metadata: Metadata = { title: "Objetivo" };
 
 export default async function GoalPage({ params }: PageProps<"/goals/[id]">) {
   const goal = await loadGoal((await params).id);
-  const [tracks, progress] = await Promise.all([
+  const today = todayInAppTimeZone();
+  const [tracks, progress, routines] = await Promise.all([
     listTracks({ goalId: goal.id }),
     getGoalProgress(goal.id),
+    listRoutines({ goalId: goal.id, today }),
   ]);
 
   return (
@@ -30,7 +34,7 @@ export default async function GoalPage({ params }: PageProps<"/goals/[id]">) {
         <h1 className="text-2xl font-semibold tracking-tight break-words">{goal.title}</h1>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <GoalStatusBadge status={goal.status} />
-          {isGoalOverdue(goal, todayInAppTimeZone()) && <OverdueBadge />}
+          {isGoalOverdue(goal, today) && <OverdueBadge />}
         </div>
       </div>
 
@@ -70,6 +74,24 @@ export default async function GoalPage({ params }: PageProps<"/goals/[id]">) {
             />
             <TrackList tracks={tracks} showGoal={false} headingLevel="h3" />
           </>
+        )}
+      </section>
+
+      {/* Routines repeat and have no "done", so they show adherence instead of
+          counting toward the steps progress above. */}
+      <section aria-labelledby="titulo-rotinas" className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h2 id="titulo-rotinas" className="text-xl font-semibold tracking-tight">
+            Rotinas
+          </h2>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/routines/new?goalId=${goal.id}`}>Criar rotina</Link>
+          </Button>
+        </div>
+        {routines.length === 0 ? (
+          <p className="text-muted-foreground">Nenhuma rotina vinculada a este objetivo.</p>
+        ) : (
+          <RoutineList routines={routines} today={today} showGoal={false} headingLevel="h3" />
         )}
       </section>
     </article>
