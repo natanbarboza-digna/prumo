@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 import { TrackForm } from "@/components/tracks/track-form";
+import { goalOptions } from "@/modules/goals/options";
 import { updateTrackAction } from "@/modules/tracks/actions";
 
-import { goalOptions } from "../../goal-options";
 import { loadTrack } from "../load-track";
 
 export const metadata: Metadata = { title: "Editar trilha" };

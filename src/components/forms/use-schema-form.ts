@@ -29,6 +29,12 @@ type Options<Values extends Record<string, unknown>> = {
   defaultValues: Values;
   /** Field names in screen order, used to focus the first invalid one. */
   fieldOrder: readonly (keyof Values & string)[];
+  /**
+   * Turns the submitted FormData into the values the schema checks. The default
+   * keeps one value per name, so forms with repeated names (a group of
+   * checkboxes) pass their own reader.
+   */
+  readForm?: (formData: FormData) => unknown;
 };
 
 export function useSchemaForm<Values extends Record<string, unknown>>({
@@ -36,6 +42,7 @@ export function useSchemaForm<Values extends Record<string, unknown>>({
   action,
   defaultValues,
   fieldOrder,
+  readForm = (formData) => Object.fromEntries(formData),
 }: Options<Values>) {
   const [state, formAction, pending] = useActionState(action, {});
   const [clientErrors, setClientErrors] = useState<FormState<Values>["errors"] | null>(null);
@@ -57,7 +64,10 @@ export function useSchemaForm<Values extends Record<string, unknown>>({
     fieldErrors: Partial<Record<keyof Values, string[]>>,
   ) => {
     const name = fieldOrder.find((field) => fieldErrors[field]?.length);
-    const element = name ? form?.elements.namedItem(name) : null;
+    if (!name || !form) return;
+    // By id first: a checkbox group gives its first box the field's id, while
+    // its name points at hidden inputs that cannot take focus.
+    const element = form.ownerDocument.getElementById(id(name)) ?? form.elements.namedItem(name);
     if (element instanceof HTMLElement) element.focus();
   };
 
@@ -67,7 +77,7 @@ export function useSchemaForm<Values extends Record<string, unknown>>({
       submitted.current = false;
       focusFirstInvalid(formRef.current, state.errors);
     }
-    // focusFirstInvalid only depends on fieldOrder, which never changes.
+    // focusFirstInvalid only depends on fieldOrder and the ids, which never change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
@@ -85,7 +95,7 @@ export function useSchemaForm<Values extends Record<string, unknown>>({
   }, []);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    const data = Object.fromEntries(new FormData(event.currentTarget));
+    const data = readForm(new FormData(event.currentTarget));
     const result = schema.safeParse(data);
     if (!result.success) {
       // Stop here: the server would reject it anyway, and this is instant.

@@ -7,9 +7,8 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import type { GoalOption } from "@/modules/goals/options";
 import { type TrackFormValues, trackInputSchema } from "@/modules/tracks/schemas";
-
-export type GoalOption = { id: string; title: string };
 
 type TrackFormProps = {
   action: (
