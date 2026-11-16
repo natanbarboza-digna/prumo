@@ -13,6 +13,7 @@ const links = [
   { href: "/goals", label: "Objetivos" },
   { href: "/tracks", label: "Trilhas" },
   { href: "/routines", label: "Rotinas" },
+  { href: "/pdi", label: "PDI" },
 ];
 
 export function MainNav() {

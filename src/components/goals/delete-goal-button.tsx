@@ -8,7 +8,7 @@ export function DeleteGoalButton({ goalId, goalTitle }: { goalId: string; goalTi
       // the server still re-checks it.
       action={deleteGoalAction.bind(null, goalId)}
       title="Excluir objetivo?"
-      description={`“${goalTitle}” será excluído. As trilhas e rotinas vinculadas continuarão existindo, sem vínculo. Essa ação não pode ser desfeita.`}
+      description={`“${goalTitle}” será excluído. As trilhas, rotinas e ações de PDI vinculadas continuarão existindo, sem vínculo. Essa ação não pode ser desfeita.`}
     />
   );
 }

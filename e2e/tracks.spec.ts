@@ -78,10 +78,12 @@ test("concluir etapas atualiza o progresso da trilha e do objetivo", async ({ pa
   await expect(page.getByText("2 de 3 etapas concluídas")).toBeVisible();
 
   await page.getByRole("link", { name: "Dominar testes" }).click();
-  const tracks = page.getByRole("region", { name: "Trilhas" });
+  const progress = page.getByRole("region", { name: "Progresso" });
   await expect(
-    tracks.getByRole("progressbar", { name: "Progresso do objetivo Dominar testes" }),
+    progress.getByRole("progressbar", { name: "Progresso do objetivo Dominar testes" }),
   ).toHaveAttribute("aria-valuenow", "67");
+  await expect(progress.getByText("2 de 3 itens concluídos")).toBeVisible();
+  const tracks = page.getByRole("region", { name: "Trilhas" });
   await expect(tracks.getByText("2 de 3 etapas concluídas").first()).toBeVisible();
 });
 

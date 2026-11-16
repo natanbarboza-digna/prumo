@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { DeleteGoalButton } from "@/components/goals/delete-goal-button";
+import { GoalProgressSummary } from "@/components/goals/goal-progress";
 import { GoalStatusBadge, OverdueBadge } from "@/components/goals/goal-status-badge";
+import { ActionList } from "@/components/pdi/action-list";
 import { RoutineList } from "@/components/routines/routine-list";
 import { TrackList } from "@/components/tracks/track-list";
-import { TrackProgress } from "@/components/tracks/track-progress";
 import { Button } from "@/components/ui/button";
 import { formatDateForDisplay, todayInAppTimeZone } from "@/lib/dates";
 import { getGoalProgress, isGoalOverdue } from "@/modules/goals/service";
+import { listActionsForGoal } from "@/modules/pdi/service";
 import { listRoutines } from "@/modules/routines/service";
 import { listTracks } from "@/modules/tracks/service";
 
@@ -19,10 +21,11 @@ export const metadata: Metadata = { title: "Objetivo" };
 export default async function GoalPage({ params }: PageProps<"/goals/[id]">) {
   const goal = await loadGoal((await params).id);
   const today = todayInAppTimeZone();
-  const [tracks, progress, routines] = await Promise.all([
+  const [tracks, progress, routines, actions] = await Promise.all([
     listTracks({ goalId: goal.id }),
     getGoalProgress(goal.id),
     listRoutines({ goalId: goal.id, today }),
+    listActionsForGoal(goal.id),
   ]);
 
   return (
@@ -54,6 +57,8 @@ export default async function GoalPage({ params }: PageProps<"/goals/[id]">) {
         <DeleteGoalButton goalId={goal.id} goalTitle={goal.title} />
       </div>
 
+      <GoalProgressSummary progress={progress} goalTitle={goal.title} />
+
       <section aria-labelledby="titulo-trilhas" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 id="titulo-trilhas" className="text-xl font-semibold tracking-tight">
@@ -66,19 +71,39 @@ export default async function GoalPage({ params }: PageProps<"/goals/[id]">) {
         {tracks.length === 0 ? (
           <p className="text-muted-foreground">Nenhuma trilha vinculada a este objetivo.</p>
         ) : (
-          <>
-            <TrackProgress
-              done={progress.done}
-              total={progress.total}
-              label={`Progresso do objetivo ${goal.title}`}
-            />
-            <TrackList tracks={tracks} showGoal={false} headingLevel="h3" />
-          </>
+          <TrackList tracks={tracks} showGoal={false} headingLevel="h3" />
+        )}
+      </section>
+
+      <section aria-labelledby="titulo-acoes-pdi" className="space-y-4">
+        <h2 id="titulo-acoes-pdi" className="text-xl font-semibold tracking-tight">
+          Ações de PDI
+        </h2>
+        {actions.length === 0 ? (
+          <p className="text-muted-foreground">
+            Nenhuma ação de PDI vinculada. Vincule pelo formulário da ação, no ciclo de PDI.
+          </p>
+        ) : (
+          <ActionList
+            actions={actions}
+            today={today}
+            editable={false}
+            showGoal={false}
+            headingLevel="h3"
+            context={(action) => (
+              <p className="text-muted-foreground text-sm">
+                <Link href={`/pdi/${action.cycle.id}`} className="underline underline-offset-4">
+                  {action.cycle.title}
+                </Link>{" "}
+                · {action.areaName}
+              </p>
+            )}
+          />
         )}
       </section>
 
       {/* Routines repeat and have no "done", so they show adherence instead of
-          counting toward the steps progress above. */}
+          counting toward the progress above. */}
       <section aria-labelledby="titulo-rotinas" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 id="titulo-rotinas" className="text-xl font-semibold tracking-tight">

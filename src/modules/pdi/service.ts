@@ -238,6 +238,12 @@ export async function closeCycle(id: string): Promise<PdiCycle> {
   return setCycleStatus(id, "CLOSED");
 }
 
+/** The id of the active cycle, if any (there is at most one). */
+export async function getActiveCycleId(): Promise<string | null> {
+  const row = await db.pdiCycle.findFirst({ where: { status: "ACTIVE" }, select: { id: true } });
+  return row?.id ?? null;
+}
+
 /** The only change a closed cycle accepts: back to ACTIVE. */
 export async function reopenCycle(id: string): Promise<PdiCycle> {
   const cycle = await findCycle(id);
