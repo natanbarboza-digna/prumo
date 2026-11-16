@@ -1,6 +1,6 @@
 # 005 — Rotina a partir de ação de PDI
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-16**, aprovado no mesmo dia com as propostas das perguntas (ver "Decisões")
 Branch: `feat/pdi-routines`
 
 ## Objetivo
@@ -156,9 +156,21 @@ e2e/helpers.ts, e2e/pdi-routines.spec.ts            (novo)
 - Migration `add_routine_pdi_action` incluída.
 - `CLAUDE.md` atualizado (regras novas e lista de reaproveitamento) e este plano atualizado se o escopo mudar.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **Mais de uma rotina por ação?** Proposta: sim, sem limite.
-2. **Período da adesão como evidência:** proposta: a interseção entre o período da rotina e o do ciclo, até hoje.
-3. **Rotina que ainda não começou, ao escolher "Encerrar":** proposta: excluir, porque não pode ter registros. A alternativa seria desvinculá-la.
-4. **Fim da rotina preenchido com o prazo da ação:** proposta: sim, quando o prazo for hoje ou depois. O campo continua editável.
+- **`routineBlocker`** (regra pura no service de PDI) diz por que uma ação não aceita rotina: ciclo encerrado, ação concluída ou cancelada, ou categoria sem `allowsRoutine`, nessa ordem. `createRoutine` usa a regra para lançar o erro certo, e as telas a usam para mostrar o botão ou o motivo. Os textos ficam em `routineBlockerText` (`src/modules/pdi/labels.ts`).
+- **`combineAdherence`** também ficou em `src/modules/routines/rules.ts` (e não no service de PDI), porque é uma regra pura de adesão.
+- **O vínculo na criação** é lido por um schema separado (`routineLinkSchema`). O Zod 4 não permite estender um schema que tem `refine`, e assim a edição da rotina nem conhece o campo. `createRoutine` recebe o id como segundo argumento.
+- **`updateAction` recebe `today`** como terceiro argumento opcional (o padrão é `todayInAppTimeZone()`), para que os testes fixem a data.
+- **O campo de destino das rotinas** aparece e some só com CSS (`group-has-[option[value=DONE]:checked]`), sem estado no React. Depois de um erro do servidor, o select de status é remontado (`key`) para continuar mostrando o status enviado; sem isso, o reset do formulário feito pelo React voltava ao status original e escondia o campo com o erro.
+- **Fixture compartilhada** `src/test/pdi-fixtures.ts` (ciclo, área, categoria e ação) para os testes de integração de rotinas e de PDI.
+- **Formulário de edição da rotina** também mostra o aviso de vínculo, com link para a ação.
+- **Sem teste de falha no meio da transação.** Simular uma falha entre a atualização das rotinas e a da ação exigiria injetar um erro no Prisma. A garantia vem do `$transaction`.
+- **Rotas com relógio:** a página da ação chama `connection()` antes de ler "hoje"; em `/routines/new`, "hoje" passou a ser lido depois da primeira consulta ao banco.
+
+## Decisões
+
+1. Uma ação pode ter várias rotinas, sem limite.
+2. A adesão como evidência conta a interseção entre o período da rotina e o do ciclo, até hoje.
+3. Ao escolher "Encerrar", uma rotina que ainda não começou é excluída (ela não pode ter registros).
+4. O fim da rotina vem preenchido com o prazo da ação quando o prazo é hoje ou depois.

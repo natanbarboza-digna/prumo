@@ -99,6 +99,7 @@ Os campos de `PdiCycle`, `PdiArea`, `PdiAction` e `PdiCheckIn` foram validados p
 - A rotina criada a partir de uma ação fica vinculada por `pdiActionId`. Os registros (`RoutineLog`) aparecem na ação como evidência, com a taxa de adesão no período.
 - Ao concluir ou cancelar uma ação com rotina vinculada, o usuário escolhe entre encerrar a rotina (preenche `endDate`) ou mantê-la sem vínculo.
 - Mudar a categoria de uma ação ou desligar `allowsRoutine` não apaga rotinas já existentes; só bloqueia novas.
+- A adesão que conta como evidência é a do período em que a rotina e o ciclo se sobrepõem, até hoje. Uma ação pode ter várias rotinas; ao encerrá-las pela conclusão da ação, a que ainda não começou é excluída (plano 005).
 - Categoria arquivada não pode ser atribuída a novas ações. Categoria em uso não pode ser excluída, só arquivada.
 - Ciclo com status `CLOSED` é somente leitura.
 - Etapas de trilha, ações de PDI e rotinas podem se vincular a um objetivo; o objetivo mostra o progresso agregado desses itens.
@@ -122,9 +123,9 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 - Sem `any` e sem `@ts-ignore`; se for inevitável, comente o motivo.
 - Segredos só em `.env` (fora do git); mantenha `.env.example` atualizado.
 - **Banco:** IDs em UUID v7 (`@default(uuid(7)) @db.Uuid`); nomes de tabelas, colunas e enums em snake_case no banco (`@@map`/`@map`), camelCase no TypeScript. Datas sem hora são colunas `@db.Date` e circulam na aplicação como string `AAAA-MM-DD` (conversão em `src/lib/dates.ts`, feita no service).
-- **Testes de banco:** `npm test` (integração) e `npm run test:e2e` usam o mesmo banco `_test` e limpam os dados; não rode os dois ao mesmo tempo. Helpers em `src/test/test-database.ts`; o `resetDatabase` dos e2e recria as categorias padrão. O Playwright roda com 1 worker pelo mesmo motivo; helpers de e2e em `e2e/helpers.ts`.
+- **Testes de banco:** `npm test` (integração) e `npm run test:e2e` usam o mesmo banco `_test` e limpam os dados; não rode os dois ao mesmo tempo. Helpers em `src/test/test-database.ts` e, para testes que precisam de uma ação de PDI, `src/test/pdi-fixtures.ts`; o `resetDatabase` dos e2e recria as categorias padrão. O Playwright roda com 1 worker pelo mesmo motivo; helpers de e2e em `e2e/helpers.ts`.
 - **Prisma 7:** depois de `npx prisma migrate dev`, rode `npx prisma generate` (o `migrate dev` não gera mais o cliente).
-- **Reaproveite antes de criar:** campos Zod em `src/lib/form-fields.ts`; erros do Prisma (P2025, P2002, P2003) em `src/lib/prisma-errors.ts`; formulários com o hook `src/components/forms/use-schema-form.ts` + `FormActions` (opção `readForm` para campos repetidos, como grupos de checkbox); opções de objetivo e de categoria dos formulários em `src/modules/goals/options.ts` e `src/modules/categories/options.ts`; exclusão com `ConfirmDeleteButton` e outras confirmações com `ConfirmActionButton`; botões de form com `SubmitButton`.
+- **Reaproveite antes de criar:** campos Zod em `src/lib/form-fields.ts`; erros do Prisma (P2025, P2002, P2003) em `src/lib/prisma-errors.ts`; formulários com o hook `src/components/forms/use-schema-form.ts` + `FormActions` (opção `readForm` para campos repetidos, como grupos de checkbox); opções de objetivo e de categoria dos formulários em `src/modules/goals/options.ts` e `src/modules/categories/options.ts`; exclusão com `ConfirmDeleteButton` e outras confirmações com `ConfirmActionButton`; botões de form com `SubmitButton`; regras puras de rotina (dia previsto, estado, adesão, período de evidência) em `src/modules/routines/rules.ts`, que não acessa o banco e pode ser importado pelos services de rotinas e de PDI sem importação circular; "esta ação aceita rotina?" com `routineBlocker` (`src/modules/pdi/service.ts`).
 
 ### Front-end
 
