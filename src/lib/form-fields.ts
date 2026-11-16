@@ -30,6 +30,18 @@ export function optionalDateOnly() {
   });
 }
 
+/** Required calendar date as "YYYY-MM-DD". */
+export function requiredDateOnly(emptyMessage = "Informe uma data.") {
+  return (
+    z
+      .string({ error: emptyMessage })
+      .trim()
+      // abort: an empty value gets only the "missing" message, not "invalid" too.
+      .min(1, { error: emptyMessage, abort: true })
+      .refine(isValidDateOnly, { error: "Informe uma data válida." })
+  );
+}
+
 /** Optional reference to another record by UUID; blank becomes null. */
 export function optionalUuid(message: string) {
   return z
