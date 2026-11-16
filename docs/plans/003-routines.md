@@ -1,6 +1,6 @@
 # 003 — Rotinas e registro diário (tela "Hoje")
 
-Status: **aprovado** (16/11/2026)
+Status: **implementado em 2026-11-16**, aprovado no mesmo dia (ver "Decisões")
 Branch: `feat/routines`
 
 ## Objetivo
@@ -213,6 +213,21 @@ e2e/helpers.ts, e2e/routines.spec.ts                    (novo spec e helper crea
 - `npm run lint`, `npm run typecheck`, `npm test` e `npm run test:e2e` passando.
 - Migration `add_routines` incluída.
 - Este plano atualizado se o escopo mudar durante a implementação.
+
+## Mudanças durante a implementação
+
+- **`computeAdherence(routine, logs, period, today)`**: recebe `today` além do período, para ignorar dias futuros. **Hoje só conta depois de registrado**: o dia ainda não acabou, e contá-lo como perdido derrubaria a taxa toda manhã.
+- **`listRoutines`** aceita `goalId` (seção do objetivo) e já devolve a adesão de 30 dias de cada rotina (`RoutineSummary`).
+- **Histórico** é a janela fixa `[hoje − 13, hoje]` (constante `HISTORY_DAYS`), mostrando só os dias programados dela, como descrito no service.
+- **Encerrar** preenche `endDate = hoje`: a rotina ainda vale hoje e passa para "Encerradas" a partir de amanhã. O selo **"Termina hoje"** deixa isso visível, e o diálogo de confirmação explica. Encerrar uma rotina já encerrada mantém a data original. O e2e 8 foi ajustado: verifica o selo e que uma rotina com fim no passado sai de "Hoje" e aparece em "Encerradas".
+- **`weekdays`** é normalizado para a ordem da semana (segunda primeiro) no schema, além de deduplicado.
+- **Opções de objetivo** saíram de `src/app/tracks/goal-options.ts` para `src/modules/goals/options.ts` (com o tipo `GoalOption`), usadas pelos formulários de trilha e de rotina.
+- **`useSchemaForm`**: além de `readForm`, o foco no primeiro campo inválido procura primeiro pelo `id` do campo. No grupo de dias, o primeiro checkbox recebe esse `id`; os `input` com `name="weekdays"` são escondidos pelo Radix e não recebem foco.
+- **Checkboxes do Radix e reset do formulário**: depois de cada envio, o React reseta o formulário e o Radix volta ao _primeiro_ `defaultChecked`. Cada checkbox tem `key` com o estado marcado, para que os valores devolvidos após erro do servidor apareçam.
+- **"Criar rotina" no objetivo** abre `/routines/new?goalId=…`, como em trilhas.
+- **`labels.ts`** ganhou testes de unidade (`scheduleText`, `adherenceText`, `doneTodayText`). Sem dias para contar, o texto é "Nenhum dia para contar ainda".
+- **`/routines` chama `connection()`**: a página lê o relógio (para "hoje") antes de acessar o banco, e o Next recusa `new Date()` durante a pré-renderização.
+- **Menu**: "Hoje", "Objetivos", "Trilhas", "Rotinas"; a lista quebra linha em telas estreitas.
 
 ## Decisões
 
