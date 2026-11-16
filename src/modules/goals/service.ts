@@ -1,8 +1,9 @@
-import { Prisma, type Goal as GoalRow } from "@/generated/prisma/client";
+import type { Goal as GoalRow } from "@/generated/prisma/client";
 import type { GoalStatus } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { formatDateOnly, parseDateOnly } from "@/lib/dates";
 import { isUuid } from "@/lib/form-fields";
+import { isRecordNotFound } from "@/lib/prisma-errors";
 import type { GoalInput } from "@/modules/goals/schemas";
 
 /** A goal as the rest of the app sees it: date-only fields as "YYYY-MM-DD". */
@@ -60,8 +61,24 @@ export async function updateGoal(id: string, input: GoalInput): Promise<Goal> {
   });
 }
 
+/** Deletes the goal. Linked tracks stay, with their link cleared (ON DELETE SET NULL). */
 export async function deleteGoal(id: string): Promise<void> {
   await withNotFound(id, () => db.goal.delete({ where: { id } }));
+}
+
+export type GoalProgress = { done: number; total: number };
+
+/**
+ * Aggregated progress of everything linked to the goal. For now that is the
+ * steps of its tracks; PDI actions and routines join in later roadmap steps.
+ */
+export async function getGoalProgress(goalId: string): Promise<GoalProgress> {
+  const linkedSteps = { track: { goalId } };
+  const [total, done] = await Promise.all([
+    db.trackStep.count({ where: linkedSteps }),
+    db.trackStep.count({ where: { ...linkedSteps, status: "DONE" } }),
+  ]);
+  return { done, total };
 }
 
 function toData(input: GoalInput) {
@@ -91,9 +108,7 @@ async function withNotFound<T>(id: string, operation: () => Promise<T>): Promise
   try {
     return await operation();
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-      throw new GoalNotFoundError(id);
-    }
+    if (isRecordNotFound(error)) throw new GoalNotFoundError(id);
     throw error;
   }
 }

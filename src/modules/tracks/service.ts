@@ -1,0 +1,282 @@
+import type { Prisma, TrackStep as TrackStepRow } from "@/generated/prisma/client";
+import type { TrackStepStatus } from "@/generated/prisma/enums";
+import { db } from "@/lib/db";
+import { formatDateOnly, parseDateOnly } from "@/lib/dates";
+import { isUuid } from "@/lib/form-fields";
+import { isRecordNotFound } from "@/lib/prisma-errors";
+import { GoalNotFoundError } from "@/modules/goals/service";
+import type { TrackInput, TrackStepInput } from "@/modules/tracks/schemas";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type TrackStep = {
+  id: string;
+  trackId: string;
+  title: string;
+  order: number;
+  status: TrackStepStatus;
+  dueDate: string | null;
+  resourceUrl: string | null;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type StepCounts = { total: number; done: number; inProgress: number };
+
+/** A track's status is not stored: it is derived from its steps. */
+export type TrackStatus = "NOT_STARTED" | "IN_PROGRESS" | "DONE";
+
+export type TrackSummary = {
+  id: string;
+  title: string;
+  description: string | null;
+  goal: { id: string; title: string } | null;
+  counts: StepCounts;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type TrackDetail = TrackSummary & { steps: TrackStep[] };
+
+export class TrackNotFoundError extends Error {
+  constructor(id: string) {
+    super(`Track not found: ${id}`);
+    this.name = "TrackNotFoundError";
+  }
+}
+
+export class TrackStepNotFoundError extends Error {
+  constructor(id: string) {
+    super(`Track step not found: ${id}`);
+    this.name = "TrackStepNotFoundError";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pure rules
+// ---------------------------------------------------------------------------
+
+export function isStepOverdue(step: Pick<TrackStep, "status" | "dueDate">, today: string): boolean {
+  // "YYYY-MM-DD" strings compare correctly as plain text.
+  return step.dueDate !== null && step.dueDate < today && step.status !== "DONE";
+}
+
+export function deriveTrackStatus(counts: StepCounts): TrackStatus {
+  if (counts.total > 0 && counts.done === counts.total) return "DONE";
+  if (counts.done > 0 || counts.inProgress > 0) return "IN_PROGRESS";
+  return "NOT_STARTED";
+}
+
+export function progressPercent(done: number, total: number): number {
+  return total === 0 ? 0 : Math.round((done / total) * 100);
+}
+
+// ---------------------------------------------------------------------------
+// Tracks
+// ---------------------------------------------------------------------------
+
+// What every track query loads: the linked goal's title and each step's status
+// (enough to count steps without loading everything).
+const summaryInclude = {
+  goal: { select: { id: true, title: true } },
+  steps: { select: { status: true } },
+} satisfies Prisma.TrackInclude;
+
+type TrackSummaryRow = Prisma.TrackGetPayload<{ include: typeof summaryInclude }>;
+
+export async function listTracks(filter: { goalId?: string } = {}): Promise<TrackSummary[]> {
+  const rows = await db.track.findMany({
+    where: filter.goalId ? { goalId: filter.goalId } : {},
+    include: summaryInclude,
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map(toSummary);
+}
+
+export async function getTrack(id: string): Promise<TrackDetail> {
+  if (!isUuid(id)) throw new TrackNotFoundError(id);
+  const row = await db.track.findUnique({
+    where: { id },
+    include: { ...summaryInclude, steps: { orderBy: { order: "asc" } } },
+  });
+  if (!row) throw new TrackNotFoundError(id);
+  return { ...toSummary(row), steps: row.steps.map(toStep) };
+}
+
+export async function createTrack(input: TrackInput): Promise<TrackSummary> {
+  await assertGoalExists(input.goalId);
+  const row = await db.track.create({ data: input, include: summaryInclude });
+  return toSummary(row);
+}
+
+export async function updateTrack(id: string, input: TrackInput): Promise<TrackSummary> {
+  if (!isUuid(id)) throw new TrackNotFoundError(id);
+  await assertGoalExists(input.goalId);
+  try {
+    const row = await db.track.update({ where: { id }, data: input, include: summaryInclude });
+    return toSummary(row);
+  } catch (error) {
+    if (isRecordNotFound(error)) throw new TrackNotFoundError(id);
+    throw error;
+  }
+}
+
+/** Deletes the track; its steps go with it (ON DELETE CASCADE). */
+export async function deleteTrack(id: string): Promise<void> {
+  if (!isUuid(id)) throw new TrackNotFoundError(id);
+  try {
+    await db.track.delete({ where: { id } });
+  } catch (error) {
+    if (isRecordNotFound(error)) throw new TrackNotFoundError(id);
+    throw error;
+  }
+}
+
+async function assertGoalExists(goalId: string | null): Promise<void> {
+  if (goalId === null) return;
+  const count = await db.goal.count({ where: { id: goalId } });
+  if (count === 0) throw new GoalNotFoundError(goalId);
+}
+
+// ---------------------------------------------------------------------------
+// Steps
+// ---------------------------------------------------------------------------
+
+export async function getStep(id: string): Promise<TrackStep> {
+  if (!isUuid(id)) throw new TrackStepNotFoundError(id);
+  const row = await db.trackStep.findUnique({ where: { id } });
+  if (!row) throw new TrackStepNotFoundError(id);
+  return toStep(row);
+}
+
+/** Adds the step after the last one of the track. */
+export async function createStep(trackId: string, input: TrackStepInput): Promise<TrackStep> {
+  if (!isUuid(trackId)) throw new TrackNotFoundError(trackId);
+  // A transaction runs these queries as one unit: either all apply or none do.
+  return db.$transaction(async (tx) => {
+    const track = await tx.track.findUnique({ where: { id: trackId }, select: { id: true } });
+    if (!track) throw new TrackNotFoundError(trackId);
+    const last = await tx.trackStep.aggregate({ where: { trackId }, _max: { order: true } });
+    const row = await tx.trackStep.create({
+      data: { ...toStepData(input), trackId, order: (last._max.order ?? 0) + 1 },
+    });
+    return toStep(row);
+  });
+}
+
+export async function updateStep(id: string, input: TrackStepInput): Promise<TrackStep> {
+  return withStepNotFound(id, async () =>
+    toStep(await db.trackStep.update({ where: { id }, data: toStepData(input) })),
+  );
+}
+
+export async function setStepStatus(id: string, status: TrackStepStatus): Promise<TrackStep> {
+  return withStepNotFound(id, async () =>
+    toStep(await db.trackStep.update({ where: { id }, data: { status } })),
+  );
+}
+
+/** Swaps the step with its neighbour. At either end of the track it does nothing. */
+export async function moveStep(id: string, direction: "up" | "down"): Promise<void> {
+  if (!isUuid(id)) throw new TrackStepNotFoundError(id);
+  await db.$transaction(async (tx) => {
+    const step = await tx.trackStep.findUnique({ where: { id } });
+    if (!step) throw new TrackStepNotFoundError(id);
+
+    const neighbour = await tx.trackStep.findFirst({
+      where: {
+        trackId: step.trackId,
+        order: direction === "up" ? { lt: step.order } : { gt: step.order },
+      },
+      orderBy: { order: direction === "up" ? "desc" : "asc" },
+    });
+    if (!neighbour) return;
+
+    // (trackId, order) is unique, so park the step on a free value first.
+    await tx.trackStep.update({ where: { id: step.id }, data: { order: -1 } });
+    await tx.trackStep.update({ where: { id: neighbour.id }, data: { order: step.order } });
+    await tx.trackStep.update({ where: { id: step.id }, data: { order: neighbour.order } });
+  });
+}
+
+/** Deletes the step and shifts the following ones back, so positions stay 1, 2, 3… */
+export async function deleteStep(id: string): Promise<void> {
+  if (!isUuid(id)) throw new TrackStepNotFoundError(id);
+  await db.$transaction(async (tx) => {
+    const step = await tx.trackStep.findUnique({ where: { id } });
+    if (!step) throw new TrackStepNotFoundError(id);
+    await tx.trackStep.delete({ where: { id } });
+
+    // Postgres checks the unique (track_id, position) index row by row, so a
+    // plain "position - 1" could collide midway. Flip the rows to negative
+    // values first, then bring them back one lower.
+    await tx.$executeRaw`
+      UPDATE track_steps SET position = -position
+      WHERE track_id = ${step.trackId}::uuid AND position > ${step.order}`;
+    await tx.$executeRaw`
+      UPDATE track_steps SET position = -position - 1
+      WHERE track_id = ${step.trackId}::uuid AND position < 0`;
+  });
+}
+
+async function withStepNotFound<T>(id: string, operation: () => Promise<T>): Promise<T> {
+  if (!isUuid(id)) throw new TrackStepNotFoundError(id);
+  try {
+    return await operation();
+  } catch (error) {
+    if (isRecordNotFound(error)) throw new TrackStepNotFoundError(id);
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mapping between database rows and app types
+// ---------------------------------------------------------------------------
+
+function toSummary(row: TrackSummaryRow): TrackSummary {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    goal: row.goal,
+    counts: countSteps(row.steps),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function countSteps(steps: { status: TrackStepStatus }[]): StepCounts {
+  return {
+    total: steps.length,
+    done: steps.filter((step) => step.status === "DONE").length,
+    inProgress: steps.filter((step) => step.status === "IN_PROGRESS").length,
+  };
+}
+
+function toStepData(input: TrackStepInput) {
+  return {
+    title: input.title,
+    status: input.status,
+    dueDate: input.dueDate === null ? null : parseDateOnly(input.dueDate),
+    resourceUrl: input.resourceUrl,
+    notes: input.notes,
+  };
+}
+
+function toStep(row: TrackStepRow): TrackStep {
+  return {
+    id: row.id,
+    trackId: row.trackId,
+    title: row.title,
+    order: row.order,
+    status: row.status,
+    dueDate: row.dueDate === null ? null : formatDateOnly(row.dueDate),
+    resourceUrl: row.resourceUrl,
+    notes: row.notes,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}

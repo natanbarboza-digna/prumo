@@ -7,9 +7,44 @@ import {
   createGoal,
   deleteGoal,
   getGoal,
+  getGoalProgress,
   listGoals,
   updateGoal,
 } from "@/modules/goals/service";
+import { createStep, createTrack, setStepStatus } from "@/modules/tracks/service";
+
+describe("getGoalProgress", () => {
+  async function addTrack(goalId: string | null, statuses: ("NOT_STARTED" | "DONE")[]) {
+    const track = await createTrack({ title: "Trilha", description: null, goalId });
+    for (const status of statuses) {
+      const step = await createStep(track.id, {
+        title: "Etapa",
+        status: "NOT_STARTED",
+        dueDate: null,
+        resourceUrl: null,
+        notes: null,
+      });
+      if (status === "DONE") await setStepStatus(step.id, "DONE");
+    }
+  }
+
+  it("is zero without linked tracks", async () => {
+    const goal = await createGoal(input());
+
+    await expect(getGoalProgress(goal.id)).resolves.toEqual({ done: 0, total: 0 });
+  });
+
+  it("sums the steps of every linked track and ignores other goals", async () => {
+    const goal = await createGoal(input());
+    const other = await createGoal(input({ title: "Outro" }));
+    await addTrack(goal.id, ["DONE", "NOT_STARTED"]);
+    await addTrack(goal.id, ["DONE", "DONE", "NOT_STARTED"]);
+    await addTrack(other.id, ["DONE"]);
+    await addTrack(null, ["DONE"]);
+
+    await expect(getGoalProgress(goal.id)).resolves.toEqual({ done: 3, total: 5 });
+  });
+});
 
 const MISSING_ID = "0190a3e4-0000-7000-8000-000000000000";
 
