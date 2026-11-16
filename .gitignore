@@ -1,0 +1,40 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+
+# testing
+/coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+
+# env files (only the example is versioned)
+.env*
+!.env.example
+
+# typescript
+*.tsbuildinfo
+
+# prisma generated client
+/src/generated/
+
+# claude code local settings
+.claude/settings.local.json
