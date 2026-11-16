@@ -31,6 +31,7 @@ model Goal {
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
   tracks      Track[]
+  routines    Routine[]
 
   @@index([status])
   @@map("goals")
@@ -75,4 +76,59 @@ model TrackStep {
 
   @@unique([trackId, order])
   @@map("track_steps")
+}
+
+enum Weekday {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+
+  @@map("weekday")
+}
+
+enum RoutineLogStatus {
+  DONE
+  SKIPPED
+
+  @@map("routine_log_status")
+}
+
+model Routine {
+  id          String       @id @default(uuid(7)) @db.Uuid
+  title       String       @db.VarChar(120)
+  description String?
+  // Days of the week the routine applies to (a native Postgres enum array).
+  weekdays    Weekday[]
+  // "HH:MM" text: a TIME column would come back from Prisma as a Date with an
+  // artificial day and time zone.
+  timeOfDay   String?      @map("time_of_day") @db.VarChar(5)
+  startDate   DateTime     @map("start_date") @db.Date
+  endDate     DateTime?    @map("end_date") @db.Date
+  goalId      String?      @map("goal_id") @db.Uuid
+  goal        Goal?        @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  logs        RoutineLog[]
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@index([goalId])
+  @@map("routines")
+}
+
+model RoutineLog {
+  id        String           @id @default(uuid(7)) @db.Uuid
+  routineId String           @map("routine_id") @db.Uuid
+  routine   Routine          @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  date      DateTime         @db.Date
+  status    RoutineLogStatus
+  note      String?          @db.VarChar(500)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  // One log per routine per day; logging again replaces it.
+  @@unique([routineId, date])
+  @@map("routine_logs")
 }
