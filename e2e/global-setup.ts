@@ -4,10 +4,13 @@ import {
   migrateTestDatabase,
   readTestDatabaseUrl,
   resetTestDatabase,
+  seedTestDatabase,
 } from "../src/test/test-database";
 
 export default async function globalSetup(): Promise<void> {
   const url = readTestDatabaseUrl();
   migrateTestDatabase(url);
   await resetTestDatabase(url);
+  // Categories plus the logged-in test account, for specs that do not reset.
+  await seedTestDatabase(url);
 }

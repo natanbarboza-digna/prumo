@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-import { readTestDatabaseUrl } from "./src/test/test-database";
+import { E2E_SESSION_TOKEN, readTestDatabaseUrl } from "./src/test/test-database";
 
 // A dedicated port so the e2e server never collides with your own `npm run dev`.
 const PORT = 3100;
@@ -25,6 +25,23 @@ export default defineConfig({
     locale: "pt-BR",
     timezoneId: "America/Fortaleza",
     trace: "on-first-retry",
+    // Every test starts logged in with the test account's session (plan 014);
+    // e2e/auth.spec.ts clears it to test the login itself.
+    storageState: {
+      cookies: [
+        {
+          name: "prumo_session",
+          value: E2E_SESSION_TOKEN,
+          domain: "localhost",
+          path: "/",
+          expires: -1,
+          httpOnly: true,
+          secure: false,
+          sameSite: "Lax",
+        },
+      ],
+      origins: [],
+    },
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
