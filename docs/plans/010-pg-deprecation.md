@@ -1,6 +1,6 @@
 # 010 — Aviso de depreciação do `pg`
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-16**, aprovado no mesmo dia com a opção 1 (ver "Decisões")
 Branch: `fix/pg-deprecation`
 
 ## Objetivo
@@ -70,6 +70,14 @@ CLAUDE.md
 - `npm run lint`, `npm run typecheck`, `npm test` e `npm run test:e2e` passando, sem o aviso.
 - `CLAUDE.md` e este plano atualizados.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **Opção.** Proposta: a 1, fila de consultas por conexão. A alternativa é a 2, só conter e esperar o Prisma.
+- **O gatilho exato é outro.** Duas consultas em paralelo num `$transaction` (o teste 1 original) **não** reproduzem o aviso: o Prisma já as enfileira. Com um teste temporário que observava a fila do `pg`, achei a causa real: gravações (`create`/`update`) que devolvem relações com `include`. O Prisma abre uma transação implícita e busca as relações ao mesmo tempo. E o `pg` só avisa quando já existe uma consulta **esperando** (não só uma em andamento), então são precisas três simultâneas: criar uma ação de PDI (que inclui categoria, objetivo e área) dispara o aviso; criar uma rotina (objetivo e ação) não.
+- **Teste 1** passou a criar uma ação de PDI (`pdiActionFixture`) e conferir que nenhum `DeprecationWarning` é emitido. Sem a correção ele falhou com o aviso; com ela, passa.
+- **O teste 4 (atomicidade)** usa duas criações em paralelo num `$transaction` seguidas de um erro, e confere que nada foi gravado.
+- **`SerialClient`** substitui `query` no construtor (em vez de declarar o método de novo) para manter todas as sobrecargas de tipo do `pg` sem repeti-las; o motivo e o critério de remoção estão comentados em `src/lib/db.ts`.
+- **Resultado:** 0 avisos em `npm test` (352 testes) e em `npm run test:e2e` (53 testes); antes, um por processo.
+
+## Decisões
+
+1. Opção 1: fila de consultas por conexão, do nosso lado, até o Prisma corrigir.
