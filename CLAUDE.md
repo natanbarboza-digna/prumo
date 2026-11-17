@@ -16,7 +16,7 @@ O dono do projeto vem de Python/Django e está aprendendo Next.js e TypeScript. 
 - ESLint + Prettier
 - `next-themes` (tema claro/escuro) e `@axe-core/playwright` (verificação de acessibilidade nos e2e)
 
-Dependências de suporte já aprovadas: `@prisma/adapter-pg`, `pg`, `@types/pg`, `dotenv`, `tsx`, `vite`, `eslint-config-prettier`, `semver` e `@types/semver` (comparação de versões no `check:versions`) e as que o `shadcn` instala (`cn`, `class-variance-authority`, `lucide-react`, `tw-animate-css`, `radix-ui`, o próprio `shadcn` como devDependency por causa do `shadcn/tailwind.css`).
+Dependências de suporte já aprovadas: `@prisma/adapter-pg`, `pg`, `@types/pg`, `dotenv`, `tsx`, `vite`, `eslint-config-prettier`, `semver` e `@types/semver` (comparação de versões no `check:versions`), `read-excel-file` (leitura da planilha de PDI) e `write-excel-file` (só em desenvolvimento: planilha modelo e planilhas de teste) e as que o `shadcn` instala (`cn`, `class-variance-authority`, `lucide-react`, `tw-animate-css`, `radix-ui`, o próprio `shadcn` como devDependency por causa do `shadcn/tailwind.css`).
 
 Versões fixadas por incompatibilidade: TypeScript 6.0 (o `typescript-eslint` ainda não aceita a 7), ESLint 9 (os plugins `react`, `jsx-a11y` e `import` do `eslint-config-next` ainda não aceitam a 10) e Prisma 7.10 (a tag `latest` aponta para a RC do Prisma 8). Rode `npm run check:versions` para saber se alguma já pode subir. Ao subir o Prisma, teste sem o `SerialClient` (`src/lib/db.ts`, plano 010); se o aviso de depreciação do `pg` não voltar, remova a classe. O projeto roda em Node 26 (`engines` e `.nvmrc`), com `@types/node` na mesma versão.
 
@@ -45,6 +45,7 @@ Estes scripts devem existir no `package.json` desde o scaffold:
 | `npx prisma db seed`     | Dados iniciais (categorias padrão)                                 |
 | `npm run db:seed:demo`   | Dados de demonstração (banco vazio; `-- --reset` apaga tudo antes) |
 | `npm run check:versions` | Diz se as versões fixadas (ver "Stack") já podem subir             |
+| `npm run pdi:template`   | Gera a planilha modelo de PDI e as planilhas dos e2e               |
 
 ## Estrutura de pastas
 
@@ -109,6 +110,7 @@ Os campos de `PdiCycle`, `PdiArea`, `PdiAction` e `PdiCheckIn` foram validados p
 - Ciclo com status `CLOSED` é somente leitura.
 - Etapas de trilha, ações de PDI e rotinas podem se vincular a um objetivo; o objetivo mostra o progresso agregado desses itens.
 - Datas de rotina e de registro são datas sem hora, no fuso `America/Fortaleza`. Nunca derive "hoje" de UTC.
+- **Importação de PDI por planilha** (`/pdi/import`, plano 013): sempre cria um ciclo novo; tudo ou nada (qualquer erro, nada é gravado, e a tela lista aba, linha e campo). Cada linha passa pelos mesmos schemas Zod dos formulários. Área e categoria das ações são identificadas pelo nome (sem diferenciar maiúsculas); categoria arquivada é recusada; ciclo `Ativo` com outro ativo também. As colunas ficam em `src/modules/pdi/import/sheets.ts`: ao mudá-las, rode `npm run pdi:template` e commite a planilha modelo e as planilhas dos e2e.
 
 ## Workflow
 
@@ -158,4 +160,3 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 
 - **Autenticação.** Hoje não há login nem tabela de usuário, porque a aplicação roda só na máquina do dono. É obrigatória antes de qualquer deploy fora dela; vai exigir adicionar `userId` às entidades por migration.
 - **Deploy.** Ainda não definido (roda só localmente).
-- **Importação de PDI por arquivo.** Fora de escopo por enquanto; o cadastro é manual.

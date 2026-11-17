@@ -1,6 +1,6 @@
 # 013 — Importação de PDI por planilha
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-17**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/pdi-import`
 
 ## Objetivo
@@ -121,8 +121,19 @@ CLAUDE.md                                  (pendência removida, comando novo, r
 - Importação conferida no navegador com a planilha modelo preenchida.
 - Pendência removida do `CLAUDE.md`, com as regras da importação registradas; este plano atualizado.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **Dependências.** Proposta: `read-excel-file` (ler) e `write-excel-file` (gerar o modelo, só em desenvolvimento). Preciso da sua aprovação para as duas.
-2. **Tudo ou nada, sem prévia.** Proposta: validar a planilha inteira e só gravar se não houver nenhum erro, mostrando a lista de erros. A alternativa é uma prévia (mostrar o que será criado e pedir confirmação), que exige guardar a planilha entre duas requisições.
-3. **Modelo estático.** Proposta: planilha modelo gerada por script e versionada em `public/`. A alternativa é gerar a cada download, com as categorias cadastradas no momento listadas na aba Instruções, o que exigiria um Route Handler.
+- **Helper de planilhas em `src/test/pdi-workbook.ts`** (não em `src/modules`): monta `.xlsx` no formato do modelo com o `write-excel-file`. É usado pelos testes de integração e pelo script do modelo; como o pacote é dependência de desenvolvimento, o código do app nunca importa esse arquivo.
+- **Helpers de dados exportados:** `toCycleData` e `toCheckInData` (`src/modules/pdi/service.ts`) passaram a ser exportados para a importação gravar exatamente como os formulários.
+- **`bodySizeLimit` das Server Actions em 2 MB** (`next.config.ts`): o limite padrão de 1 MB conta a requisição inteira, então uma planilha perto de 1 MB seria recusada pelo Next antes de chegar à action.
+- **Cabeçalho errado para tudo:** se alguma aba tem colunas diferentes do modelo, a importação só lista esses problemas de cabeçalho, sem validar as linhas (os valores estariam nas colunas erradas).
+- **Ação ligada a uma área com erro:** se a linha da área tem outro problema (por exemplo, descrição longa demais), a ação que a cita não recebe também o erro "não está na aba Áreas", para não duplicar a mensagem.
+- **Script do modelo sem `await` no topo:** o `tsx` roda o script como CommonJS, então o código fica numa função `main`.
+- **Teste do seed de demonstração com 20 s de limite:** na bateria completa, o teste do `resetAllData` (que roda o seed duas vezes) passou dos 5 s padrão do Vitest. Não tem relação com a importação; o limite maior está comentado no teste.
+- **Conferência no navegador:** a tela foi conferida no painel do app; o envio do arquivo não dá para fazer por lá (o navegador do app não escolhe arquivos), e fica coberto pelos e2e, que rodam no `next dev` de verdade.
+
+## Decisões
+
+1. Dependências `read-excel-file` (ler) e `write-excel-file` (gerar o modelo, só em desenvolvimento).
+2. Tudo ou nada, sem prévia.
+3. Modelo estático, gerado por script e versionado em `public/templates/`.
