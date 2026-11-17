@@ -1,6 +1,6 @@
 # 007 — Dados de demonstração
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-16**, aprovado no mesmo dia com as propostas das perguntas (ver "Decisões")
 Branch: `chore/demo-seed`
 
 ## Objetivo
@@ -25,7 +25,7 @@ Um comando que enche o banco de desenvolvimento com dados realistas e coerentes 
 
 **Objetivos**
 
-- "Conduzir reuniões em inglês": em andamento, data-alvo `H+20`.
+- "Conduzir reuniões em inglês": em andamento, data-alvo `H+12`.
 - "Migrar o projeto pessoal para Next.js": em andamento, sem data-alvo.
 - "Tirar a certificação AWS": não iniciado, data-alvo `H+90`.
 - "Organizar a rotina de estudos": concluído.
@@ -110,8 +110,17 @@ A recusa de banco `_test` fica na linha de comando e é conferida à mão (rodar
 - `npm run db:seed:demo` rodado no banco de desenvolvimento e o app conferido no navegador (painel, Hoje, uma ação de PDI com evidência).
 - `CLAUDE.md` e este plano atualizados.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **Comando separado.** Proposta: `npm run db:seed:demo`, deixando o `npx prisma db seed` só com as categorias. A alternativa é pôr tudo no seed padrão.
-2. **`--reset`.** Proposta: sem a flag, o comando recusa banco com dados; com `--reset`, apaga tudo e recria. A alternativa é nunca apagar e só aceitar banco vazio.
-3. **Conteúdo.** O volume e os temas acima (inglês, Next.js, AWS, comunicação e liderança) servem, ou prefere outros temas mais próximos do seu PDI real?
+- **Data-alvo do objetivo de inglês** passou de `H+20` para `H+12`, para cair nos "Próximos 14 dias" do painel, como o plano prometia.
+- **Entradas validadas pelos schemas Zod** antes de chegar aos services (`goalInputSchema.parse(...)` etc.), como acontece nos formulários. Os services recebem dados já validados, então sem isso a demonstração pularia essa camada.
+- **O `TRUNCATE` foi extraído** para `src/lib/truncate.ts` (`APP_TABLES_QUERY` e `truncateStatement`), usado por `src/test/test-database.ts` e pelo `--reset`.
+- **A recusa do banco `_test`** foi conferida à mão: o comando imprime a mensagem e sai com código 1, sem tocar no banco.
+- **Registros de rotina** vão até ontem; hoje fica sem registro para ser marcado na tela Hoje ou no painel. Na primeira execução foram 89 registros.
+- **Ciclo encerrado:** os textos de autoavaliação, feedback e nota final são preenchidos já na criação, antes de fechar o ciclo.
+
+## Decisões
+
+1. Comando separado, `npm run db:seed:demo`; o `npx prisma db seed` continua só com as categorias.
+2. Sem `--reset`, o comando recusa banco com dados; com `--reset`, apaga tudo e recria.
+3. O conteúdo e os temas propostos foram aceitos.

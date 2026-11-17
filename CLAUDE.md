@@ -30,17 +30,18 @@ Não adicione dependências fora desta lista sem perguntar antes.
 
 Estes scripts devem existir no `package.json` desde o scaffold:
 
-| Comando                  | O que faz                          |
-| ------------------------ | ---------------------------------- |
-| `docker compose up -d`   | Sobe o PostgreSQL                  |
-| `npm run dev`            | Servidor de desenvolvimento        |
-| `npm run lint`           | ESLint                             |
-| `npm run typecheck`      | `next typegen` + `tsc --noEmit`    |
-| `npm run format`         | Prettier                           |
-| `npm test`               | Vitest                             |
-| `npm run test:e2e`       | Playwright                         |
-| `npx prisma migrate dev` | Cria e aplica migration            |
-| `npx prisma db seed`     | Dados iniciais (categorias padrão) |
+| Comando                  | O que faz                                                          |
+| ------------------------ | ------------------------------------------------------------------ |
+| `docker compose up -d`   | Sobe o PostgreSQL                                                  |
+| `npm run dev`            | Servidor de desenvolvimento                                        |
+| `npm run lint`           | ESLint                                                             |
+| `npm run typecheck`      | `next typegen` + `tsc --noEmit`                                    |
+| `npm run format`         | Prettier                                                           |
+| `npm test`               | Vitest                                                             |
+| `npm run test:e2e`       | Playwright                                                         |
+| `npx prisma migrate dev` | Cria e aplica migration                                            |
+| `npx prisma db seed`     | Dados iniciais (categorias padrão)                                 |
+| `npm run db:seed:demo`   | Dados de demonstração (banco vazio; `-- --reset` apaga tudo antes) |
 
 ## Estrutura de pastas
 
@@ -56,7 +57,8 @@ src/
     actions.ts          Server Actions (validam com Zod e chamam o service)
     *.test.ts           testes ao lado do código
   lib/                  db.ts (cliente Prisma), datas, utilitários
-prisma/                 schema.prisma, migrations/, seed.ts
+  demo/                 dados de demonstração (seed-demo.ts), testados contra o banco de teste
+prisma/                 schema.prisma, migrations/, seed.ts, seed-demo.ts (linha de comando da demonstração)
 e2e/                    testes Playwright
 docs/plans/             planos de feature (ver Workflow)
 ```
@@ -125,7 +127,7 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 - **Banco:** IDs em UUID v7 (`@default(uuid(7)) @db.Uuid`); nomes de tabelas, colunas e enums em snake_case no banco (`@@map`/`@map`), camelCase no TypeScript. Datas sem hora são colunas `@db.Date` e circulam na aplicação como string `AAAA-MM-DD` (conversão em `src/lib/dates.ts`, feita no service).
 - **Testes de banco:** `npm test` (integração) e `npm run test:e2e` usam o mesmo banco `_test` e limpam os dados; não rode os dois ao mesmo tempo. Helpers em `src/test/test-database.ts` e, para testes que precisam de uma ação de PDI, `src/test/pdi-fixtures.ts`; o `resetDatabase` dos e2e recria as categorias padrão. O Playwright roda com 1 worker pelo mesmo motivo; helpers de e2e em `e2e/helpers.ts`.
 - **Prisma 7:** depois de `npx prisma migrate dev`, rode `npx prisma generate` (o `migrate dev` não gera mais o cliente).
-- **Reaproveite antes de criar:** campos Zod em `src/lib/form-fields.ts`; erros do Prisma (P2025, P2002, P2003) em `src/lib/prisma-errors.ts`; formulários com o hook `src/components/forms/use-schema-form.ts` + `FormActions` (opção `readForm` para campos repetidos, como grupos de checkbox); opções de objetivo e de categoria dos formulários em `src/modules/goals/options.ts` e `src/modules/categories/options.ts`; exclusão com `ConfirmDeleteButton` e outras confirmações com `ConfirmActionButton`; botões de form com `SubmitButton`; regras puras de rotina (dia previsto, estado, adesão, período de evidência) em `src/modules/routines/rules.ts`, que não acessa o banco e pode ser importado pelos services de rotinas e de PDI sem importação circular; "esta ação aceita rotina?" com `routineBlocker` (`src/modules/pdi/service.ts`); diferença em dias entre datas com `daysBetween` (`src/lib/dates.ts`); blocos do painel com `DashboardCard` e `EmptyCardText`.
+- **Reaproveite antes de criar:** campos Zod em `src/lib/form-fields.ts`; erros do Prisma (P2025, P2002, P2003) em `src/lib/prisma-errors.ts`; formulários com o hook `src/components/forms/use-schema-form.ts` + `FormActions` (opção `readForm` para campos repetidos, como grupos de checkbox); opções de objetivo e de categoria dos formulários em `src/modules/goals/options.ts` e `src/modules/categories/options.ts`; exclusão com `ConfirmDeleteButton` e outras confirmações com `ConfirmActionButton`; botões de form com `SubmitButton`; regras puras de rotina (dia previsto, estado, adesão, período de evidência) em `src/modules/routines/rules.ts`, que não acessa o banco e pode ser importado pelos services de rotinas e de PDI sem importação circular; "esta ação aceita rotina?" com `routineBlocker` (`src/modules/pdi/service.ts`); diferença em dias entre datas com `daysBetween` (`src/lib/dates.ts`); esvaziar todas as tabelas com `truncateStatement` (`src/lib/truncate.ts`); blocos do painel com `DashboardCard` e `EmptyCardText`.
 - **Painel inicial:** `/` mostra dados de todos os módulos via `getDashboard` (`src/modules/dashboard/service.ts`). Toda Server Action que muda dados deve revalidar também `/` (cada módulo tem sua função `revalidate…Screens`).
 
 ### Front-end
