@@ -21,6 +21,9 @@ export default async function PdiPage() {
           <Button asChild variant="outline">
             <Link href="/settings/categories">Gerenciar categorias</Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href="/pdi/import">Importar planilha</Link>
+          </Button>
           <Button asChild>
             <Link href="/pdi/new">Novo ciclo</Link>
           </Button>
