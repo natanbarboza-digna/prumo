@@ -1,6 +1,6 @@
 # 008 — Rebranding: nome e visual
 
-Status: **aguardando aprovação** (o nome depende da pergunta 1)
+Status: **implementado em 2026-11-16**, aprovado no mesmo dia com as propostas das perguntas (ver "Decisões")
 Branch: `chore/rebranding`
 
 ## Objetivo
@@ -109,8 +109,19 @@ e2e/home.spec.ts                           (h1 com o novo nome)
 - Banco novo no ar com a demonstração, app conferido no navegador nos dois temas.
 - `CLAUDE.md` e este plano atualizados.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **Nome.** Proposta: **Prumo**. Ou escolha outro da tabela, ou sugira o seu.
-2. **Banco de desenvolvimento.** Proposta: recriar no volume novo e rodar a demonstração de novo (hoje ele só tem a demonstração). Se você já cadastrou dados reais, eu migro com `pg_dump`.
-3. **Cor de "concluído".** Proposta: um verde sóbrio só nos selos e barras completas. A alternativa mais radical é não ter cor nenhuma além do vermelho de atraso.
+- **Link da marca** usa `aria-label="Prumo, página inicial"`: com o texto escondido só para leitores de tela, o nome acessível saía com espaço antes da vírgula.
+- **Títulos:** só os `h1` mudaram (`text-2xl` para `text-3xl`, nas 42 páginas); os `h2` de seção ficaram como estavam, porque já tinham peso e espaçamento adequados.
+- **`tabular-nums`** foi aplicado no `body`, para todos os números do app, em vez de componente por componente.
+- **Rótulos de legenda** (caixa alta, `xs`, espaçamento largo) entraram só no tipo de prazo do painel; nas outras telas os rótulos já eram curtos e ficaram iguais.
+- **Barra de progresso** ficou mais fina (`h-1.5`) e fica verde quando chega a 100%.
+- **Ícone (`src/app/icon.svg`)** tem cores fixas (fundo escuro, traço claro), legível em abas claras e escuras; o `BrandMark` do cabeçalho usa `currentColor` e segue o tema.
+- **Banco:** conferi antes da troca que o banco de desenvolvimento tinha só a demonstração (mesmas quantidades, tudo criado no mesmo segundo). O contêiner antigo foi removido; o volume `natan-personal_management_pgdata` continua guardado.
+- **Capturas:** a de 375 px mostrou que a navegação do cabeçalho quebra em três linhas e fica cortada. O defeito já existia; ficou registrado nas Pendências do `CLAUDE.md`.
+
+## Decisões
+
+1. O nome é **Prumo**, com o slogan "Objetivos, trilhas, rotina e PDI no mesmo prumo."
+2. O banco de desenvolvimento foi recriado no volume novo, com a demonstração.
+3. "Concluído" usa um verde sóbrio nos selos e nas barras completas.
