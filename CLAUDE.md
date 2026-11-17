@@ -155,3 +155,8 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 - **Autenticação.** Hoje não há login nem tabela de usuário, porque a aplicação roda só na máquina do dono. É obrigatória antes de qualquer deploy fora dela; vai exigir adicionar `userId` às entidades por migration.
 - **Deploy.** Ainda não definido (roda só localmente).
 - **Importação de PDI por arquivo.** Fora de escopo por enquanto; o cadastro é manual.
+- **Aviso de depreciação do `pg`.** Os testes de integração e os e2e mostram "Calling client.query() when the client is already executing a query is deprecated". Provável origem: transações interativas do Prisma com `@prisma/adapter-pg`. Não quebra nada hoje, mas vira erro no `pg` 9: investigar antes de atualizar o `pg` ou o Prisma.
+- **Versões fixadas.** Revisar TypeScript 6.0, ESLint 9 e Prisma 7.10 (ver "Stack") quando os pacotes que as seguram aceitarem as novas versões.
+- **`npm audit`.** Em 2026-11-16: 10 avisos moderados, todos em ferramentas de desenvolvimento (via `minimatch`). Não usar `npm audit fix --force`, que faz downgrade de pacotes.
+- **Revisão visual no celular.** Só o painel foi conferido por screenshot (375 px). Faltam as telas de objetivos, trilhas, rotinas, Hoje e PDI.
+- **CI e hooks de pre-commit.** Lint, typecheck e testes só rodam à mão; ficaram fora do scaffold (plano 000).
