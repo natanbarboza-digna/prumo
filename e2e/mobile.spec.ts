@@ -5,7 +5,16 @@ import { createRoutine, expectNoAxeViolations, resetDatabase } from "./helpers";
 test.beforeEach(resetDatabase);
 
 const NAV_LINKS = ["Hoje", "Objetivos", "Trilhas", "Rotinas", "PDI"];
-const PAGES = ["/", "/today", "/goals", "/tracks", "/routines", "/pdi", "/settings/categories"];
+const PAGES = [
+  "/",
+  "/today",
+  "/goals",
+  "/tracks",
+  "/routines",
+  "/pdi",
+  "/pdi/import",
+  "/settings/categories",
+];
 
 function nav(page: Page) {
   return page.getByRole("navigation", { name: "Principal" });
