@@ -129,6 +129,8 @@ export function useSchemaForm<Values extends Record<string, unknown>>({
   };
 
   return {
+    /** The last answer from the server action (for extra fields such as `saved`). */
+    state,
     formProps,
     fieldProps,
     id,
