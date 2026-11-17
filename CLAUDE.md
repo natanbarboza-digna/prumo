@@ -22,6 +22,8 @@ Versões fixadas por incompatibilidade: TypeScript 6.0 (o `typescript-eslint` ai
 
 Scripts de instalação liberados no npm (`allowScripts` no `package.json`): `prisma`, `@prisma/engines` e `esbuild`. Ao atualizar um deles, o npm pede nova aprovação.
 
+`overrides` no `package.json`: o `minimatch` do `@ts-morph/common` (usado pela CLI do `shadcn`) é forçado para `^11.0.1`, que corrige uma falha de negação de serviço (plano 012). Quando o `shadcn` passar a usar o `ts-morph` 28 ou mais novo, remova o `overrides`. `npm audit` deve ficar em 0 avisos; nunca use `npm audit fix --force`.
+
 Use as versões estáveis atuais no momento do scaffold e consulte a documentação da versão instalada antes de usar uma API do framework: não confie na memória para Next.js, Prisma ou shadcn/ui, porque mudam com frequência.
 
 Não adicione dependências fora desta lista sem perguntar antes.
@@ -115,6 +117,7 @@ Os campos de `PdiCycle`, `PdiArea`, `PdiAction` e `PdiCheckIn` foram validados p
 3. **Branches.** Uma branch por feature a partir da `main` (`feat/goals-crud`, `fix/routine-log-date`). Nunca commite direto na `main`. Não faça merge nem push sem ser pedido.
 4. **Commits.** Conventional Commits em inglês (`feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `chore:`), pequenos e atômicos.
 5. **Pronto significa:** `npm run lint`, `npm run typecheck` e `npm test` passando, migration incluída quando o schema mudou e plano atualizado se o escopo mudou durante a implementação.
+6. **Hook de pre-commit e CI.** Todo commit passa pelo `.githooks/pre-commit` (Prettier, lint, typecheck e testes de unidade), ligado pelo `npm install` (script `prepare`). Não pule o hook com `--no-verify`. O CI (`.github/workflows/ci.yml`) roda tudo, inclusive integração, e2e e `npm audit`, quando o projeto estiver no GitHub; se o `prisma.config.ts` passar a exigir outra variável de ambiente, ela precisa entrar no `env` do workflow.
 
 Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um problema fora do escopo, anote em "Pendências" abaixo e siga.
 
@@ -156,5 +159,3 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 - **Autenticação.** Hoje não há login nem tabela de usuário, porque a aplicação roda só na máquina do dono. É obrigatória antes de qualquer deploy fora dela; vai exigir adicionar `userId` às entidades por migration.
 - **Deploy.** Ainda não definido (roda só localmente).
 - **Importação de PDI por arquivo.** Fora de escopo por enquanto; o cadastro é manual.
-- **`npm audit`.** Em 2026-11-16: 10 avisos moderados, todos em ferramentas de desenvolvimento (via `minimatch`). Não usar `npm audit fix --force`, que faz downgrade de pacotes.
-- **CI e hooks de pre-commit.** Lint, typecheck e testes só rodam à mão; ficaram fora do scaffold (plano 000).

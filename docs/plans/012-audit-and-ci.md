@@ -1,6 +1,6 @@
 # 012 — `npm audit`, hooks de pre-commit e CI
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-17**, aprovado com as três propostas das perguntas (ver "Decisões")
 Branch: `chore/audit-and-ci`
 
 ## Objetivo
@@ -90,8 +90,17 @@ Não há regra de negócio nova, então não há testes de unidade novos. A conf
 
 - Tudo acima, pendências removidas do `CLAUDE.md` e este plano atualizado.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **`minimatch` no `shadcn`.** Proposta: o `overrides` (zera o audit hoje). A alternativa é aceitar os 4 avisos documentados até o `shadcn` atualizar o `ts-morph`.
-2. **O que o hook roda.** Proposta: Prettier, lint, typecheck e testes de unidade (~33 s). A alternativa mais leve é só Prettier e lint (~19 s), deixando typecheck e testes para o CI.
-3. **CI sem remoto.** Proposta: criar o workflow agora, pronto para quando o projeto for para o GitHub. A alternativa é deixar o CI para quando houver remoto.
+- **`DATABASE_URL` no `env` do workflow.** Ao simular o CI sem `.env`, o `prisma generate` (que o `npm ci` roda pelo `postinstall`) falhou: o `prisma.config.ts` exige a variável mesmo sem conectar. O workflow define `DATABASE_URL` uma vez, no topo, apontando para o Postgres do job `tests`; o job `checks` só precisa dela para gerar o cliente. O `.env.test` do CI é escrito a partir da mesma variável.
+- **Conferência do `shadcn`:** `npx shadcn add button --dry-run` rodou com o `minimatch` 11 e reconheceu o componente existente como idêntico, sem escrever nada. O `npx shadcn diff` não existe mais na versão 4 (virou a opção `--diff` do `add`), então não foi usado.
+- **O hook confere o projeto inteiro**, não só os arquivos do commit (Prettier, lint e typecheck já são rápidos assim, e não há `lint-staged`). Um arquivo mal formatado fora do commit também barra o commit.
+- **Teste do hook:** um commit com `src/lib/tmp-bad.ts` mal formatado foi barrado na etapa "formatação (Prettier)", com a mensagem prevista; o arquivo de teste foi removido.
+- **Relatório do Playwright:** o projeto usa o reporter `list`, então o artefato do CI em caso de falha é a pasta `test-results/` (traces e capturas); `playwright-report/` fica na lista caso o reporter mude.
+- **Resultado:** `npm audit` com 0 avisos; `typescript-eslint` em 8.73.0; `minimatch` 11.0.9 nos dois caminhos.
+
+## Decisões
+
+1. `overrides` do `minimatch` dentro do `@ts-morph/common`.
+2. O hook roda Prettier, lint, typecheck e testes de unidade.
+3. O workflow do CI foi criado agora, pronto para quando houver remoto no GitHub.
