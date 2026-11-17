@@ -1,0 +1,69 @@
+# Runs on every push and pull request once the project is on GitHub (plan 012).
+# No secrets: the test database only exists while the job runs.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# prisma.config.ts requires DATABASE_URL even for `prisma generate` (run by
+# `npm ci` through postinstall), which does not connect. The tests job's
+# Postgres service answers at this address.
+env:
+  DATABASE_URL: postgresql://prumo:ci-only@localhost:5432/prumo_test?schema=public
+
+jobs:
+  checks:
+    name: Formatação, lint, tipos, unidade e audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npx vitest run --project unit
+      - run: npm audit --audit-level=moderate
+
+  tests:
+    name: Integração e e2e
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # Same image as docker-compose.yml.
+        image: postgres:18
+        env:
+          POSTGRES_USER: prumo
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: prumo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U prumo -d prumo_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The tests read DATABASE_URL from .env.test and refuse any database not named *_test.
+      - run: echo "DATABASE_URL=\"$DATABASE_URL\"" > .env.test
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
