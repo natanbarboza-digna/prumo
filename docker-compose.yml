@@ -1,3 +1,6 @@
+# Project name: names the container (prumo-db-1) and the volume (prumo_pgdata).
+name: prumo
+
 services:
   db:
     image: postgres:18

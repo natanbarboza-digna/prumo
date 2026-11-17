@@ -1,2 +1,2 @@
 -- Separate database for the integration tests (see .env.test).
-CREATE DATABASE personal_management_test;
+CREATE DATABASE prumo_test;
