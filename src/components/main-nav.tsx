@@ -33,18 +33,26 @@ function ActiveNavLinks() {
 
 function NavLinks({ pathname }: { pathname: string | null }) {
   return (
-    <nav aria-label="Principal">
-      <ul className="flex flex-wrap items-center gap-1">
+    // Phones: last in the header row, full width, one line that scrolls sideways
+    // when it does not fit (320 px), so the page itself never does. md and up:
+    // back between the brand and the theme button. Links are blocks so their
+    // padding stays inside the strip instead of being clipped by the overflow.
+    <nav
+      aria-label="Principal"
+      className="order-last w-full overflow-x-auto pt-1 pb-2 md:order-none md:w-auto md:overflow-visible md:py-0"
+    >
+      {/* The padding keeps the focus ring inside the scrolling strip. */}
+      <ul className="flex items-center gap-1 px-1 md:px-0">
         {links.map(({ href, label }) => {
           const active =
             pathname !== null && (pathname === href || pathname.startsWith(`${href}/`));
           return (
-            <li key={href}>
+            <li key={href} className="shrink-0">
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "focus-visible:ring-ring/50 rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-[3px]",
+                  "focus-visible:ring-ring/50 block rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-[3px]",
                   active
                     ? "bg-accent text-accent-foreground font-medium"
                     : "text-muted-foreground hover:text-foreground",

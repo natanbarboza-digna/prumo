@@ -50,11 +50,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             Pular para o conteúdo
           </a>
           <header className="border-b">
-            <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-4 px-4">
+            {/* On phones the nav wraps to its own row under the brand (see MainNav);
+                from md up everything sits on one row. */}
+            <div className="mx-auto flex min-h-14 w-full max-w-5xl flex-wrap items-center gap-x-4 px-4 md:flex-nowrap">
               <Link
                 href="/"
                 aria-label="Prumo, página inicial"
-                className="flex items-center gap-2 text-lg font-semibold tracking-tight"
+                className="flex h-14 items-center gap-2 text-lg font-semibold tracking-tight"
               >
                 <BrandMark />
                 Prumo
