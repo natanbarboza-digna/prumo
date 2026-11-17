@@ -25,7 +25,8 @@
     "test:e2e": "playwright test",
     "db:seed:demo": "tsx prisma/seed-demo.ts",
     "check:versions": "tsx scripts/check-pinned-versions.ts",
-    "pdi:template": "tsx scripts/generate-pdi-template.ts"
+    "pdi:template": "tsx scripts/generate-pdi-template.ts",
+    "auth:create-user": "tsx scripts/create-user.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
