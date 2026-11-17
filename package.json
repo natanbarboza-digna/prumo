@@ -2,6 +2,11 @@
   "name": "prumo",
   "version": "0.1.0",
   "private": true,
+  "overrides": {
+    "@ts-morph/common": {
+      "minimatch": "^11.0.1"
+    }
+  },
   "engines": {
     "node": ">=26"
   },
@@ -14,6 +19,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "postinstall": "prisma generate",
+    "prepare": "git config core.hooksPath .githooks",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
