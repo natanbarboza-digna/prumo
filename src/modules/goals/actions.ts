@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { requireSession } from "@/modules/auth/session";
 import {
   type GoalFieldErrors,
   type GoalFormValues,
@@ -43,6 +44,7 @@ export async function createGoalAction(
   _previous: GoalFormState,
   formData: FormData,
 ): Promise<GoalFormState> {
+  await requireSession();
   const values = readGoalForm(formData);
   const parsed = goalInputSchema.safeParse(values);
   if (!parsed.success) {
@@ -59,6 +61,7 @@ export async function updateGoalAction(
   _previous: GoalFormState,
   formData: FormData,
 ): Promise<GoalFormState> {
+  await requireSession();
   const values = readGoalForm(formData);
   const parsed = goalInputSchema.safeParse(values);
   if (!parsed.success) {
@@ -78,6 +81,7 @@ export async function updateGoalAction(
 }
 
 export async function deleteGoalAction(id: string): Promise<void> {
+  await requireSession();
   try {
     await deleteGoal(id);
   } catch (error) {

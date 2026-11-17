@@ -6,6 +6,7 @@ import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { requireSession } from "@/modules/auth/session";
 import {
   type CategoryFieldErrors,
   type CategoryFormValues,
@@ -49,6 +50,7 @@ export async function createCategoryAction(
   _previous: CategoryFormState,
   formData: FormData,
 ): Promise<CategoryFormState> {
+  await requireSession();
   const values = readCategoryForm(formData);
   const parsed = categoryInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -68,6 +70,7 @@ export async function updateCategoryAction(
   _previous: CategoryFormState,
   formData: FormData,
 ): Promise<CategoryFormState> {
+  await requireSession();
   const values = readCategoryForm(formData);
   const parsed = categoryInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -86,6 +89,7 @@ export async function updateCategoryAction(
 }
 
 export async function setCategoryArchivedAction(id: string, archived: boolean): Promise<void> {
+  await requireSession();
   try {
     await setCategoryArchived(id, z.boolean().parse(archived));
   } catch (error) {
@@ -96,6 +100,7 @@ export async function setCategoryArchivedAction(id: string, archived: boolean): 
 }
 
 export async function deleteCategoryAction(id: string): Promise<void> {
+  await requireSession();
   try {
     await deleteCategory(id);
   } catch (error) {

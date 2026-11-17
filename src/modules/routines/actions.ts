@@ -6,6 +6,7 @@ import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { requireSession } from "@/modules/auth/session";
 import { isValidDateOnly, todayInAppTimeZone } from "@/lib/dates";
 import { GoalNotFoundError } from "@/modules/goals/service";
 import { routineBlockerText } from "@/modules/pdi/labels";
@@ -71,6 +72,7 @@ export async function createRoutineAction(
   _previous: RoutineFormState,
   formData: FormData,
 ): Promise<RoutineFormState> {
+  await requireSession();
   const values = readRoutineForm(formData);
   const parsed = routineInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -99,6 +101,7 @@ export async function updateRoutineAction(
   _previous: RoutineFormState,
   formData: FormData,
 ): Promise<RoutineFormState> {
+  await requireSession();
   const values = readRoutineForm(formData);
   const parsed = routineInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -117,6 +120,7 @@ export async function updateRoutineAction(
 }
 
 export async function deleteRoutineAction(id: string): Promise<void> {
+  await requireSession();
   try {
     await deleteRoutine(id);
   } catch (error) {
@@ -128,6 +132,7 @@ export async function deleteRoutineAction(id: string): Promise<void> {
 }
 
 export async function endRoutineAction(id: string): Promise<void> {
+  await requireSession();
   try {
     await endRoutine(id, todayInAppTimeZone());
   } catch (error) {
@@ -150,6 +155,7 @@ export async function logRoutineAction(
   date: string,
   formData: FormData,
 ): Promise<void> {
+  await requireSession();
   const parsed = routineLogInputSchema.safeParse({
     status: formData.get("status"),
     note: formData.get("note") ?? undefined,
@@ -162,6 +168,7 @@ export async function logRoutineAction(
 }
 
 export async function clearLogAction(routineId: string, date: string): Promise<void> {
+  await requireSession();
   if (isValidDateOnly(date)) await ignoreStaleLog(() => clearLog(routineId, date));
   revalidateRoutineScreens();
   refresh();

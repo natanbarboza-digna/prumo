@@ -6,6 +6,7 @@ import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { requireSession } from "@/modules/auth/session";
 import { CategoryNotFoundError } from "@/modules/categories/service";
 import { GoalNotFoundError } from "@/modules/goals/service";
 import {
@@ -119,6 +120,7 @@ export async function createCycleAction(
   _previous: CycleFormState,
   formData: FormData,
 ): Promise<CycleFormState> {
+  await requireSession();
   const values = readFields<CycleFormValues>(formData, cycleFields);
   const parsed = cycleInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -139,6 +141,7 @@ export async function updateCycleAction(
   _previous: CycleFormState,
   formData: FormData,
 ): Promise<CycleFormState> {
+  await requireSession();
   const values = readFields<CycleFormValues>(formData, cycleFields);
   const parsed = cycleInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -154,6 +157,7 @@ export async function updateCycleAction(
 }
 
 export async function deleteCycleAction(id: string): Promise<void> {
+  await requireSession();
   try {
     await deleteCycle(id);
   } catch (error) {
@@ -169,12 +173,14 @@ export async function deleteCycleAction(id: string): Promise<void> {
 }
 
 export async function closeCycleAction(id: string): Promise<void> {
+  await requireSession();
   await ignoreStale(() => closeCycle(id));
   revalidatePdiScreens();
   refresh();
 }
 
 export async function reopenCycleAction(id: string): Promise<void> {
+  await requireSession();
   await ignoreStale(() => reopenCycle(id));
   revalidatePdiScreens();
   refresh();
@@ -210,6 +216,7 @@ export async function createAreaAction(
   _previous: AreaFormState,
   formData: FormData,
 ): Promise<AreaFormState> {
+  await requireSession();
   const values = readFields<AreaFormValues>(formData, areaFields);
   const parsed = areaInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -228,6 +235,7 @@ export async function updateAreaAction(
   _previous: AreaFormState,
   formData: FormData,
 ): Promise<AreaFormState> {
+  await requireSession();
   const values = readFields<AreaFormValues>(formData, areaFields);
   const parsed = areaInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -243,6 +251,7 @@ export async function updateAreaAction(
 }
 
 export async function deleteAreaAction(areaId: string): Promise<void> {
+  await requireSession();
   await deleteInCycle(async () => {
     const { cycleId } = await getArea(areaId);
     await deleteArea(areaId);
@@ -284,6 +293,7 @@ export async function createActionAction(
   _previous: ActionFormState,
   formData: FormData,
 ): Promise<ActionFormState> {
+  await requireSession();
   const values = readFields<ActionFormValues>(formData, actionFields);
   const parsed = actionInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -306,6 +316,7 @@ export async function updateActionAction(
   _previous: ActionFormState,
   formData: FormData,
 ): Promise<ActionFormState> {
+  await requireSession();
   const values: ActionFormValues = {
     ...readFields<ActionFormValues>(formData, actionFields),
     // An unchecked radio group sends nothing; any other value is left for Zod
@@ -332,6 +343,7 @@ export async function updateActionAction(
 }
 
 export async function deleteActionAction(actionId: string): Promise<void> {
+  await requireSession();
   await deleteInCycle(async () => {
     const { cycleId } = await getAction(actionId);
     await deleteAction(actionId);
@@ -350,6 +362,7 @@ export async function createCheckInAction(
   _previous: CheckInFormState,
   formData: FormData,
 ): Promise<CheckInFormState> {
+  await requireSession();
   const values = readFields<CheckInFormValues>(formData, checkInFields);
   const parsed = checkInInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -368,6 +381,7 @@ export async function updateCheckInAction(
   _previous: CheckInFormState,
   formData: FormData,
 ): Promise<CheckInFormState> {
+  await requireSession();
   const values = readFields<CheckInFormValues>(formData, checkInFields);
   const parsed = checkInInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -383,6 +397,7 @@ export async function updateCheckInAction(
 }
 
 export async function deleteCheckInAction(checkInId: string): Promise<void> {
+  await requireSession();
   await deleteInCycle(async () => {
     const { cycleId } = await getCheckIn(checkInId);
     await deleteCheckIn(checkInId);

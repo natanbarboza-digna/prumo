@@ -6,6 +6,7 @@ import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { requireSession } from "@/modules/auth/session";
 import type { TrackStepStatus } from "@/generated/prisma/enums";
 import { GoalNotFoundError } from "@/modules/goals/service";
 import {
@@ -84,6 +85,7 @@ export async function createTrackAction(
   _previous: TrackFormState,
   formData: FormData,
 ): Promise<TrackFormState> {
+  await requireSession();
   const values = readTrackForm(formData);
   const parsed = trackInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -104,6 +106,7 @@ export async function updateTrackAction(
   _previous: TrackFormState,
   formData: FormData,
 ): Promise<TrackFormState> {
+  await requireSession();
   const values = readTrackForm(formData);
   const parsed = trackInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -122,6 +125,7 @@ export async function updateTrackAction(
 }
 
 export async function deleteTrackAction(id: string): Promise<void> {
+  await requireSession();
   try {
     await deleteTrack(id);
   } catch (error) {
@@ -141,6 +145,7 @@ export async function createStepAction(
   _previous: TrackStepFormState,
   formData: FormData,
 ): Promise<TrackStepFormState> {
+  await requireSession();
   const values = readStepForm(formData);
   const parsed = trackStepInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -162,6 +167,7 @@ export async function updateStepAction(
   _previous: TrackStepFormState,
   formData: FormData,
 ): Promise<TrackStepFormState> {
+  await requireSession();
   const values = readStepForm(formData);
   const parsed = trackStepInputSchema.safeParse(values);
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
@@ -180,6 +186,7 @@ export async function updateStepAction(
 }
 
 export async function deleteStepAction(stepId: string): Promise<void> {
+  await requireSession();
   let trackId: string;
   try {
     trackId = (await getStep(stepId)).trackId;
@@ -196,6 +203,7 @@ export async function deleteStepAction(stepId: string): Promise<void> {
 }
 
 export async function setStepStatusAction(stepId: string, status: TrackStepStatus): Promise<void> {
+  await requireSession();
   await ignoreMissingStep(() => setStepStatus(stepId, statusSchema.parse(status)));
   revalidateTrackScreens();
   // Stay on the same page and re-render it with the new data.
@@ -203,6 +211,7 @@ export async function setStepStatusAction(stepId: string, status: TrackStepStatu
 }
 
 export async function moveStepAction(stepId: string, direction: "up" | "down"): Promise<void> {
+  await requireSession();
   await ignoreMissingStep(() => moveStep(stepId, directionSchema.parse(direction)));
   refresh();
 }

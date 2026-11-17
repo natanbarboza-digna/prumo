@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
+import { Suspense } from "react";
 
-import { BrandMark } from "@/components/brand-mark";
-import { MainNav } from "@/components/main-nav";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 import "./globals.css";
 
@@ -49,27 +46,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           >
             Pular para o conteúdo
           </a>
-          <header className="border-b">
-            {/* On phones the nav wraps to its own row under the brand (see MainNav);
-                from md up everything sits on one row. */}
-            <div className="mx-auto flex min-h-14 w-full max-w-5xl flex-wrap items-center gap-x-4 px-4 md:flex-nowrap">
-              <Link
-                href="/"
-                aria-label="Prumo, página inicial"
-                className="flex h-14 items-center gap-2 text-lg font-semibold tracking-tight"
-              >
-                <BrandMark />
-                Prumo
-              </Link>
-              <MainNav />
-              <div className="ml-auto">
-                <ThemeToggle />
+          {/* The app's layout (src/app/(app)/layout.tsx) checks the session
+              cookie before rendering anything; reading cookies is per-request
+              data, which Next requires inside Suspense. */}
+          <Suspense
+            fallback={
+              <div role="status" aria-live="polite" className="text-muted-foreground p-8">
+                Carregando…
               </div>
-            </div>
-          </header>
-          <main id="conteudo" className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+            }
+          >
             {children}
-          </main>
+          </Suspense>
         </ThemeProvider>
       </body>
     </html>
