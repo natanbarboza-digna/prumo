@@ -1,6 +1,6 @@
 # 011 — Versões fixadas
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-17**, aprovado com as três propostas das perguntas (ver "Decisões")
 Branch: `chore/pinned-versions`
 
 ## Objetivo
@@ -85,8 +85,23 @@ A função pura fica em `src/lib/` porque o Vitest só procura testes em `src/`;
 
 - Tudo acima passando, `CLAUDE.md` e este plano atualizados.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **Comando de verificação.** Proposta: criar o `npm run check:versions`. A alternativa é só atualizar o texto do `CLAUDE.md` com a data da conferência e repetir a verificação à mão no futuro.
-2. **`semver`.** Proposta: adicionar `semver` (e `@types/semver`) como dependência de desenvolvimento: é o pacote que o próprio npm usa para comparar versões, sem dependências próprias. A alternativa é comparar as faixas com código próprio, que precisaria cobrir `^`, `~`, `>=`, `<` e `||` à mão.
-3. **Node.** Proposta: `@types/node` 26, `engines.node >=26` e `.nvmrc`. A alternativa é só subir o `@types/node`, sem declarar a versão do Node.
+- **O script ficou em TypeScript** (`scripts/check-pinned-versions.ts`, rodado com `tsx`), em vez de `.mjs`, para importar a função pura de `src/lib/pinned-versions.ts` sem duplicá-la.
+- **A função pura virou duas:** `peerVerdict` (TypeScript e ESLint, pela faixa de peer de quem segura) e `stableTagVerdict` (Prisma, pela tag `latest`). O plano falava de uma `canUpgrade` só.
+- **O lembrete do `SerialClient`** também aparece na saída do comando quando o Prisma puder subir.
+- **Versões instaladas:** `semver` 7.8.6, `@types/semver` 7.8.0 e `@types/node` 26.6.6, todas fixadas exatas (`--save-exact`).
+
+### Saída real do comando (2026-11-17)
+
+```
+TypeScript 6.0.3 → 7.0.2: ainda não (typescript-eslint 8.73.0 aceita >=4.8.4 <6.1.0)
+ESLint 9.39.5 → 10.15.0: ainda não (eslint-plugin-react 7.37.5 aceita ^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7; eslint-plugin-jsx-a11y 6.10.2 aceita ^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9; eslint-plugin-import 2.32.0 aceita ^2 || ^3 || ^4 || ^5 || ^6 || ^7.2.0 || ^8 || ^9)
+Prisma 7.10.1 → 8.0.0-rc.34: ainda não (a tag latest aponta para 8.0.0-rc.34, que não é estável)
+```
+
+## Decisões
+
+1. Criar o `npm run check:versions`.
+2. Adicionar `semver` e `@types/semver` como dependências de desenvolvimento.
+3. `@types/node` 26, `engines.node >=26` e `.nvmrc`.

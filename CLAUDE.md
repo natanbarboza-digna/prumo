@@ -16,9 +16,9 @@ O dono do projeto vem de Python/Django e está aprendendo Next.js e TypeScript. 
 - ESLint + Prettier
 - `next-themes` (tema claro/escuro) e `@axe-core/playwright` (verificação de acessibilidade nos e2e)
 
-Dependências de suporte já aprovadas: `@prisma/adapter-pg`, `pg`, `@types/pg`, `dotenv`, `tsx`, `vite`, `eslint-config-prettier` e as que o `shadcn` instala (`cn`, `class-variance-authority`, `lucide-react`, `tw-animate-css`, `radix-ui`, o próprio `shadcn` como devDependency por causa do `shadcn/tailwind.css`).
+Dependências de suporte já aprovadas: `@prisma/adapter-pg`, `pg`, `@types/pg`, `dotenv`, `tsx`, `vite`, `eslint-config-prettier`, `semver` e `@types/semver` (comparação de versões no `check:versions`) e as que o `shadcn` instala (`cn`, `class-variance-authority`, `lucide-react`, `tw-animate-css`, `radix-ui`, o próprio `shadcn` como devDependency por causa do `shadcn/tailwind.css`).
 
-Versões fixadas por incompatibilidade (revisar periodicamente): TypeScript 6.0 (o `typescript-eslint` ainda não aceita a 7), ESLint 9 (os plugins `react`, `jsx-a11y` e `import` do `eslint-config-next` ainda não aceitam a 10) e Prisma 7.10 (a tag `latest` da CLI apontava para uma RC).
+Versões fixadas por incompatibilidade: TypeScript 6.0 (o `typescript-eslint` ainda não aceita a 7), ESLint 9 (os plugins `react`, `jsx-a11y` e `import` do `eslint-config-next` ainda não aceitam a 10) e Prisma 7.10 (a tag `latest` aponta para a RC do Prisma 8). Rode `npm run check:versions` para saber se alguma já pode subir. Ao subir o Prisma, teste sem o `SerialClient` (`src/lib/db.ts`, plano 010); se o aviso de depreciação do `pg` não voltar, remova a classe. O projeto roda em Node 26 (`engines` e `.nvmrc`), com `@types/node` na mesma versão.
 
 Scripts de instalação liberados no npm (`allowScripts` no `package.json`): `prisma`, `@prisma/engines` e `esbuild`. Ao atualizar um deles, o npm pede nova aprovação.
 
@@ -42,6 +42,7 @@ Estes scripts devem existir no `package.json` desde o scaffold:
 | `npx prisma migrate dev` | Cria e aplica migration                                            |
 | `npx prisma db seed`     | Dados iniciais (categorias padrão)                                 |
 | `npm run db:seed:demo`   | Dados de demonstração (banco vazio; `-- --reset` apaga tudo antes) |
+| `npm run check:versions` | Diz se as versões fixadas (ver "Stack") já podem subir             |
 
 ## Estrutura de pastas
 
@@ -155,6 +156,5 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 - **Autenticação.** Hoje não há login nem tabela de usuário, porque a aplicação roda só na máquina do dono. É obrigatória antes de qualquer deploy fora dela; vai exigir adicionar `userId` às entidades por migration.
 - **Deploy.** Ainda não definido (roda só localmente).
 - **Importação de PDI por arquivo.** Fora de escopo por enquanto; o cadastro é manual.
-- **Versões fixadas.** Revisar TypeScript 6.0, ESLint 9 e Prisma 7.10 (ver "Stack") quando os pacotes que as seguram aceitarem as novas versões. Ao atualizar o Prisma, testar sem o `SerialClient` (`src/lib/db.ts`, plano 010); se o aviso de depreciação do `pg` não voltar, remover a classe.
 - **`npm audit`.** Em 2026-11-16: 10 avisos moderados, todos em ferramentas de desenvolvimento (via `minimatch`). Não usar `npm audit fix --force`, que faz downgrade de pacotes.
 - **CI e hooks de pre-commit.** Lint, typecheck e testes só rodam à mão; ficaram fora do scaffold (plano 000).
