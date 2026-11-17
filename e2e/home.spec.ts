@@ -21,7 +21,7 @@ const today = todayInAppTimeZone();
 async function openHome(page: Page) {
   await page.goto("/");
   // Wait for the page itself, not the "Carregando…" fallback.
-  await expect(page.getByRole("heading", { level: 1, name: "Gestão Pessoal" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Prumo" })).toBeVisible();
 }
 
 function card(page: Page, name: string) {
@@ -32,6 +32,8 @@ test("sem dados, mostra por onde começar", async ({ page }) => {
   await openHome(page);
 
   await expect(page.locator("html")).toHaveAttribute("lang", "pt-BR");
+  await expect(page).toHaveTitle("Prumo");
+  await expect(page.getByRole("link", { name: "Prumo, página inicial" })).toBeVisible();
   const welcome = card(page, "Por onde começar");
   for (const label of ["Criar objetivo", "Criar trilha", "Criar rotina", "Criar ciclo de PDI"]) {
     await expect(welcome.getByRole("link", { name: label })).toBeVisible();
@@ -118,4 +120,14 @@ test("alterna para o tema escuro", async ({ page }) => {
   await page.getByRole("button", { name: "Alternar tema claro/escuro" }).click();
 
   await expect(html).toHaveClass(/\bdark\b/);
+});
+
+test("o painel com dados passa no axe também no tema escuro", async ({ page }) => {
+  await createRoutine(page, { title: "Ler 20 minutos" });
+  await createGoal(page, { title: "Falar inglês", status: "Concluído" });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await openHome(page);
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+
+  await expectNoAxeViolations(page);
 });
