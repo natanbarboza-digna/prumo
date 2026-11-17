@@ -692,7 +692,8 @@ async function ignoreGone(operation: () => Promise<unknown>): Promise<void> {
   }
 }
 
-function toCycleData(input: CycleInput) {
+/** CycleInput as Prisma data (date strings become Date). Also used by the spreadsheet import. */
+export function toCycleData(input: CycleInput) {
   return {
     ...input,
     startDate: parseDateOnly(input.startDate),
@@ -718,7 +719,8 @@ function toEvidenceRoutine(row: Prisma.RoutineGetPayload<object>): EvidenceRouti
   };
 }
 
-function toCheckInData(input: CheckInInput) {
+/** CheckInInput as Prisma data. Also used by the spreadsheet import. */
+export function toCheckInData(input: CheckInInput) {
   return { ...input, date: parseDateOnly(input.date) };
 }
 
