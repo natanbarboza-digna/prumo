@@ -122,6 +122,7 @@ describe("assertCanSeed", () => {
 });
 
 describe("resetAllData", () => {
+  // Seeds the demo twice (about 90 logs each), so it needs more than the 5 s default.
   it("deletes everything but keeps the default categories, so the demo can run again", async () => {
     await seedDemo(monday);
 
@@ -136,5 +137,5 @@ describe("resetAllData", () => {
     );
     await expect(assertCanSeed()).resolves.toBeUndefined();
     await expect(seedDemo(monday)).resolves.toMatchObject({ goals: 4 });
-  });
+  }, 20_000);
 });
