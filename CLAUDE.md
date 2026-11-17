@@ -137,7 +137,7 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 - **Formulários:** mesmo schema Zod no cliente e no servidor; erros do servidor por campo via `useActionState`; botão desabilitado com indicação durante o envio; confirmação antes de ação destrutiva.
 - **Desempenho:** Server Components por padrão, `"use client"` no menor componente possível; `next/font` e `next/image`; nada de buscar dados no cliente quando o servidor pode entregar pronto.
 - **Responsivo e consistente:** mobile-first; cores, espaçamentos e raios só pelos tokens do tema (Tailwind/shadcn), sem valores arbitrários soltos. Tema claro/escuro via `next-themes`.
-- **Testes:** no Playwright, localize por papel e nome acessível (`getByRole`); cada página principal passa na verificação do axe (espere o `h1` antes, para não analisar o "Carregando…").
+- **Testes:** no Playwright, localize por papel e nome acessível (`getByRole`); cada página principal passa na verificação do axe (espere o `h1` antes, para não analisar o "Carregando…"). `e2e/mobile.spec.ts` confere o cabeçalho e a ausência de rolagem horizontal em 375 e 320 px; página nova entra na lista `PAGES` dele.
 - **Cache Components / Activity (Next 16):** leitura de `params`, `searchParams`, `usePathname()` ou do banco precisa estar dentro de `<Suspense>` ou de uma rota com `loading.tsx` (inclusive rotas filhas, como `[id]/edit`). O Next mantém as últimas páginas visitadas escondidas no DOM: use `useId` para `id`s de campos, feche diálogos e limpe formulários já enviados num cleanup de `useLayoutEffect`, e nunca use `getByLabel` nos e2e (ele acha elementos escondidos).
 
 ## Roteiro
@@ -158,5 +158,4 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 - **Aviso de depreciação do `pg`.** Os testes de integração e os e2e mostram "Calling client.query() when the client is already executing a query is deprecated". Provável origem: transações interativas do Prisma com `@prisma/adapter-pg`. Não quebra nada hoje, mas vira erro no `pg` 9: investigar antes de atualizar o `pg` ou o Prisma.
 - **Versões fixadas.** Revisar TypeScript 6.0, ESLint 9 e Prisma 7.10 (ver "Stack") quando os pacotes que as seguram aceitarem as novas versões.
 - **`npm audit`.** Em 2026-11-16: 10 avisos moderados, todos em ferramentas de desenvolvimento (via `minimatch`). Não usar `npm audit fix --force`, que faz downgrade de pacotes.
-- **Revisão visual no celular.** Painel, Hoje, PDI e trilha foram conferidos por screenshot (375 px, plano 008). Faltam objetivos, rotinas e os formulários. Defeito já visto: em 375 px a navegação do cabeçalho quebra em três linhas e fica cortada no topo (o cabeçalho tem altura fixa `h-14`).
 - **CI e hooks de pre-commit.** Lint, typecheck e testes só rodam à mão; ficaram fora do scaffold (plano 000).

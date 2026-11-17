@@ -1,6 +1,6 @@
 # 009 — Revisão no celular
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-16**, aprovado no mesmo dia com a proposta da pergunta (ver "Decisões")
 Branch: `fix/mobile-layout`
 
 ## Objetivo
@@ -69,6 +69,13 @@ Os testes em largura de desktop que já existem garantem que o cabeçalho contin
 - Capturas do cabeçalho em 320, 375 e 1280 px, nos dois temas, conferidas.
 - Pendência removida do `CLAUDE.md` e este plano atualizado.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **Navegação no celular.** Proposta: duas linhas, com a navegação sempre visível numa faixa que rola para o lado se precisar. A alternativa é um menu sanfona, que esconde os links atrás de um botão.
+- **Links da navegação viraram `block`.** Como elementos inline, o espaçamento vertical deles saía da caixa da navegação e o `overflow-x-auto` cortava essa parte (o teste de visibilidade pegou: o link "Hoje" aparecia 85% visível).
+- **Respiro para o anel de foco:** a faixa rolável ganhou `pt-1 pb-2` e a lista `px-1`, para o anel de foco do teclado não ser cortado nas bordas. A partir de `md`, a navegação volta a `overflow-visible`, sem esse respiro.
+- **Ordem do Tab:** no celular, a navegação aparece depois do botão de tema, mas continua antes dele no HTML; a ordem do teclado segue a leitura da página (marca, navegação, tema).
+- **320 px:** nenhuma página rolou para o lado; nada além do cabeçalho precisou de ajuste.
+
+## Decisões
+
+1. Navegação em duas linhas no celular, sempre visível, numa faixa que rola para o lado quando não cabe. Sem menu sanfona.
