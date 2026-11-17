@@ -7,6 +7,7 @@ import { Client } from "pg";
 
 // Relative import: this file also runs in Playwright's process.
 import { DEFAULT_CATEGORIES } from "../modules/categories/defaults";
+import { APP_TABLES_QUERY, truncateStatement } from "../lib/truncate";
 
 /** Reads DATABASE_URL from .env.test and refuses anything not named *_test. */
 export function readTestDatabaseUrl(): string {
@@ -42,15 +43,9 @@ export async function resetTestDatabase(url: string): Promise<void> {
   const client = new Client({ connectionString: url });
   await client.connect();
   try {
-    const { rows } = await client.query<{ tablename: string }>(
-      `SELECT tablename FROM pg_tables
-       WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`,
-    );
-    if (rows.length === 0) return;
-    // Table names come from the catalog, not from user input; quoting them
-    // with double quotes keeps any name valid as an SQL identifier.
-    const tables = rows.map(({ tablename }) => `"${tablename.replaceAll('"', '""')}"`).join(", ");
-    await client.query(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE`);
+    const { rows } = await client.query<{ tablename: string }>(APP_TABLES_QUERY);
+    const statement = truncateStatement(rows.map(({ tablename }) => tablename));
+    if (statement !== null) await client.query(statement);
   } finally {
     await client.end();
   }
