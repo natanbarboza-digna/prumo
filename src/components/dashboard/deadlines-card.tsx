@@ -40,7 +40,7 @@ function Group({ title, group, today }: { title: string; group: DeadlineGroup; t
       <ul className="grid gap-2" aria-label={title}>
         {group.items.map((item) => (
           <li key={`${item.kind}-${item.id}`} className="space-y-0.5 rounded-md border p-3 text-sm">
-            <p className="text-muted-foreground text-xs">
+            <p className="text-muted-foreground text-xs tracking-wide uppercase">
               {deadlineKindLabels[item.kind]}
               {item.source && ` · ${item.source}`}
             </p>

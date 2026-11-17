@@ -7,7 +7,7 @@ import { goalStatusLabels } from "@/modules/goals/labels";
 const variants: Record<GoalStatus, ComponentProps<typeof Badge>["variant"]> = {
   NOT_STARTED: "outline",
   IN_PROGRESS: "secondary",
-  DONE: "default",
+  DONE: "success",
   ARCHIVED: "outline",
 };
 

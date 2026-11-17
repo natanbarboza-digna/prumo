@@ -10,7 +10,7 @@ type Variant = ComponentProps<typeof Badge>["variant"];
 const variants: Record<TrackStatus, Variant> = {
   NOT_STARTED: "outline",
   IN_PROGRESS: "secondary",
-  DONE: "default",
+  DONE: "success",
 };
 
 export function TrackStatusBadge({ status }: { status: TrackStatus }) {

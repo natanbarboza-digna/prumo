@@ -15,7 +15,7 @@ const cycleVariants: Record<PdiCycleStatus, Variant> = {
 const actionVariants: Record<PdiActionStatus, Variant> = {
   NOT_STARTED: "outline",
   IN_PROGRESS: "secondary",
-  DONE: "default",
+  DONE: "success",
   CANCELLED: "outline",
 };
 
