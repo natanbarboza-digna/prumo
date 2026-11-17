@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 
+import { BrandMark } from "@/components/brand-mark";
 import { MainNav } from "@/components/main-nav";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -20,10 +21,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Gestão Pessoal",
-    template: "%s · Gestão Pessoal",
+    default: "Prumo",
+    template: "%s · Prumo",
   },
-  description: "Objetivos, trilhas, rotina e PDI em um só lugar.",
+  description: "Objetivos, trilhas, rotina e PDI no mesmo prumo.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -50,8 +51,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </a>
           <header className="border-b">
             <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-4 px-4">
-              <Link href="/" className="font-semibold">
-                Gestão Pessoal
+              <Link
+                href="/"
+                aria-label="Prumo, página inicial"
+                className="flex items-center gap-2 text-lg font-semibold tracking-tight"
+              >
+                <BrandMark />
+                Prumo
               </Link>
               <MainNav />
               <div className="ml-auto">

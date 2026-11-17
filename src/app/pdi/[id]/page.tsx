@@ -45,7 +45,7 @@ export default async function CyclePage({ params }: PageProps<"/pdi/[id]">) {
         <Link href="/pdi" className="text-muted-foreground text-sm hover:underline">
           ← PDI
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight break-words">{cycle.title}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight break-words">{cycle.title}</h1>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <CycleStatusBadge status={cycle.status} />
           <span>

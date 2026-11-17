@@ -29,7 +29,7 @@ export default async function EditActionPage({
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Editar ação</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Editar ação</h1>
       <ActionForm
         action={updateActionAction.bind(null, action.id)}
         areas={cycle.areas.map((area) => ({ id: area.id, label: area.name }))}

@@ -20,7 +20,7 @@ export default async function CategoriesPage() {
           ← PDI
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">Categorias de ação</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Categorias de ação</h1>
           <Button asChild>
             <Link href="/settings/categories/new">Nova categoria</Link>
           </Button>

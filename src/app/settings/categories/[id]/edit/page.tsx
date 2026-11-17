@@ -14,7 +14,7 @@ export default async function EditCategoryPage({
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Editar categoria</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Editar categoria</h1>
       <CategoryForm
         action={updateCategoryAction.bind(null, category.id)}
         defaultValues={{ name: category.name, allowsRoutine: category.allowsRoutine }}

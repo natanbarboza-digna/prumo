@@ -23,7 +23,7 @@ export default async function TodayPage() {
     <div className="max-w-3xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Hoje</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Hoje</h1>
           <p className="text-muted-foreground first-letter:uppercase">{formatLongDate(today)}</p>
         </div>
         {items.length > 0 && (

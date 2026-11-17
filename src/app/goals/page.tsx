@@ -19,7 +19,7 @@ export default async function GoalsPage({ searchParams }: PageProps<"/goals">) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Objetivos</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Objetivos</h1>
         <Button asChild>
           <Link href="/goals/new">Novo objetivo</Link>
         </Button>

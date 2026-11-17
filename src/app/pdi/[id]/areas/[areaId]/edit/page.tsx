@@ -17,7 +17,7 @@ export default async function EditAreaPage({ params }: PageProps<"/pdi/[id]/area
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Editar área</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Editar área</h1>
       <AreaForm
         action={updateAreaAction.bind(null, area.id)}
         defaultValues={{

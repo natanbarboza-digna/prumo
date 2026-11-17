@@ -22,7 +22,7 @@ export default async function RoutinesPage({ searchParams }: PageProps<"/routine
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Rotinas</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Rotinas</h1>
         <Button asChild>
           <Link href="/routines/new">Nova rotina</Link>
         </Button>

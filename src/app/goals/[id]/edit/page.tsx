@@ -12,7 +12,7 @@ export default async function EditGoalPage({ params }: PageProps<"/goals/[id]/ed
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Editar objetivo</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Editar objetivo</h1>
       <GoalForm
         action={updateGoalAction.bind(null, goal.id)}
         defaultValues={{

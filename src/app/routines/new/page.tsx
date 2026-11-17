@@ -18,7 +18,7 @@ import { createRoutineAction } from "@/modules/routines/actions";
 
 export const metadata: Metadata = { title: "Nova rotina" };
 
-const heading = <h1 className="text-2xl font-semibold tracking-tight">Nova rotina</h1>;
+const heading = <h1 className="text-3xl font-semibold tracking-tight">Nova rotina</h1>;
 
 /** The action behind ?pdiActionId=, or null when the id points nowhere. */
 async function findSourceAction(id: string): Promise<PdiAction | null> {

@@ -40,7 +40,7 @@ export default async function ActionPage({ params }: PageProps<"/pdi/[id]/action
         <Link href={`/pdi/${cycle.id}`} className="text-muted-foreground text-sm hover:underline">
           ← {cycle.title}
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight break-words">{action.title}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight break-words">{action.title}</h1>
         <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
           <ActionStatusBadge status={action.status} />
           {isActionOverdue(action, today) && <ActionOverdueBadge />}

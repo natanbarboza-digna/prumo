@@ -32,7 +32,7 @@ export default async function RoutinePage({ params }: PageProps<"/routines/[id]"
         <Link href="/routines" className="text-muted-foreground text-sm hover:underline">
           ← Rotinas
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight break-words">{routine.title}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight break-words">{routine.title}</h1>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <RoutineStateBadge routine={routine} today={today} />
           {routine.goal ? (

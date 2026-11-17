@@ -34,7 +34,7 @@ export default async function GoalPage({ params }: PageProps<"/goals/[id]">) {
         <Link href="/goals" className="text-muted-foreground text-sm hover:underline">
           ← Objetivos
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight break-words">{goal.title}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight break-words">{goal.title}</h1>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <GoalStatusBadge status={goal.status} />
           {isGoalOverdue(goal, today) && <OverdueBadge />}

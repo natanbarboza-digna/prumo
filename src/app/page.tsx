@@ -20,10 +20,8 @@ export default async function HomePage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Gestão Pessoal</h1>
-        <p className="text-muted-foreground">
-          Objetivos, trilhas de desenvolvimento, rotina diária e PDI em um só lugar.
-        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">Prumo</h1>
+        <p className="text-muted-foreground">Objetivos, trilhas, rotina e PDI no mesmo prumo.</p>
       </div>
 
       {dashboard.firstUse ? (

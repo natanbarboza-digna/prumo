@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 export function ClosedCycleNotice({ cycleId, heading }: { cycleId: string; heading: string }) {
   return (
     <section className="max-w-2xl space-y-4">
-      <h1 className="text-2xl font-semibold tracking-tight">{heading}</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">{heading}</h1>
       <p className="text-muted-foreground">
         Este ciclo está encerrado e é somente leitura. Reabra o ciclo para fazer alterações.
       </p>

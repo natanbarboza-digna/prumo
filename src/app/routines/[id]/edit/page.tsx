@@ -15,7 +15,7 @@ export default async function EditRoutinePage({ params }: PageProps<"/routines/[
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Editar rotina</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Editar rotina</h1>
       {routine.pdiAction && <PdiLinkNotice action={routine.pdiAction} />}
       <RoutineForm
         action={updateRoutineAction.bind(null, routine.id)}

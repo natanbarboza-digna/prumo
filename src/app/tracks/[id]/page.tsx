@@ -23,7 +23,7 @@ export default async function TrackPage({ params }: PageProps<"/tracks/[id]">) {
         <Link href="/tracks" className="text-muted-foreground text-sm hover:underline">
           ← Trilhas
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight break-words">{track.title}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight break-words">{track.title}</h1>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <TrackStatusBadge status={deriveTrackStatus(track.counts)} />
           {track.goal ? (

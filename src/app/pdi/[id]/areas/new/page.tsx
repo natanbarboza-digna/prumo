@@ -16,7 +16,7 @@ export default async function NewAreaPage({ params }: PageProps<"/pdi/[id]/areas
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Nova área</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Nova área</h1>
       <p className="text-muted-foreground">Ciclo: {cycle.title}</p>
       <AreaForm
         action={createAreaAction.bind(null, cycle.id)}

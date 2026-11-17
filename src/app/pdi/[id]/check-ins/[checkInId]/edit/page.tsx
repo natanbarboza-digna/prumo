@@ -19,7 +19,7 @@ export default async function EditCheckInPage({
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Editar check-in</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Editar check-in</h1>
       <CheckInForm
         action={updateCheckInAction.bind(null, checkIn.id)}
         defaultValues={{

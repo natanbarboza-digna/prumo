@@ -13,7 +13,7 @@ export default async function NewStepPage({ params }: PageProps<"/tracks/[id]/st
   return (
     <div className="max-w-2xl space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Nova etapa</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Nova etapa</h1>
         <p className="text-muted-foreground">Trilha: {track.title}</p>
       </div>
       <StepForm

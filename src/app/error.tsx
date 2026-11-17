@@ -17,7 +17,7 @@ export default function ErrorPage({ error, retry }: ErrorPageProps) {
 
   return (
     <section role="alert" className="space-y-4">
-      <h1 className="text-2xl font-semibold tracking-tight">Algo deu errado</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Algo deu errado</h1>
       <p className="text-muted-foreground">
         Não foi possível carregar esta página. Tente de novo; se o problema continuar, veja o log do
         servidor.
