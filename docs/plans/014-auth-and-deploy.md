@@ -1,6 +1,6 @@
 # 014 — Autenticação e deploy em VPS
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-17**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/auth-and-deploy`
 
 ## Objetivo
@@ -137,8 +137,28 @@ docs/deploy.md, CLAUDE.md, .github/workflows/ci.yml (se a conta de teste precisa
 - Ambiente de produção conferido localmente (subida, login, backup e restauração).
 - Pendências removidas do `CLAUDE.md`; regras de autenticação e o processo de deploy registrados; este plano atualizado.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **Uma conta só, sem `userId`.** Proposta: uma conta, que protege o acesso a todos os dados. A alternativa é preparar o app para várias pessoas, com `userId` em todas as tabelas e consultas (bem maior e fora do propósito do projeto).
-2. **Regras de segurança.** Proposta: senha com pelo menos 12 caracteres, bloqueio de 15 minutos após 5 erros e sessão de 30 dias renovada com o uso. Ajuste qualquer número se preferir.
-3. **Conta pela linha de comando.** Proposta: criar a conta e trocar senha esquecida só pelo terminal do servidor, sem tela de cadastro. A alternativa é uma tela de "primeiro acesso" que só funciona enquanto não existe conta, que fica exposta na internet até ser usada.
+### Autenticação
+
+- **Grupos de rotas:** as telas foram para `src/app/(app)/` e o login para `src/app/(auth)/login/` (as URLs não mudam). O layout raiz ficou só com HTML, tema e um `<Suspense>`; o cabeçalho, o botão Sair e a verificação de sessão estão no layout de `(app)`. O `not-found.tsx` raiz ganhou o próprio `<main>`, já que ficou fora do layout com cabeçalho.
+- **Verificação da sessão nas páginas:** um componente `SessionGate`, dentro de `<Suspense>` no layout de `(app)`, valida a sessão no banco e só então renderiza a página. Assim um cookie forjado nunca vê dados (o proxy só confere se o cookie existe). A primeira versão aguardava a sessão no topo do layout, e o Next 16 avisou que isso segura toda navegação ("uncached data during prerendering or a navigation"); o guia de autenticação com Cache Components recomenda exatamente o componente dentro de `<Suspense>`.
+- **Relógio depois do banco:** `validateSession` e `login` recebem o "agora" opcional e só leem `new Date()` depois da consulta, porque o Next recusa ler o relógio antes de qualquer dado da requisição.
+- **`useSchemaForm` devolve também o `state`** da última resposta da action, para o formulário de senha mostrar "Senha alterada" (`saved`).
+- **Link "Minha conta"** (ícone) no cabeçalho, ao lado do tema e do Sair.
+- **`PASSWORD_MIN_LENGTH`** ficou em `src/modules/auth/schemas.ts` (o formulário do navegador importa dali); o service reexporta.
+- **E2E logados:** o `seedTestDatabase` cria a conta de teste e uma sessão com token fixo, e o `playwright.config.ts` começa todo teste com esse cookie. O `global-setup` também roda o seed, para os testes que não chamam `resetDatabase`.
+- **Login com a conta sumindo no meio:** a primeira bateria de e2e registrou um erro do Prisma (P2025) no login: o `resetDatabase` do teste seguinte esvaziou o banco enquanto um login ainda terminava. Em produção a conta única não é apagada, mas o login passou a usar `updateMany` e a responder com o erro genérico se a conta não existir mais, em vez de estourar um erro 500.
+- **Testes de unidade das funções puras** (senha, token, `next`) foram escritos junto com a implementação, sem rodá-los falhando antes.
+
+### Deploy
+
+- **Migrations num serviço `migrate`**, em vez de um `entrypoint.sh` no app: o Dockerfile tem dois alvos, `runner` (o servidor `standalone`, sem ferramentas de desenvolvimento) e `tools` (dependências completas e código), e o Compose roda o `tools` antes do app (`service_completed_successfully`). O mesmo serviço roda o `npm run auth:create-user` no servidor. Assim a imagem do app continua enxuta, e o Prisma CLI e o `tsx` ficam só na imagem de ferramentas.
+- **Script `prepare` tolerante:** passou a ser `node scripts/enable-git-hooks.mjs`, que ignora a falta de Git; dentro do build da imagem não há Git e o `npm ci` quebrava.
+- **Conferência local feita:** com `DOMAIN=localhost`, a pilha subiu (banco, migrations, app, Caddy com HTTPS local); `/` redirecionou para o login; os cabeçalhos de segurança apareceram; a conta foi criada pelo `migrate`; login, criação de objetivo e saída funcionaram, com o cookie `Secure`, `HttpOnly` e `SameSite=Lax`. O `deploy/backup.sh` gerou o dump, que foi restaurado num banco temporário com os mesmos dados. Depois, a pilha local foi parada (`down`, sem apagar volumes) e os arquivos temporários removidos.
+
+## Decisões
+
+1. Uma conta só, sem `userId` nas entidades.
+2. Senha com pelo menos 12 caracteres, bloqueio de 15 minutos após 5 erros e sessão de 30 dias renovada com o uso.
+3. Conta criada e senha trocada só pela linha de comando.

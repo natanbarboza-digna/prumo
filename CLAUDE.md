@@ -1,6 +1,6 @@
 # Prumo
 
-Aplicação web de uso pessoal para gerir objetivos, trilhas de desenvolvimento, rotina diária e ciclos de PDI (Plano de Desenvolvimento Individual) trazidos da empresa. Um único usuário, rodando localmente.
+Aplicação web de uso pessoal para gerir objetivos, trilhas de desenvolvimento, rotina diária e ciclos de PDI (Plano de Desenvolvimento Individual) trazidos da empresa. Um único usuário, com login (e-mail e senha). Roda localmente ou num VPS com Docker (`docs/deploy.md`).
 
 O dono do projeto vem de Python/Django e está aprendendo Next.js e TypeScript. Ao tomar uma decisão específica dessas tecnologias (Server vs Client Component, Server Action, tipagem não óbvia), explique o porquê em uma ou duas frases.
 
@@ -32,30 +32,34 @@ Não adicione dependências fora desta lista sem perguntar antes.
 
 Estes scripts devem existir no `package.json` desde o scaffold:
 
-| Comando                  | O que faz                                                          |
-| ------------------------ | ------------------------------------------------------------------ |
-| `docker compose up -d`   | Sobe o PostgreSQL                                                  |
-| `npm run dev`            | Servidor de desenvolvimento                                        |
-| `npm run lint`           | ESLint                                                             |
-| `npm run typecheck`      | `next typegen` + `tsc --noEmit`                                    |
-| `npm run format`         | Prettier                                                           |
-| `npm test`               | Vitest                                                             |
-| `npm run test:e2e`       | Playwright                                                         |
-| `npx prisma migrate dev` | Cria e aplica migration                                            |
-| `npx prisma db seed`     | Dados iniciais (categorias padrão)                                 |
-| `npm run db:seed:demo`   | Dados de demonstração (banco vazio; `-- --reset` apaga tudo antes) |
-| `npm run check:versions` | Diz se as versões fixadas (ver "Stack") já podem subir             |
-| `npm run pdi:template`   | Gera a planilha modelo de PDI e as planilhas dos e2e               |
+| Comando                    | O que faz                                                          |
+| -------------------------- | ------------------------------------------------------------------ |
+| `docker compose up -d`     | Sobe o PostgreSQL                                                  |
+| `npm run dev`              | Servidor de desenvolvimento                                        |
+| `npm run lint`             | ESLint                                                             |
+| `npm run typecheck`        | `next typegen` + `tsc --noEmit`                                    |
+| `npm run format`           | Prettier                                                           |
+| `npm test`                 | Vitest                                                             |
+| `npm run test:e2e`         | Playwright                                                         |
+| `npx prisma migrate dev`   | Cria e aplica migration                                            |
+| `npx prisma db seed`       | Dados iniciais (categorias padrão)                                 |
+| `npm run db:seed:demo`     | Dados de demonstração (banco vazio; `-- --reset` apaga tudo antes) |
+| `npm run check:versions`   | Diz se as versões fixadas (ver "Stack") já podem subir             |
+| `npm run pdi:template`     | Gera a planilha modelo de PDI e as planilhas dos e2e               |
+| `npm run auth:create-user` | Cria a conta única (ou troca a senha com `-- --reset-password`)    |
 
 ## Estrutura de pastas
 
 ```
 src/
   app/                  rotas do App Router; só composição de UI e chamada de actions
-    goals/  tracks/  routines/  pdi/  settings/categories/
+    (app)/              telas que exigem login (grupo de rotas: não muda a URL)
+      goals/  tracks/  routines/  pdi/  settings/categories/  settings/account/
+    (auth)/login/       tela de login
+  proxy.ts              redireciona para /login quem chega sem o cookie de sessão
   components/           componentes da aplicação
   components/ui/        componentes do shadcn/ui
-  modules/<dominio>/    um diretório por domínio: goals, tracks, routines, pdi, categories, dashboard (só leitura)
+  modules/<dominio>/    um diretório por domínio: goals, tracks, routines, pdi, categories, auth, dashboard (só leitura)
     schemas.ts          schemas Zod
     service.ts          regras de negócio e acesso ao banco
     actions.ts          Server Actions (validam com Zod e chamam o service)
@@ -63,6 +67,7 @@ src/
   lib/                  db.ts (cliente Prisma), datas, utilitários
   demo/                 dados de demonstração (seed-demo.ts), testados contra o banco de teste
 prisma/                 schema.prisma, migrations/, seed.ts, seed-demo.ts (linha de comando da demonstração)
+deploy/                 Caddyfile e backup.sh do deploy (com Dockerfile e docker-compose.prod.yml na raiz)
 e2e/                    testes Playwright
 docs/plans/             planos de feature (ver Workflow)
 ```
@@ -110,6 +115,7 @@ Os campos de `PdiCycle`, `PdiArea`, `PdiAction` e `PdiCheckIn` foram validados p
 - Ciclo com status `CLOSED` é somente leitura.
 - Etapas de trilha, ações de PDI e rotinas podem se vincular a um objetivo; o objetivo mostra o progresso agregado desses itens.
 - Datas de rotina e de registro são datas sem hora, no fuso `America/Fortaleza`. Nunca derive "hoje" de UTC.
+- **Autenticação** (plano 014): uma conta só, criada pelo terminal (`npm run auth:create-user`); não há cadastro pela tela nem `userId` nas entidades. Senha com `scrypt` (mínimo de 12 caracteres); 5 senhas erradas seguidas bloqueiam a conta por 15 minutos; erro de login sempre genérico. Sessão no banco (tabela `sessions`, só o hash do token), 30 dias, renovada quando usada com menos de 15 dias restantes; trocar a senha encerra as outras sessões.
 - **Importação de PDI por planilha** (`/pdi/import`, plano 013): sempre cria um ciclo novo; tudo ou nada (qualquer erro, nada é gravado, e a tela lista aba, linha e campo). Cada linha passa pelos mesmos schemas Zod dos formulários. Área e categoria das ações são identificadas pelo nome (sem diferenciar maiúsculas); categoria arquivada é recusada; ciclo `Ativo` com outro ativo também. As colunas ficam em `src/modules/pdi/import/sheets.ts`: ao mudá-las, rode `npm run pdi:template` e commite a planilha modelo e as planilhas dos e2e.
 
 ## Workflow
@@ -134,6 +140,7 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 - **Testes de banco:** `npm test` (integração) e `npm run test:e2e` usam o mesmo banco `_test` e limpam os dados; não rode os dois ao mesmo tempo. Helpers em `src/test/test-database.ts` e, para testes que precisam de uma ação de PDI, `src/test/pdi-fixtures.ts`; o `resetDatabase` dos e2e recria as categorias padrão. O Playwright roda com 1 worker pelo mesmo motivo; helpers de e2e em `e2e/helpers.ts`.
 - **Prisma 7:** depois de `npx prisma migrate dev`, rode `npx prisma generate` (o `migrate dev` não gera mais o cliente).
 - **Reaproveite antes de criar:** campos Zod em `src/lib/form-fields.ts`; erros do Prisma (P2025, P2002, P2003) em `src/lib/prisma-errors.ts`; formulários com o hook `src/components/forms/use-schema-form.ts` + `FormActions` (opção `readForm` para campos repetidos, como grupos de checkbox); opções de objetivo e de categoria dos formulários em `src/modules/goals/options.ts` e `src/modules/categories/options.ts`; exclusão com `ConfirmDeleteButton` e outras confirmações com `ConfirmActionButton`; botões de form com `SubmitButton`; regras puras de rotina (dia previsto, estado, adesão, período de evidência) em `src/modules/routines/rules.ts`, que não acessa o banco e pode ser importado pelos services de rotinas e de PDI sem importação circular; "esta ação aceita rotina?" com `routineBlocker` (`src/modules/pdi/service.ts`); diferença em dias entre datas com `daysBetween` (`src/lib/dates.ts`); esvaziar todas as tabelas com `truncateStatement` (`src/lib/truncate.ts`); blocos do painel com `DashboardCard` e `EmptyCardText`; marca com `BrandMark`; estado concluído com a variante `success` do `Badge` (a única cor além do vermelho de atraso).
+- **Sessão:** toda Server Action começa com `await requireSession()` (`src/modules/auth/session.ts`), porque uma action pode ser chamada sem passar pela tela. Toda página nova vai dentro de `src/app/(app)/`, cujo layout valida a sessão (num componente dentro de `<Suspense>`) antes de renderizar a página. Os e2e já começam logados (cookie da conta de teste no `playwright.config.ts`, conta recriada pelo `resetDatabase`); para testar sem login, use `test.use({ storageState: { cookies: [], origins: [] } })`.
 - **Painel inicial:** `/` mostra dados de todos os módulos via `getDashboard` (`src/modules/dashboard/service.ts`). Toda Server Action que muda dados deve revalidar também `/` (cada módulo tem sua função `revalidate…Screens`).
 
 ### Front-end
@@ -158,5 +165,4 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 
 ## Pendências
 
-- **Autenticação.** Hoje não há login nem tabela de usuário, porque a aplicação roda só na máquina do dono. É obrigatória antes de qualquer deploy fora dela; vai exigir adicionar `userId` às entidades por migration.
-- **Deploy.** Ainda não definido (roda só localmente).
+Nenhuma no momento. Melhorias deixadas fora de escopo ficam registradas na seção "Fora de escopo" de cada plano em `docs/plans/`.
