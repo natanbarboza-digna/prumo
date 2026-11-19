@@ -4,7 +4,7 @@ import { createRoutine, expectNoAxeViolations, resetDatabase } from "./helpers";
 
 test.beforeEach(resetDatabase);
 
-const NAV_LINKS = ["Hoje", "Objetivos", "Trilhas", "Rotinas", "PDI"];
+const NAV_LINKS = ["Hoje", "Objetivos", "Desenvolvimento", "Rotinas"];
 const PAGES = [
   "/",
   "/today",
@@ -89,8 +89,10 @@ test.describe("em 320 px", () => {
   test("o último link da navegação pode ser alcançado e clicado", async ({ page }) => {
     await open(page, "/");
 
-    await nav(page).getByRole("link", { name: "PDI", exact: true }).click();
+    // At 320 px "Desenvolvimento" does not leave room for all four items: the
+    // strip scrolls sideways (the page itself does not, see the test above).
+    await nav(page).getByRole("link", { name: "Rotinas", exact: true }).click();
 
-    await expect(page.getByRole("heading", { level: 1, name: "PDI" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Rotinas" })).toBeVisible();
   });
 });
