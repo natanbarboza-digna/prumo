@@ -41,7 +41,7 @@ export function ActionEvidence({ detail, today, emptyText }: ActionEvidenceProps
                     </Link>
                   </h3>
                   <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
-                    <span>{scheduleText(routine.weekdays, routine.timeOfDay)}</span>
+                    <span>{scheduleText(routine)}</span>
                     <RoutineStateBadge routine={routine} today={today} />
                   </div>
                 </div>

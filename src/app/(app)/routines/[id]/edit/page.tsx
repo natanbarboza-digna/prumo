@@ -23,7 +23,10 @@ export default async function EditRoutinePage({ params }: PageProps<"/routines/[
         defaultValues={{
           title: routine.title,
           description: routine.description ?? "",
-          weekdays: routine.weekdays,
+          frequency: routine.timesPerWeek ? "WEEKLY" : "DAYS",
+          // A weekly goal stores all 7 days; switching it to fixed days starts empty.
+          weekdays: routine.timesPerWeek ? [] : routine.weekdays,
+          timesPerWeek: routine.timesPerWeek ? String(routine.timesPerWeek) : "",
           timeOfDay: routine.timeOfDay ?? "",
           startDate: routine.startDate,
           endDate: routine.endDate ?? "",

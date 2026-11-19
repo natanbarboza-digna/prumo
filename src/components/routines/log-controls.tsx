@@ -18,10 +18,12 @@ type LogControlsProps = {
   log: RoutineLog | null;
   /** What the buttons act on, for screen readers: "Ler" or "segunda-feira, 16 de novembro". */
   label: string;
+  /** False for a weekly goal: no day is required, so there is nothing to skip (plan 017). */
+  allowSkip?: boolean;
 };
 
 /** Feito / Pular (with an optional note) for a day without a log; Desfazer otherwise. */
-export function LogControls({ routineId, date, log, label }: LogControlsProps) {
+export function LogControls({ routineId, date, log, label, allowSkip = true }: LogControlsProps) {
   const noteId = useId();
 
   if (log) {
@@ -49,15 +51,17 @@ export function LogControls({ routineId, date, log, label }: LogControlsProps) {
         <SubmitButton size="sm" name="status" value="DONE" aria-label={`Feito: ${label}`}>
           Feito
         </SubmitButton>
-        <SubmitButton
-          size="sm"
-          variant="outline"
-          name="status"
-          value="SKIPPED"
-          aria-label={`Pular: ${label}`}
-        >
-          Pular
-        </SubmitButton>
+        {allowSkip && (
+          <SubmitButton
+            size="sm"
+            variant="outline"
+            name="status"
+            value="SKIPPED"
+            aria-label={`Pular: ${label}`}
+          >
+            Pular
+          </SubmitButton>
+        )}
       </div>
       <details>
         <summary className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 w-fit cursor-pointer rounded-sm text-sm outline-none focus-visible:ring-[3px]">

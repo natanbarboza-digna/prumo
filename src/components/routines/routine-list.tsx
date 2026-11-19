@@ -36,7 +36,7 @@ export function RoutineList({
                 </Heading>
               </CardTitle>
               <CardDescription className="flex flex-wrap items-center gap-2">
-                <span>{scheduleText(routine.weekdays, routine.timeOfDay)}</span>
+                <span>{scheduleText(routine)}</span>
                 <RoutineStateBadge routine={routine} today={today} />
                 {routine.pdiAction && <Badge variant="outline">PDI</Badge>}
                 {showGoal && routine.goal && (

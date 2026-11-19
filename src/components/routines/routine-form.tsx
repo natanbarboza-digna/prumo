@@ -50,14 +50,27 @@ export function RoutineForm({
     schema: routineInputSchema,
     action,
     defaultValues,
-    fieldOrder: ["title", "description", "weekdays", "timeOfDay", "startDate", "endDate", "goalId"],
+    fieldOrder: [
+      "title",
+      "description",
+      "frequency",
+      "weekdays",
+      "timesPerWeek",
+      "timeOfDay",
+      "startDate",
+      "endDate",
+      "goalId",
+    ],
     readForm: readRoutineForm,
   });
   const { errors, values, fieldProps, id, errorId } = form;
   const checkedDays = toList(values.weekdays);
+  const frequency = values.frequency === "WEEKLY" ? "WEEKLY" : "DAYS";
 
   return (
-    <form {...form.formProps} className="space-y-6">
+    // `group` lets the weekdays and the times-per-week field show or hide with
+    // CSS alone, from the checked kind below: no React state to keep in sync.
+    <form {...form.formProps} className="group space-y-6">
       <FormErrorMessage message={form.formError} />
       {pdiActionId && <input type="hidden" name="pdiActionId" value={pdiActionId} />}
       <FieldGroup>
@@ -78,9 +91,65 @@ export function RoutineForm({
           <FieldError id={errorId("description")}>{errors.description?.[0]}</FieldError>
         </Field>
 
+        {/* Native radios: React resets the form after a submit, and the key
+            remounts the group so a kind sent back after a server error shows. */}
+        <FieldSet key={frequency}>
+          <FieldLegend variant="label">Como a rotina se repete</FieldLegend>
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
+            {(
+              [
+                ["DAYS", "Em dias fixos da semana"],
+                ["WEEKLY", "Algumas vezes por semana"],
+              ] as const
+            ).map(([value, label], index) => (
+              <Field key={value} orientation="horizontal">
+                <input
+                  type="radio"
+                  id={index === 0 ? id("frequency") : `${id("frequency")}-${value}`}
+                  name="frequency"
+                  value={value}
+                  defaultChecked={frequency === value}
+                  className="accent-primary size-4"
+                />
+                <FieldLabel
+                  htmlFor={index === 0 ? id("frequency") : `${id("frequency")}-${value}`}
+                  className="font-normal"
+                >
+                  {label}
+                </FieldLabel>
+              </Field>
+            ))}
+          </div>
+          <FieldError id={errorId("frequency")}>{errors.frequency?.[0]}</FieldError>
+        </FieldSet>
+
+        <Field
+          data-invalid={!!errors.timesPerWeek}
+          className="hidden group-has-[input[name=frequency][value=WEEKLY]:checked]:flex"
+        >
+          <FieldLabel htmlFor={id("timesPerWeek")}>Quantas vezes por semana</FieldLabel>
+          <NativeSelect
+            key={String(values.timesPerWeek ?? "3")}
+            {...fieldProps("timesPerWeek")}
+            defaultValue={String(values.timesPerWeek || "3")}
+            className="w-40"
+          >
+            {[1, 2, 3, 4, 5, 6].map((times) => (
+              <NativeSelectOption key={times} value={String(times)}>
+                {times === 1 ? "1 vez" : `${times} vezes`}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+          <FieldDescription>
+            Em quaisquer dias, de segunda a domingo. A semana conta quando a meta é cumprida.
+          </FieldDescription>
+          <FieldError id={errorId("timesPerWeek")}>{errors.timesPerWeek?.[0]}</FieldError>
+        </Field>
+
         {/* A group of checkboxes: the fieldset/legend names the group, and the
-            group (not each box) carries the error. */}
+            group (not each box) carries the error. Hidden for a weekly goal. */}
         <FieldSet
+          className="group-has-[input[name=frequency][value=WEEKLY]:checked]:hidden"
           data-invalid={!!errors.weekdays}
           aria-invalid={!!errors.weekdays}
           aria-describedby={errors.weekdays ? errorId("weekdays") : undefined}

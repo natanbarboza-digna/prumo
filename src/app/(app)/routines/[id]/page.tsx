@@ -66,7 +66,7 @@ export default async function RoutinePage({ params, searchParams }: PageProps<"/
 
         <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-[8rem_1fr]">
           <dt className="text-muted-foreground text-sm">Quando</dt>
-          <dd>{scheduleText(routine.weekdays, routine.timeOfDay)}</dd>
+          <dd>{scheduleText(routine)}</dd>
           <dt className="text-muted-foreground text-sm">Período</dt>
           <dd>
             {routine.endDate
@@ -122,7 +122,13 @@ export default async function RoutinePage({ params, searchParams }: PageProps<"/
               return (
                 <li key={date} className="bg-card space-y-3 rounded-lg border p-4">
                   <h3 className="font-medium first-letter:uppercase">{label}</h3>
-                  <LogControls routineId={routine.id} date={date} log={log} label={label} />
+                  <LogControls
+                    routineId={routine.id}
+                    date={date}
+                    log={log}
+                    label={label}
+                    allowSkip={!routine.timesPerWeek}
+                  />
                 </li>
               );
             })}
