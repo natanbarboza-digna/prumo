@@ -4,17 +4,22 @@ import { adherenceText, doneTodayText, scheduleText } from "@/modules/routines/l
 
 describe("scheduleText", () => {
   it("lists the days Monday first, with the time", () => {
-    expect(scheduleText(["MON", "WED", "FRI"], "07:00")).toBe("Seg, Qua, Sex · 07:00");
-  });
-
-  it("says every day when all seven are chosen", () => {
-    expect(scheduleText(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"], null)).toBe(
-      "Todos os dias",
+    expect(scheduleText({ weekdays: ["MON", "WED", "FRI"], timeOfDay: "07:00" })).toBe(
+      "Seg, Qua, Sex · 07:00",
     );
   });
 
+  it("says every day when all seven are chosen", () => {
+    expect(
+      scheduleText({
+        weekdays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+        timeOfDay: null,
+      }),
+    ).toBe("Todos os dias");
+  });
+
   it("omits the time when there is none", () => {
-    expect(scheduleText(["SAT", "SUN"], null)).toBe("Sáb, Dom");
+    expect(scheduleText({ weekdays: ["SAT", "SUN"], timeOfDay: null })).toBe("Sáb, Dom");
   });
 });
 

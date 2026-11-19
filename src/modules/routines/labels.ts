@@ -27,13 +27,29 @@ export const logStatusLabels: Record<RoutineLogStatus, string> = {
   SKIPPED: "Pulada",
 };
 
-/** "Seg, Qua, Sex · 07:00". Weekdays come from the service already in week order. */
-export function scheduleText(weekdays: readonly Weekday[], timeOfDay: string | null): string {
-  const days =
-    weekdays.length === 7
+/**
+ * "Seg, Qua, Sex · 07:00" or "3 vezes por semana · 18:30". Weekdays come from
+ * the service already in week order.
+ */
+export function scheduleText(routine: {
+  weekdays: readonly Weekday[];
+  timesPerWeek?: number | null;
+  timeOfDay: string | null;
+}): string {
+  const { weekdays, timesPerWeek, timeOfDay } = routine;
+  const days = timesPerWeek
+    ? `${timesPerWeek} ${timesPerWeek === 1 ? "vez" : "vezes"} por semana`
+    : weekdays.length === 7
       ? "Todos os dias"
       : weekdays.map((day) => weekdayShortLabels[day]).join(", ");
   return timeOfDay ? `${days} · ${timeOfDay}` : days;
+}
+
+/** "1 de 3 nesta semana", or "Meta da semana cumprida (3 de 3)" once reached. */
+export function weekProgressText({ done, target }: { done: number; target: number }): string {
+  return done >= target
+    ? `Meta da semana cumprida (${done} de ${target})`
+    : `${done} de ${target} nesta semana`;
 }
 
 /** "18 de 20 dias feitos". */
@@ -52,6 +68,7 @@ export function doneTodayText(done: number, total: number): string {
 // ---------------------------------------------------------------------------
 
 export const dayStateLabels: Record<CalendarDayState, string> = {
+  OPEN: "livre",
   DONE: "feita",
   SKIPPED: "pulada",
   MISSED: "sem registro",
@@ -84,13 +101,30 @@ export function calendarDayName(date: string, state: CalendarDayState): string {
 const count = (n: number, singular: string, plural: string) =>
   `${n} ${n === 1 ? singular : plural}`;
 
-/** "Em outubro: 18 feitas, 2 puladas e 3 sem registro, 78% de adesão." */
-export function monthSummaryText(month: string, adherence: Adherence): string {
+/**
+ * "Em outubro: 18 feitas, 2 puladas e 3 sem registro, 78% de adesão." For a
+ * weekly goal, in goal days: "Em novembro: 10 de 12 dias da meta, 83% de adesão."
+ */
+export function monthSummaryText(
+  month: string,
+  adherence: Adherence,
+  options: { weeklyGoal?: boolean } = {},
+): string {
   const name = monthNameFormat.format(firstOfMonth(month));
   if (adherence.scheduled === 0) return `Em ${name}: nenhum dia para contar ainda.`;
+  if (options.weeklyGoal) {
+    return `Em ${name}: ${adherence.done} de ${adherence.scheduled} dias da meta, ${adherence.rate}% de adesão.`;
+  }
   return (
     `Em ${name}: ${count(adherence.done, "feita", "feitas")}, ` +
     `${count(adherence.skipped, "pulada", "puladas")} e ${adherence.missed} sem registro, ` +
     `${adherence.rate}% de adesão.`
   );
+}
+
+/** For screen readers, in the calendar's "Meta" column (plan 017). */
+export function weekGoalName(goal: { done: number; target: number; current: boolean }): string {
+  if (goal.done >= goal.target) return `meta da semana cumprida, ${goal.done} de ${goal.target}`;
+  if (goal.current) return `semana em andamento, ${goal.done} de ${goal.target}`;
+  return `meta da semana não cumprida, ${goal.done} de ${goal.target}`;
 }

@@ -4,7 +4,17 @@
 import type { RoutineLogStatus, Weekday } from "@/generated/prisma/enums";
 import { addDays, eachDay, weekdayOf } from "@/lib/dates";
 
-export type Schedule = { weekdays: Weekday[]; startDate: string; endDate: string | null };
+export type Schedule = {
+  weekdays: Weekday[];
+  startDate: string;
+  endDate: string | null;
+  /**
+   * Weekly goal (plan 017): N days per week, any days. Null or absent for a
+   * fixed-days routine. A weekly-goal routine has all 7 days in `weekdays`, so
+   * isScheduledOn accepts any day of its period.
+   */
+  timesPerWeek?: number | null;
+};
 
 export type Adherence = {
   scheduled: number;
@@ -55,6 +65,7 @@ export function computeAdherence(
   period: Period,
   today: string,
 ): Adherence {
+  if (routine.timesPerWeek) return weeklyGoalAdherence(routine, logs, period, today);
   const statusByDate = new Map(logs.map((log) => [log.date, log.status]));
   const last = period.to < today ? period.to : today;
   let scheduled = 0;
@@ -115,8 +126,9 @@ function latest(a: string, b: string): string {
 // ---------------------------------------------------------------------------
 
 /** OUTSIDE: a day of the previous or next month, shown to complete the weeks. */
+/** OPEN: a day of a weekly-goal routine with no log; no day of the week was required. */
 export type CalendarDayState =
-  "DONE" | "SKIPPED" | "MISSED" | "PENDING" | "NOT_SCHEDULED" | "FUTURE" | "OUTSIDE";
+  "OPEN" | "DONE" | "SKIPPED" | "MISSED" | "PENDING" | "NOT_SCHEDULED" | "FUTURE" | "OUTSIDE";
 
 export type CalendarDay = { date: string; state: CalendarDayState; isToday: boolean };
 
@@ -127,7 +139,16 @@ export type MonthCalendar = {
   weeks: CalendarDay[][];
   /** The month's scheduled days up to today. */
   adherence: Adherence;
+  /**
+   * Weekly-goal routines only (plan 017): the progress of each week row, null
+   * for a week outside the routine's period. Null for fixed-days routines.
+   */
+  weekGoals: (WeekGoal | null)[] | null;
 };
+
+export type WeekProgress = { done: number; target: number };
+/** `current`: the week is not over yet, so a shortfall is not a miss. */
+export type WeekGoal = WeekProgress & { current: boolean };
 
 export type MonthRange = { from: string; to: string };
 
@@ -168,17 +189,97 @@ export function monthCalendar(
     const status = statusByDate.get(date);
     if (status === "DONE") return { date, state: "DONE", isToday };
     if (status === "SKIPPED") return { date, state: "SKIPPED", isToday };
+    if (routine.timesPerWeek) return { date, state: "OPEN", isToday };
     return { date, state: isToday ? "PENDING" : "MISSED", isToday };
   });
 
   const weeks: CalendarDay[][] = [];
   for (let index = 0; index < days.length; index += 7) weeks.push(days.slice(index, index + 7));
 
+  const weekGoals = routine.timesPerWeek
+    ? weeks.map((week) => {
+        const monday = week[0]?.date ?? start;
+        const progress = weekProgress(routine, logs, monday);
+        if (progress.target === 0) return null;
+        return { ...progress, current: addDays(monday, 6) >= today };
+      })
+    : null;
+
   return {
     month,
     weeks,
     adherence: computeAdherence(routine, logs, { from: first, to: last }, today),
+    weekGoals,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Weekly goal (plan 017)
+// ---------------------------------------------------------------------------
+
+/** The Monday of the week of a date (weeks go from Monday to Sunday). */
+function mondayOf(date: string): string {
+  return addDays(date, -WEEK_ORDER.indexOf(weekdayOf(date)));
+}
+
+/** Days of [from, to] inside the routine's own period. */
+function activeDays(routine: Schedule, from: string, to: string): string[] {
+  return eachDay(from, to).filter((date) => isScheduledOn(routine, date));
+}
+
+/**
+ * Days done and the goal in the week of `date`. The goal is prorated when the
+ * routine covers only part of the week (it starts or ends mid-week).
+ */
+export function weekProgress(
+  routine: Schedule,
+  logs: readonly { date: string; status: RoutineLogStatus }[],
+  date: string,
+): WeekProgress {
+  const monday = mondayOf(date);
+  const days = activeDays(routine, monday, addDays(monday, 6));
+  const doneDates = new Set(logs.filter((log) => log.status === "DONE").map((log) => log.date));
+  return {
+    done: days.filter((day) => doneDates.has(day)).length,
+    target: Math.min(routine.timesPerWeek ?? 0, days.length),
+  };
+}
+
+/**
+ * Adherence of a weekly goal in "goal days" (plan 017), so it adds up with
+ * fixed-days routines: each week's scheduled days are its goal (prorated to the
+ * days of the week inside the routine and the period), done days count up to
+ * the goal, and a week that is not over yet only counts what was done.
+ */
+function weeklyGoalAdherence(
+  routine: Schedule,
+  logs: readonly { date: string; status: RoutineLogStatus }[],
+  period: Period,
+  today: string,
+): Adherence {
+  const goal = routine.timesPerWeek ?? 0;
+  const doneDates = new Set(logs.filter((log) => log.status === "DONE").map((log) => log.date));
+  let scheduled = 0;
+  let done = 0;
+
+  for (let monday = mondayOf(period.from); monday <= period.to; monday = addDays(monday, 7)) {
+    const sunday = addDays(monday, 6);
+    const from = latest(monday, period.from);
+    const to = sunday < period.to ? sunday : period.to;
+    const days = activeDays(routine, from, to);
+    if (days.length === 0) continue;
+    const target = Math.min(goal, days.length);
+    const doneInWeek = Math.min(
+      target,
+      days.filter((day) => doneDates.has(day) && day <= today).length,
+    );
+    // The week is not over: a shortfall is not a miss yet.
+    const closed = sunday < today;
+    scheduled += closed ? target : doneInWeek;
+    done += doneInWeek;
+  }
+
+  return withRate({ scheduled, done, skipped: 0, missed: scheduled - done });
 }
 
 /** The months the calendar can show: from the start month to today (or to the end month). */
