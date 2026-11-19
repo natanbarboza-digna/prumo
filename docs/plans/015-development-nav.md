@@ -1,6 +1,6 @@
 # 015 — Trilhas e PDI no grupo Desenvolvimento
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-19**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/development-nav`
 
 ## Objetivo
@@ -67,8 +67,14 @@ CLAUDE.md                                       (onde fica o PDI; DevelopmentTab
 - Capturas do menu e das abas em 320, 375 e 1280 px conferidas.
 - `CLAUDE.md` e este plano atualizados.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **URLs.** Proposta: manter `/tracks` e `/pdi`. A alternativa é mudar para `/development/tracks` e `/development/pdi`, com redirecionamento das antigas.
-2. **Para onde "Desenvolvimento" leva.** Proposta: para a lista de trilhas, que tende a ser mais usada no dia a dia. A alternativa é levar ao PDI.
-3. **Onde as abas aparecem.** Proposta: só nas listas de trilhas e de ciclos. A alternativa é mostrá-las também nas telas de detalhe e nos formulários.
+- **Em 320 px o menu não cabe inteiro**, ao contrário do que o objetivo dizia: "Desenvolvimento" é longo, e os 4 itens somam mais que a faixa (medido: 344 px de links para 343 px de faixa em 375). Com o espaçamento interno dos itens menor no celular (`px-2`, voltando a `px-3` a partir de `sm`), eles cabem inteiros em 375 px. Em 320 px a faixa do menu continua rolando para o lado, como antes deste plano; a página não rola. O teste de 320 px voltou a conferir que o último item ("Rotinas") pode ser alcançado e clicado.
+- **`DevelopmentTabs` é Server Component:** cada lista diz qual aba é a atual (`current="/tracks"` ou `"/pdi"`), sem precisar ler a URL no navegador.
+- **Os testes novos não foram vistos falhando antes da implementação:** a primeira rodada esbarrou num `next dev` já aberto na pasta (o Next só permite um por projeto); depois de encerrá-lo, a implementação já estava pronta.
+
+## Decisões
+
+1. URLs mantidas: `/tracks` e `/pdi`.
+2. "Desenvolvimento" leva à lista de trilhas.
+3. As abas aparecem só nas duas listas.
