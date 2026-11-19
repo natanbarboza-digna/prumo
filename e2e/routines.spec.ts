@@ -209,3 +209,33 @@ test("o calendário navega entre os meses do período da rotina", async ({ page 
   await expect(calendar.getByRole("table", { name: monthTitle(start.slice(0, 7)) })).toBeVisible();
   await expect(months.getByRole("link", { name: "Próximo mês ›" })).toBeVisible();
 });
+
+test("uma rotina de meta semanal mostra o progresso da semana, sem Pular", async ({ page }) => {
+  await page.goto("/routines/new");
+  // The goal field only shows for that kind of routine.
+  await expect(page.getByRole("combobox", { name: "Quantas vezes por semana" })).toBeHidden();
+  await page.getByRole("radio", { name: "Algumas vezes por semana" }).check();
+  await expect(page.getByRole("combobox", { name: "Quantas vezes por semana" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Dias da semana" })).toBeHidden();
+  await expectNoAxeViolations(page);
+
+  await createRoutine(page, { title: "Exercício", timesPerWeek: 3 });
+  await expect(page.getByText("3 vezes por semana")).toBeVisible();
+  const calendar = page.getByRole("region", { name: "Calendário" });
+  await expect(calendar.getByRole("columnheader", { name: "Meta" })).toBeVisible();
+  await expectNoAxeViolations(page);
+
+  await page.goto("/today");
+  const item = page.getByRole("list", { name: "Rotinas de hoje" }).getByRole("listitem");
+  await expect(item.getByText("0 de 3 nesta semana")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pular: Exercício" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Feito: Exercício" }).click();
+  await expect(item.getByText("1 de 3 nesta semana")).toBeVisible();
+  await expectNoAxeViolations(page);
+
+  await page.goto("/routines");
+  await page.getByRole("link", { name: "Exercício" }).click();
+  await expect(
+    calendar.getByRole("cell", { name: /semana em andamento, 1 de 3|meta da semana cumprida/ }),
+  ).toBeVisible();
+});

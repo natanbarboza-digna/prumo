@@ -17,6 +17,9 @@ export async function resetDatabase(): Promise<void> {
 }
 
 export async function expectNoAxeViolations(page: Page): Promise<void> {
+  // Right after a Server Action, Next refreshes the page and the <title> is
+  // briefly empty; wait for it so axe does not catch that moment.
+  await expect(page).toHaveTitle(/\S/);
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 }
@@ -71,6 +74,8 @@ type NewRoutine = {
   title: string;
   /** Checkbox names ("Segunda-feira"); every day when omitted. */
   days?: string[];
+  /** A weekly goal (plan 017): N times per week instead of fixed days. */
+  timesPerWeek?: number;
   timeOfDay?: string;
   startDate?: string;
   endDate?: string;
@@ -91,8 +96,13 @@ const ALL_DAYS = [
 export async function createRoutine(page: Page, routine: NewRoutine): Promise<void> {
   await page.goto("/routines/new");
   await textbox(page, "Título").fill(routine.title);
-  for (const day of routine.days ?? ALL_DAYS) {
-    await page.getByRole("checkbox", { name: day, exact: true }).check();
+  if (routine.timesPerWeek) {
+    await page.getByRole("radio", { name: "Algumas vezes por semana" }).check();
+    await combobox(page, "Quantas vezes por semana").selectOption(String(routine.timesPerWeek));
+  } else {
+    for (const day of routine.days ?? ALL_DAYS) {
+      await page.getByRole("checkbox", { name: day, exact: true }).check();
+    }
   }
   if (routine.timeOfDay) await textbox(page, "Horário (opcional)").fill(routine.timeOfDay);
   if (routine.startDate) await textbox(page, "Início").fill(routine.startDate);
