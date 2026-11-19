@@ -164,6 +164,9 @@ export async function seedDemo(today: string): Promise<DemoSummary> {
     fields: {
       title: string;
       weekdays: string[];
+      /** "WEEKLY" with timesPerWeek for a weekly goal (plan 017). */
+      frequency?: "DAYS" | "WEEKLY";
+      timesPerWeek?: string;
       timeOfDay?: string;
       startDate: string;
       endDate?: string;
@@ -202,12 +205,15 @@ export async function seedDemo(today: string): Promise<DemoSummary> {
   );
   await routine(
     {
+      // A weekly goal: 3 times a week, on any days (no skipped days in this kind).
       title: "Exercício",
-      weekdays: ["MON", "WED", "FRI"],
+      weekdays: [],
+      frequency: "WEEKLY",
+      timesPerWeek: "3",
       timeOfDay: "18:30",
       startDate: day(-30),
     },
-    "DD-DS",
+    "D-D--D-D---D-",
   );
   await routine(
     {

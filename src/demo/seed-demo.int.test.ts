@@ -72,6 +72,16 @@ describe("seedDemo", () => {
     ]);
   });
 
+  it("has a weekly-goal routine (plan 017)", async () => {
+    await seedDemo(monday);
+
+    const exercise = await db.routine.findFirstOrThrow({ where: { title: "Exercício" } });
+    expect(exercise.timesPerWeek).toBe(3);
+    await expect(
+      db.routineLog.count({ where: { routineId: exercise.id, status: "SKIPPED" } }),
+    ).resolves.toBe(0);
+  });
+
   it("links a routine to a PDI action, with logs as evidence", async () => {
     await seedDemo(monday);
     const action = await db.pdiAction.findFirstOrThrow({
