@@ -4,7 +4,7 @@ import { AdherenceMeter } from "@/components/routines/adherence-meter";
 import { RoutineStateBadge } from "@/components/routines/routine-badges";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { scheduleText } from "@/modules/routines/labels";
+import { scheduleText, streakShortText } from "@/modules/routines/labels";
 import type { RoutineSummary } from "@/modules/routines/service";
 
 type RoutineListProps = {
@@ -37,6 +37,7 @@ export function RoutineList({
               </CardTitle>
               <CardDescription className="flex flex-wrap items-center gap-2">
                 <span>{scheduleText(routine)}</span>
+                {streakShortText(routine.streak) && <span>{streakShortText(routine.streak)}</span>}
                 <RoutineStateBadge routine={routine} today={today} />
                 {routine.pdiAction && <Badge variant="outline">PDI</Badge>}
                 {showGoal && routine.goal && (

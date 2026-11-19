@@ -5,7 +5,7 @@ import { LogControls } from "@/components/routines/log-controls";
 import { formatLongDate } from "@/lib/dates";
 import { recentAdherenceText } from "@/modules/dashboard/labels";
 import type { Dashboard } from "@/modules/dashboard/service";
-import { doneTodayText, weekProgressText } from "@/modules/routines/labels";
+import { doneTodayText, streakShortText, weekProgressText } from "@/modules/routines/labels";
 
 /** Today's routines with the same log buttons as the "Hoje" screen. */
 export function TodayCard({ block, today }: { block: Dashboard["today"]; today: string }) {
@@ -24,7 +24,7 @@ export function TodayCard({ block, today }: { block: Dashboard["today"]; today: 
         <EmptyCardText text="Nenhuma rotina para hoje." href="/routines/new" label="Criar rotina" />
       ) : (
         <ul className="grid gap-3" aria-label="Rotinas de hoje">
-          {block.items.map(({ routine, log, week }) => (
+          {block.items.map(({ routine, log, week, streak }) => (
             <li key={routine.id} className="space-y-2 rounded-md border p-3">
               <h3 className="font-medium break-words">
                 <Link href={`/routines/${routine.id}`} className="hover:underline">
@@ -36,7 +36,12 @@ export function TodayCard({ block, today }: { block: Dashboard["today"]; today: 
                   </span>
                 )}
               </h3>
-              {week && <p className="text-muted-foreground text-sm">{weekProgressText(week)}</p>}
+              {(week || streakShortText(streak)) && (
+                <p className="text-muted-foreground flex flex-wrap gap-x-3 text-sm">
+                  {week && <span>{weekProgressText(week)}</span>}
+                  {streakShortText(streak) && <span>{streakShortText(streak)}</span>}
+                </p>
+              )}
               <LogControls
                 routineId={routine.id}
                 date={today}

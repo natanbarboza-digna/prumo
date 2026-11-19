@@ -5,7 +5,7 @@ import { connection } from "next/server";
 import { LogControls } from "@/components/routines/log-controls";
 import { Button } from "@/components/ui/button";
 import { formatLongDate, todayInAppTimeZone } from "@/lib/dates";
-import { doneTodayText, weekProgressText } from "@/modules/routines/labels";
+import { doneTodayText, streakShortText, weekProgressText } from "@/modules/routines/labels";
 import { listRoutinesForDay } from "@/modules/routines/service";
 
 export const metadata: Metadata = { title: "Hoje" };
@@ -42,7 +42,7 @@ export default async function TodayPage() {
         </div>
       ) : (
         <ul className="grid gap-3" aria-label="Rotinas de hoje">
-          {items.map(({ routine, log, week }) => (
+          {items.map(({ routine, log, week, streak }) => (
             <li key={routine.id} className="bg-card space-y-3 rounded-lg border p-4">
               <div className="space-y-1">
                 <h2 className="font-medium break-words">
@@ -53,6 +53,7 @@ export default async function TodayPage() {
                 <p className="text-muted-foreground flex flex-wrap gap-x-3 text-sm">
                   {routine.timeOfDay && <span>{routine.timeOfDay}</span>}
                   {week && <span>{weekProgressText(week)}</span>}
+                  {streakShortText(streak) && <span>{streakShortText(streak)}</span>}
                   {routine.goal && <span>Objetivo: {routine.goal.title}</span>}
                 </p>
               </div>

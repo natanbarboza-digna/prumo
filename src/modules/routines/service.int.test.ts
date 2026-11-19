@@ -26,6 +26,7 @@ import {
   getRoutine,
   getRoutineHistory,
   getRoutineMonth,
+  getRoutineStreak,
   listRoutines,
   listRoutinesForDay,
   logRoutine,
@@ -484,5 +485,24 @@ describe("weekly goal routines (plan 017)", () => {
       done: 4,
       missed: 2,
     });
+  });
+});
+
+describe("routine streaks (plan 019)", () => {
+  const done = { status: "DONE" as const, note: null };
+
+  it("comes with the routines of a day, the list and the routine page", async () => {
+    // Today, 2026-11-16, is a Monday; done on the 13th, 14th and 15th.
+    const routine = await createRoutine(routineInput({ title: "Ler" }));
+    for (const date of ["2026-11-13", "2026-11-14", "2026-11-15"]) {
+      await logRoutine(routine.id, date, done, today);
+    }
+    const streak = { unit: "DAYS", current: 3, best: 3 };
+
+    const [day] = await listRoutinesForDay(today);
+    expect(day?.streak).toEqual(streak);
+    const [summary] = await listRoutines({ today });
+    expect(summary?.streak).toEqual(streak);
+    await expect(getRoutineStreak(routine.id, today)).resolves.toEqual(streak);
   });
 });

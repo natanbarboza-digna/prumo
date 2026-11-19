@@ -10,9 +10,14 @@ import { RoutineCalendar } from "@/components/routines/routine-calendar";
 import { Button } from "@/components/ui/button";
 import { formatDateForDisplay, formatLongDate, todayInAppTimeZone } from "@/lib/dates";
 import { deleteRoutineAction, endRoutineAction } from "@/modules/routines/actions";
-import { scheduleText } from "@/modules/routines/labels";
+import { scheduleText, streakPageText } from "@/modules/routines/labels";
 import { HISTORY_DAYS, monthRange, parseMonth, routineStateOn } from "@/modules/routines/rules";
-import { getAdherence, getRoutineHistory, getRoutineMonth } from "@/modules/routines/service";
+import {
+  getAdherence,
+  getRoutineHistory,
+  getRoutineMonth,
+  getRoutineStreak,
+} from "@/modules/routines/service";
 
 import { loadRoutine } from "./load-routine";
 
@@ -25,10 +30,11 @@ export default async function RoutinePage({ params, searchParams }: PageProps<"/
   const { mes } = await searchParams;
   const range = monthRange(routine, today);
   const month = parseMonth(typeof mes === "string" ? mes : undefined, range);
-  const [history, adherence, calendar] = await Promise.all([
+  const [history, adherence, calendar, streak] = await Promise.all([
     getRoutineHistory(routine.id, today),
     getAdherence(routine.id, today),
     getRoutineMonth(routine.id, month, today),
+    getRoutineStreak(routine.id, today),
   ]);
   const state = routineStateOn(routine, today);
 
@@ -80,6 +86,7 @@ export default async function RoutinePage({ params, searchParams }: PageProps<"/
         )}
 
         <AdherenceMeter adherence={adherence} label={`Adesão da rotina ${routine.title}`} />
+        <p className="text-sm">{streakPageText(streak)}</p>
 
         <div className="flex flex-wrap gap-3">
           <Button asChild variant="outline">

@@ -17,25 +17,16 @@ import {
   type Adherence,
   HISTORY_DAYS,
   type MonthCalendar,
+  type RoutineStreak,
   type WeekProgress,
   computeAdherence,
   isScheduledOn,
   monthCalendar,
   routineStateOn,
+  routineStreak,
   weekProgress,
 } from "@/modules/routines/rules";
 import type { RoutineInput, RoutineLogInput } from "@/modules/routines/schemas";
-
-/** Position of each weekday from Monday (0) to Sunday (6). */
-const WEEK_INDEX: Record<Weekday, number> = {
-  MON: 0,
-  TUE: 1,
-  WED: 2,
-  THU: 3,
-  FRI: 4,
-  SAT: 5,
-  SUN: 6,
-};
 
 // ---------------------------------------------------------------------------
 // Types
@@ -60,13 +51,19 @@ export type Routine = {
 
 export type RoutineLog = { date: string; status: RoutineLogStatus; note: string | null };
 
-export type RoutineSummary = Routine & { adherence: Adherence };
+/** With the 30-day adherence and the streak (plan 019). */
+export type RoutineSummary = Routine & { adherence: Adherence; streak: RoutineStreak };
 
 /**
  * A day on the "Today" screen, with its log if any. `week`: the progress of a
  * weekly-goal routine in that day's week; null for fixed-days routines.
  */
-export type RoutineDay = { routine: Routine; log: RoutineLog | null; week: WeekProgress | null };
+export type RoutineDay = {
+  routine: Routine;
+  log: RoutineLog | null;
+  week: WeekProgress | null;
+  streak: RoutineStreak;
+};
 export type HistoryDay = { date: string; log: RoutineLog | null };
 
 export class SkipNotAllowedError extends Error {
@@ -140,7 +137,8 @@ export async function listRoutines(filter: {
     where,
     include: {
       ...routineInclude,
-      logs: { where: { date: { gte: parseDateOnly(period.from) } } },
+      // The whole history: the streak can go back to the routine's start.
+      logs: true,
     },
     orderBy: routineOrder,
   });
@@ -148,7 +146,11 @@ export async function listRoutines(filter: {
   return rows.map((row) => {
     const routine = toRoutine(row);
     const logs = row.logs.map(toLog);
-    return { ...routine, adherence: computeAdherence(routine, logs, period, today) };
+    return {
+      ...routine,
+      adherence: computeAdherence(routine, logs, period, today),
+      streak: routineStreak(routine, logs, today),
+    };
   });
 }
 
@@ -215,8 +217,6 @@ export async function endRoutine(id: string, today: string): Promise<Routine> {
 
 export async function listRoutinesForDay(date: string): Promise<RoutineDay[]> {
   const day = parseDateOnly(date);
-  const monday = addDays(date, -WEEK_INDEX[weekdayOf(date)]);
-  const sunday = addDays(monday, 6);
   // The period and weekday filters run in SQL; `has` checks the enum array.
   const rows = await db.routine.findMany({
     where: {
@@ -227,7 +227,8 @@ export async function listRoutinesForDay(date: string): Promise<RoutineDay[]> {
     // The whole week's logs: a weekly goal shows its progress in the week.
     include: {
       ...routineInclude,
-      logs: { where: { date: { gte: parseDateOnly(monday), lte: parseDateOnly(sunday) } } },
+      // The whole history: the week's progress and the streak (plan 019).
+      logs: true,
     },
     orderBy: routineOrder,
   });
@@ -238,6 +239,7 @@ export async function listRoutinesForDay(date: string): Promise<RoutineDay[]> {
       routine,
       log: logs.find((log) => log.date === date) ?? null,
       week: routine.timesPerWeek ? weekProgress(routine, logs, date) : null,
+      streak: routineStreak(routine, logs, date),
     };
   });
 }
@@ -296,6 +298,13 @@ export async function getRoutineMonth(
   const routine = await getRoutine(routineId);
   const logs = await logsBetween(routineId, `${month}-01`, addDays(`${month}-01`, 31));
   return monthCalendar(routine, logs, month, today);
+}
+
+/** The streak of one routine, from its whole history (plan 019). */
+export async function getRoutineStreak(routineId: string, today: string): Promise<RoutineStreak> {
+  const routine = await getRoutine(routineId);
+  const logs = await logsBetween(routineId, routine.startDate, today);
+  return routineStreak(routine, logs, today);
 }
 
 export async function getAdherence(
