@@ -8,12 +8,13 @@ import { Suspense } from "react";
 
 import { cn } from "@/lib/utils";
 
+/** `sections`: URL prefixes where the item counts as the current page. */
 const links = [
-  { href: "/today", label: "Hoje" },
-  { href: "/goals", label: "Objetivos" },
-  { href: "/tracks", label: "Trilhas" },
-  { href: "/routines", label: "Rotinas" },
-  { href: "/pdi", label: "PDI" },
+  { href: "/today", label: "Hoje", sections: ["/today"] },
+  { href: "/goals", label: "Objetivos", sections: ["/goals"] },
+  // Tracks and PDI share one item (plan 015); the tabs on their lists switch between them.
+  { href: "/tracks", label: "Desenvolvimento", sections: ["/tracks", "/pdi"] },
+  { href: "/routines", label: "Rotinas", sections: ["/routines"] },
 ];
 
 export function MainNav() {
@@ -43,16 +44,18 @@ function NavLinks({ pathname }: { pathname: string | null }) {
     >
       {/* The padding keeps the focus ring inside the scrolling strip. */}
       <ul className="flex items-center gap-1 px-1 md:px-0">
-        {links.map(({ href, label }) => {
+        {links.map(({ href, label, sections }) => {
           const active =
-            pathname !== null && (pathname === href || pathname.startsWith(`${href}/`));
+            pathname !== null &&
+            sections.some((section) => pathname === section || pathname.startsWith(`${section}/`));
           return (
             <li key={href} className="shrink-0">
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "focus-visible:ring-ring/50 block rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-[3px]",
+                  // px-2 on phones: the four items (with "Desenvolvimento") fit in 375 px.
+                  "focus-visible:ring-ring/50 block rounded-md px-2 py-2 text-sm outline-none focus-visible:ring-[3px] sm:px-3",
                   active
                     ? "bg-accent text-accent-foreground font-medium"
                     : "text-muted-foreground hover:text-foreground",

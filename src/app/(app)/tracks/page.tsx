@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { DevelopmentTabs } from "@/components/development-tabs";
 import { TrackList } from "@/components/tracks/track-list";
 import { Button } from "@/components/ui/button";
 import { listTracks } from "@/modules/tracks/service";
@@ -16,6 +17,7 @@ export default async function TracksPage() {
 
   return (
     <div className="space-y-6">
+      <DevelopmentTabs current="/tracks" />
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl font-semibold tracking-tight">Trilhas</h1>
         <Button asChild>

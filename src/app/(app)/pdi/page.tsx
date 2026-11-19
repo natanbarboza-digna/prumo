@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { DevelopmentTabs } from "@/components/development-tabs";
 import { CycleList } from "@/components/pdi/cycle-list";
 import { Button } from "@/components/ui/button";
 import { listCycles } from "@/modules/pdi/service";
@@ -15,6 +16,7 @@ export default async function PdiPage() {
 
   return (
     <div className="space-y-6">
+      <DevelopmentTabs current="/pdi" />
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl font-semibold tracking-tight">PDI</h1>
         <div className="flex flex-wrap gap-3">
