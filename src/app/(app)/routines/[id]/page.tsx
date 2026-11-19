@@ -6,23 +6,29 @@ import { AdherenceMeter } from "@/components/routines/adherence-meter";
 import { EndRoutineButton } from "@/components/routines/end-routine-button";
 import { LogControls } from "@/components/routines/log-controls";
 import { RoutineStateBadge } from "@/components/routines/routine-badges";
+import { RoutineCalendar } from "@/components/routines/routine-calendar";
 import { Button } from "@/components/ui/button";
 import { formatDateForDisplay, formatLongDate, todayInAppTimeZone } from "@/lib/dates";
 import { deleteRoutineAction, endRoutineAction } from "@/modules/routines/actions";
 import { scheduleText } from "@/modules/routines/labels";
-import { HISTORY_DAYS, routineStateOn } from "@/modules/routines/rules";
-import { getAdherence, getRoutineHistory } from "@/modules/routines/service";
+import { HISTORY_DAYS, monthRange, parseMonth, routineStateOn } from "@/modules/routines/rules";
+import { getAdherence, getRoutineHistory, getRoutineMonth } from "@/modules/routines/service";
 
 import { loadRoutine } from "./load-routine";
 
 export const metadata: Metadata = { title: "Rotina" };
 
-export default async function RoutinePage({ params }: PageProps<"/routines/[id]">) {
+export default async function RoutinePage({ params, searchParams }: PageProps<"/routines/[id]">) {
   const routine = await loadRoutine((await params).id);
   const today = todayInAppTimeZone();
-  const [history, adherence] = await Promise.all([
+  // ?mes=AAAA-MM picks the calendar month; anything invalid shows the current one.
+  const { mes } = await searchParams;
+  const range = monthRange(routine, today);
+  const month = parseMonth(typeof mes === "string" ? mes : undefined, range);
+  const [history, adherence, calendar] = await Promise.all([
     getRoutineHistory(routine.id, today),
     getAdherence(routine.id, today),
+    getRoutineMonth(routine.id, month, today),
   ]);
   const state = routineStateOn(routine, today);
 
@@ -93,6 +99,8 @@ export default async function RoutinePage({ params }: PageProps<"/routines/[id]"
           />
         </div>
       </div>
+
+      <RoutineCalendar routineId={routine.id} calendar={calendar} range={range} />
 
       <section aria-labelledby="titulo-historico" className="space-y-4">
         <div className="space-y-1">
