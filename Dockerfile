@@ -20,6 +20,8 @@ RUN npm ci
 # --- Build ---------------------------------------------------------------------
 FROM deps AS builder
 COPY . .
+# Standalone output (a self-contained server.js) is only built for the image.
+ENV NEXT_OUTPUT=standalone
 RUN npx next build
 
 # --- Tools (migrations, seed, account) -----------------------------------------

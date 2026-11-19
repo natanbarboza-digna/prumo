@@ -2,8 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // A self-contained server for the Docker image (plan 014, see Dockerfile).
-  output: "standalone",
+  // A self-contained server for the Docker image (plan 014). Only when the
+  // Dockerfile asks for it: `next start`, used by the e2e tests, does not work
+  // with standalone output (plan 018).
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   cacheComponents: true,
   experimental: {
     serverActions: {
