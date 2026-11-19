@@ -241,3 +241,33 @@ test("uma rotina de meta semanal mostra o progresso da semana, sem Pular", async
     calendar.getByRole("cell", { name: /semana em andamento, 1 de 3|meta da semana cumprida/ }),
   ).toBeVisible();
 });
+
+test("a sequência aparece em Hoje a partir de 2 dias e cresce com o Feito", async ({ page }) => {
+  await insertRoutine({
+    title: "Ler",
+    startDate: addDays(today, -3),
+    logs: [{ date: addDays(today, -3) }, { date: addDays(today, -2) }, { date: yesterday }],
+  });
+  await page.goto("/today");
+
+  const item = page.getByRole("list", { name: "Rotinas de hoje" }).getByRole("listitem");
+  await expect(item.getByText("3 dias seguidos")).toBeVisible();
+  await page.getByRole("button", { name: "Feito: Ler" }).click();
+  await expect(item.getByText("4 dias seguidos")).toBeVisible();
+});
+
+test("a página da rotina mostra a sequência atual e o recorde", async ({ page }) => {
+  await openRoutine(page, {
+    title: "Correr",
+    startDate: addDays(today, -4),
+    logs: [
+      { date: addDays(today, -4) },
+      { date: addDays(today, -3) },
+      { date: addDays(today, -2), status: "SKIPPED" },
+      { date: yesterday },
+    ],
+  });
+
+  await expect(page.getByText("Sequência atual: 1 dia · Recorde: 2 dias")).toBeVisible();
+  await expectNoAxeViolations(page);
+});
