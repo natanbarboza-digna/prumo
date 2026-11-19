@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // A self-contained server for the Docker image (plan 014, see Dockerfile).
+  output: "standalone",
   cacheComponents: true,
   experimental: {
     serverActions: {

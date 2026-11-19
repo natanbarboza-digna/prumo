@@ -29,6 +29,7 @@ npm-debug.log*
 # env files (only the example is versioned)
 .env*
 !.env.example
+!.env.production.example
 
 # typescript
 *.tsbuildinfo
@@ -38,3 +39,6 @@ npm-debug.log*
 
 # claude code local settings
 .claude/settings.local.json
+
+# database backups made by deploy/backup.sh
+/backups
