@@ -1,37 +1,56 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { addDays, todayInAppTimeZone } from "../src/lib/dates";
-import {
-  addAction,
-  addArea,
-  combobox,
-  createCycle,
-  createGoal,
-  expectNoAxeViolations,
-  resetDatabase,
-  textbox,
-} from "./helpers";
+import { type ActionData, insertCycle, insertGoal, insertRoutine } from "./factories";
+import { combobox, expectNoAxeViolations, resetDatabase, textbox } from "./helpers";
 
 test.beforeEach(resetDatabase);
 
 // The same "today" the app uses (America/Fortaleza), whatever the machine's zone.
 const today = todayInAppTimeZone();
-const cycle = {
-  title: "PDI atual",
-  startDate: addDays(today, -30),
-  endDate: addDays(today, 60),
-  status: "Ativo" as const,
-};
+const cycle = { title: "PDI atual", startDate: addDays(today, -30), endDate: addDays(today, 60) };
 
-/** A cycle with one area and a "Prática" action (its category allows routines). */
-async function practiceAction(page: Page, options: { dueDate?: string; goal?: string } = {}) {
-  await createCycle(page, cycle);
-  await addArea(page, cycle.title, "Comunicação");
-  await addAction(page, cycle.title, "Comunicação", {
-    title: "Praticar oratória",
-    category: "Prática",
-    ...options,
+/**
+ * An active cycle with one area and a "Prática" action (its category allows
+ * routines), written to the database (plan 018). Opens the cycle page.
+ */
+async function practiceAction(
+  page: Page,
+  options: { dueDate?: string; goalId?: string; otherActions?: ActionData[] } = {},
+) {
+  const created = await insertCycle({
+    ...cycle,
+    status: "ACTIVE",
+    areas: [
+      {
+        name: "Comunicação",
+        actions: [
+          {
+            title: "Praticar oratória",
+            category: "Prática",
+            dueDate: options.dueDate,
+            goalId: options.goalId,
+          },
+          ...(options.otherActions ?? []),
+        ],
+      },
+    ],
   });
+  await page.goto(`/pdi/${created.id}`);
+  await expect(page.getByRole("heading", { level: 1, name: cycle.title })).toBeVisible();
+  return { cycleId: created.id, actionId: created.actionIds["Praticar oratória"] ?? "" };
+}
+
+/** practiceAction plus an every-day routine linked to it, then the action page. */
+async function practiceActionWithRoutine(page: Page) {
+  const { cycleId, actionId } = await practiceAction(page);
+  await insertRoutine({
+    title: "Praticar oratória",
+    startDate: today,
+    pdiActionId: actionId,
+  });
+  await page.goto(`/pdi/${cycleId}/actions/${actionId}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Praticar oratória" })).toBeVisible();
 }
 
 /** From the cycle page: "Criar rotina" on the action, every day, saved. Ends on the action page. */
@@ -58,10 +77,8 @@ function linkedRoutines(page: Page) {
 }
 
 test("só ações de categoria que permite rotina oferecem criar rotina", async ({ page }) => {
-  await practiceAction(page);
-  await addAction(page, cycle.title, "Comunicação", {
-    title: "Curso de oratória",
-    category: "Curso",
+  await practiceAction(page, {
+    otherActions: [{ title: "Curso de oratória", category: "Curso" }],
   });
 
   await expect(
@@ -74,8 +91,8 @@ test("só ações de categoria que permite rotina oferecem criar rotina", async 
 
 test("criar rotina a partir da ação vem preenchido e volta para a ação", async ({ page }) => {
   const dueDate = addDays(today, 20);
-  await createGoal(page, { title: "Falar em público" });
-  await practiceAction(page, { dueDate, goal: "Falar em público" });
+  const goalId = await insertGoal({ title: "Falar em público" });
+  await practiceAction(page, { dueDate, goalId });
 
   await page.getByRole("link", { name: "Criar rotina para: Praticar oratória" }).click();
   await expect(textbox(page, "Título")).toHaveValue("Praticar oratória");
@@ -95,8 +112,7 @@ test("criar rotina a partir da ação vem preenchido e volta para a ação", asy
 });
 
 test("o registro em Hoje aparece na ação como evidência", async ({ page }) => {
-  await practiceAction(page);
-  await createRoutineFromAction(page, "Praticar oratória");
+  await practiceActionWithRoutine(page);
 
   await page.goto("/today");
   await page.getByRole("button", { name: "Feito: Praticar oratória" }).click();
@@ -115,8 +131,7 @@ test("o registro em Hoje aparece na ação como evidência", async ({ page }) =>
 });
 
 test("concluir a ação pede o destino da rotina; encerrar mantém a evidência", async ({ page }) => {
-  await practiceAction(page);
-  await createRoutineFromAction(page, "Praticar oratória");
+  await practiceActionWithRoutine(page);
 
   await page.getByRole("link", { name: "Editar ação" }).click();
   const outcome = page.getByRole("group", { name: "O que fazer com as rotinas vinculadas?" });
@@ -138,8 +153,7 @@ test("concluir a ação pede o destino da rotina; encerrar mantém a evidência"
 });
 
 test("cancelar mantendo a rotina sem vínculo tira a rotina da ação", async ({ page }) => {
-  await practiceAction(page);
-  await createRoutineFromAction(page, "Praticar oratória");
+  await practiceActionWithRoutine(page);
 
   await page.getByRole("link", { name: "Editar ação" }).click();
   await combobox(page, "Status").selectOption({ label: "Cancelada" });
@@ -157,8 +171,7 @@ test("cancelar mantendo a rotina sem vínculo tira a rotina da ação", async ({
 });
 
 test("desligar 'permite rotina' bloqueia novas rotinas e mantém a existente", async ({ page }) => {
-  await practiceAction(page);
-  await createRoutineFromAction(page, "Praticar oratória");
+  await practiceActionWithRoutine(page);
 
   await page.goto("/settings/categories");
   await page.getByRole("link", { name: "Editar: Prática" }).click();

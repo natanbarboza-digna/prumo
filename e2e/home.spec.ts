@@ -1,17 +1,8 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { addDays, todayInAppTimeZone } from "../src/lib/dates";
-import {
-  addAction,
-  addArea,
-  addStep,
-  createCycle,
-  createGoal,
-  createRoutine,
-  createTrack,
-  expectNoAxeViolations,
-  resetDatabase,
-} from "./helpers";
+import { insertCycle, insertGoal, insertRoutine, insertTrack } from "./factories";
+import { expectNoAxeViolations, resetDatabase } from "./helpers";
 
 test.beforeEach(resetDatabase);
 
@@ -42,26 +33,26 @@ test("sem dados, mostra por onde começar", async ({ page }) => {
 });
 
 test("com dados, cada bloco mostra o que importa", async ({ page }) => {
-  await createGoal(page, {
-    title: "Falar inglês",
-    status: "Em andamento",
-    targetDate: addDays(today, 5),
+  await insertGoal({ title: "Falar inglês", status: "IN_PROGRESS", targetDate: addDays(today, 5) });
+  await insertTrack({
+    title: "Inglês",
+    steps: [
+      { title: "Gramática", status: "DONE" },
+      { title: "Conversação", dueDate: addDays(today, -2) },
+    ],
   });
-  await createTrack(page, { title: "Inglês" });
-  await addStep(page, "Inglês", { title: "Gramática", status: "Concluída" });
-  await addStep(page, "Inglês", { title: "Conversação", dueDate: addDays(today, -2) });
-  await createRoutine(page, { title: "Ler 20 minutos" });
-  await createCycle(page, {
+  await insertRoutine({ title: "Ler 20 minutos", startDate: today });
+  await insertCycle({
     title: "PDI atual",
     startDate: addDays(today, -30),
     endDate: addDays(today, 60),
-    status: "Ativo",
-  });
-  await addArea(page, "PDI atual", "Comunicação");
-  await addAction(page, "PDI atual", "Comunicação", {
-    title: "Apresentar no time",
-    category: "Curso",
-    dueDate: addDays(today, -1),
+    status: "ACTIVE",
+    areas: [
+      {
+        name: "Comunicação",
+        actions: [{ title: "Apresentar no time", category: "Curso", dueDate: addDays(today, -1) }],
+      },
+    ],
   });
 
   await openHome(page);
@@ -95,7 +86,7 @@ test("com dados, cada bloco mostra o que importa", async ({ page }) => {
 });
 
 test("marcar a rotina no painel atualiza o resumo e a tela Hoje", async ({ page }) => {
-  await createRoutine(page, { title: "Ler 20 minutos" });
+  await insertRoutine({ title: "Ler 20 minutos", startDate: today });
   await openHome(page);
 
   const todayCard = card(page, "Hoje");
@@ -123,8 +114,8 @@ test("alterna para o tema escuro", async ({ page }) => {
 });
 
 test("o painel com dados passa no axe também no tema escuro", async ({ page }) => {
-  await createRoutine(page, { title: "Ler 20 minutos" });
-  await createGoal(page, { title: "Falar inglês", status: "Concluído" });
+  await insertRoutine({ title: "Ler 20 minutos", startDate: today });
+  await insertGoal({ title: "Falar inglês", status: "DONE" });
   await page.emulateMedia({ colorScheme: "dark" });
   await openHome(page);
   await expect(page.locator("html")).toHaveClass(/\bdark\b/);

@@ -1,15 +1,20 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import {
-  addStep,
-  createGoal,
-  createTrack,
-  expectNoAxeViolations,
-  resetDatabase,
-  textbox,
-} from "./helpers";
+import { type StepData, insertGoal, insertTrack } from "./factories";
+import { addStep, createTrack, expectNoAxeViolations, resetDatabase, textbox } from "./helpers";
 
 test.beforeEach(resetDatabase);
+
+/** A track (and its steps) written to the database (plan 018), then its page. */
+async function openTrack(
+  page: Page,
+  title: string,
+  options: { goalId?: string; steps?: StepData[] } = {},
+) {
+  const { id } = await insertTrack({ title, ...options });
+  await page.goto(`/tracks/${id}`);
+  await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+}
 
 function stepHeadings(page: Page) {
   return page.getByRole("list", { name: "Etapas" }).getByRole("heading", { level: 3 });
@@ -25,7 +30,7 @@ test("lista vazia convida a criar a primeira trilha", async ({ page }) => {
 });
 
 test("cria uma trilha vinculada a um objetivo", async ({ page }) => {
-  await createGoal(page, { title: "Ser sênior" });
+  await insertGoal({ title: "Ser sênior" });
 
   await createTrack(page, { title: "Frontend moderno", goal: "Ser sênior" });
 
@@ -34,7 +39,7 @@ test("cria uma trilha vinculada a um objetivo", async ({ page }) => {
 });
 
 test("adiciona etapas em ordem e reordena com os botões", async ({ page }) => {
-  await createTrack(page, { title: "React" });
+  await openTrack(page, "React");
   await addStep(page, "React", { title: "Componentes" });
   await addStep(page, "React", { title: "Hooks" });
   await addStep(page, "React", { title: "Server Components" });
@@ -51,11 +56,11 @@ test("adiciona etapas em ordem e reordena com os botões", async ({ page }) => {
 });
 
 test("concluir etapas atualiza o progresso da trilha e do objetivo", async ({ page }) => {
-  await createGoal(page, { title: "Dominar testes" });
-  await createTrack(page, { title: "Testes", goal: "Dominar testes" });
-  for (const title of ["Unidade", "Integração", "E2E"]) {
-    await addStep(page, "Testes", { title });
-  }
+  const goalId = await insertGoal({ title: "Dominar testes" });
+  await openTrack(page, "Testes", {
+    goalId,
+    steps: [{ title: "Unidade" }, { title: "Integração" }, { title: "E2E" }],
+  });
   await expect(page.getByText("0 de 3 etapas concluídas")).toBeVisible();
 
   await page.getByRole("button", { name: "Concluir: Unidade" }).click();
@@ -88,9 +93,7 @@ test("concluir etapas atualiza o progresso da trilha e do objetivo", async ({ pa
 });
 
 test("etapa com prazo passado e não concluída aparece como atrasada", async ({ page }) => {
-  await createTrack(page, { title: "Certificação" });
-
-  await addStep(page, "Certificação", { title: "Prova", dueDate: "2020-01-31" });
+  await openTrack(page, "Certificação", { steps: [{ title: "Prova", dueDate: "2020-01-31" }] });
 
   await expect(page.getByText("Atrasada")).toBeVisible();
   await expect(page.getByText("Prazo: 31/01/2020")).toBeVisible();
@@ -99,7 +102,7 @@ test("etapa com prazo passado e não concluída aparece como atrasada", async ({
 });
 
 test("link do recurso inválido mostra o erro no campo", async ({ page }) => {
-  await createTrack(page, { title: "Leituras" });
+  await openTrack(page, "Leituras");
   await page.getByRole("link", { name: "Adicionar etapa" }).click();
   await textbox(page, "Título").fill("Artigo");
   const url = textbox(page, "Link do recurso (opcional)");
@@ -121,9 +124,7 @@ test("link do recurso inválido mostra o erro no campo", async ({ page }) => {
 });
 
 test("excluir etapa e trilha pedem confirmação", async ({ page }) => {
-  await createTrack(page, { title: "Descartável" });
-  await addStep(page, "Descartável", { title: "Primeira" });
-  await addStep(page, "Descartável", { title: "Segunda" });
+  await openTrack(page, "Descartável", { steps: [{ title: "Primeira" }, { title: "Segunda" }] });
 
   await page.getByRole("button", { name: "Excluir: Primeira" }).click();
   const stepDialog = page.getByRole("alertdialog", { name: "Excluir etapa?" });
@@ -145,11 +146,8 @@ test("excluir etapa e trilha pedem confirmação", async ({ page }) => {
 });
 
 test("lista, detalhe e formulários de trilha passam no axe", async ({ page }) => {
-  await createTrack(page, { title: "Acessível" });
-  await addStep(page, "Acessível", {
-    title: "Etapa com tudo",
-    dueDate: "2020-01-01",
-    resourceUrl: "https://example.com",
+  await openTrack(page, "Acessível", {
+    steps: [{ title: "Etapa com tudo", dueDate: "2020-01-01", resourceUrl: "https://example.com" }],
   });
   await expectNoAxeViolations(page);
 

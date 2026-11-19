@@ -1,7 +1,8 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { addDays, todayInAppTimeZone } from "../src/lib/dates";
-import { createCycle, createTrack, expectNoAxeViolations, resetDatabase } from "./helpers";
+import { insertCycle, insertTrack } from "./factories";
+import { expectNoAxeViolations, resetDatabase } from "./helpers";
 
 test.beforeEach(resetDatabase);
 
@@ -53,14 +54,18 @@ test("Desenvolvimento leva às trilhas, e as abas trocam entre Trilhas e PDI", a
 });
 
 test("nas telas de detalhe, Desenvolvimento continua marcado no menu", async ({ page }) => {
-  await createTrack(page, { title: "Inglês" });
+  const track = await insertTrack({ title: "Inglês" });
+  await page.goto(`/tracks/${track.id}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Inglês" })).toBeVisible();
   await expect(currentMenuItem(page)).toHaveText("Desenvolvimento");
 
-  await createCycle(page, {
+  const cycle = await insertCycle({
     title: "PDI atual",
     startDate: addDays(today, -10),
     endDate: addDays(today, 100),
   });
+  await page.goto(`/pdi/${cycle.id}`);
+  await expect(page.getByRole("heading", { level: 1, name: "PDI atual" })).toBeVisible();
   await expect(currentMenuItem(page)).toHaveText("Desenvolvimento");
   // The tabs only show on the two lists.
   await expect(developmentTabs(page)).toHaveCount(0);

@@ -1,17 +1,20 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 import { addDays, formatLongDate, todayInAppTimeZone, weekdayOf } from "../src/lib/dates";
-import { monthTitle, weekdayLongLabels } from "../src/modules/routines/labels";
+import { monthTitle } from "../src/modules/routines/labels";
 import { addMonths } from "../src/modules/routines/rules";
-import {
-  createGoal,
-  createRoutine,
-  expectNoAxeViolations,
-  resetDatabase,
-  textbox,
-} from "./helpers";
+import { type RoutineData, insertGoal, insertRoutine } from "./factories";
+import { createRoutine, expectNoAxeViolations, resetDatabase, textbox } from "./helpers";
 
 test.beforeEach(resetDatabase);
+
+/** A routine written to the database (plan 018), then its page. */
+async function openRoutine(page: Page, routine: RoutineData) {
+  const id = await insertRoutine(routine);
+  await page.goto(`/routines/${id}`);
+  await expect(page.getByRole("heading", { level: 1, name: routine.title })).toBeVisible();
+  return id;
+}
 
 // The same "today" the app uses (America/Fortaleza), whatever the machine's zone.
 const today = todayInAppTimeZone();
@@ -40,7 +43,7 @@ test("uma rotina diária aparece em Hoje com o horário", async ({ page }) => {
 });
 
 test("Feito conta a rotina e Desfazer volta para pendente", async ({ page }) => {
-  await createRoutine(page, { title: "Ler" });
+  await insertRoutine({ title: "Ler", startDate: today });
   await page.goto("/today");
 
   await page.getByRole("button", { name: "Feito: Ler" }).click();
@@ -55,7 +58,7 @@ test("Feito conta a rotina e Desfazer volta para pendente", async ({ page }) => 
 });
 
 test("Pular com nota mostra a rotina como pulada e a nota", async ({ page }) => {
-  await createRoutine(page, { title: "Correr" });
+  await insertRoutine({ title: "Correr", startDate: today });
   await page.goto("/today");
 
   await page.getByText("Adicionar nota").click();
@@ -68,8 +71,11 @@ test("Pular com nota mostra a rotina como pulada e a nota", async ({ page }) => 
 });
 
 test("rotina fora do dia de hoje não aparece em Hoje, só em Rotinas", async ({ page }) => {
-  const otherDay = weekdayLongLabels[weekdayOf(addDays(today, 1))];
-  await createRoutine(page, { title: "Revisar a semana", days: [otherDay] });
+  await insertRoutine({
+    title: "Revisar a semana",
+    startDate: today,
+    weekdays: [weekdayOf(addDays(today, 1))],
+  });
 
   await page.goto("/today");
   await expect(page.getByText("Nenhuma rotina para hoje.")).toBeVisible();
@@ -94,7 +100,7 @@ test("o formulário mostra erros nos dias e no fim", async ({ page }) => {
 });
 
 test("o histórico corrige dias passados e atualiza a adesão", async ({ page }) => {
-  await createRoutine(page, { title: "Inglês", startDate: addDays(today, -2) });
+  await openRoutine(page, { title: "Inglês", startDate: addDays(today, -2) });
   // Today is not over, so it only counts once logged.
   await expect(page.getByText("0 de 2 dias feitos, 0%")).toBeVisible();
 
@@ -116,12 +122,8 @@ test("o histórico corrige dias passados e atualiza a adesão", async ({ page })
 });
 
 test("encerrar termina a rotina hoje; rotinas já encerradas saem de Hoje", async ({ page }) => {
-  await createRoutine(page, {
-    title: "Antiga",
-    startDate: addDays(today, -10),
-    endDate: yesterday,
-  });
-  await createRoutine(page, { title: "Atual" });
+  await insertRoutine({ title: "Antiga", startDate: addDays(today, -10), endDate: yesterday });
+  await openRoutine(page, { title: "Atual", startDate: today });
 
   await page.getByRole("button", { name: "Encerrar rotina" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Encerrar" }).click();
@@ -143,10 +145,10 @@ test("encerrar termina a rotina hoje; rotinas já encerradas saem de Hoje", asyn
 });
 
 test("o objetivo mostra as rotinas vinculadas", async ({ page }) => {
-  await createGoal(page, { title: "Saúde" });
-  await createRoutine(page, { title: "Caminhar", goal: "Saúde" });
+  const goalId = await insertGoal({ title: "Saúde" });
+  await insertRoutine({ title: "Caminhar", startDate: today, goalId });
 
-  await page.getByRole("link", { name: "Saúde" }).click();
+  await page.goto(`/goals/${goalId}`);
 
   const section = page.getByRole("region", { name: "Rotinas" });
   await expect(section.getByRole("link", { name: "Caminhar" })).toBeVisible();
@@ -169,8 +171,8 @@ test("as páginas de rotina passam na verificação de acessibilidade", async ({
 });
 
 test("o calendário mostra o dia feito em Hoje e o resumo do mês", async ({ page }) => {
-  await createRoutine(page, { title: "Ler" });
-  const routineUrl = page.url();
+  const id = await insertRoutine({ title: "Ler", startDate: today });
+  const routineUrl = `/routines/${id}`;
   await page.goto("/today");
   await page.getByRole("button", { name: "Feito: Ler" }).click();
   await expect(page.getByText("1 de 1 feita")).toBeVisible();
@@ -189,7 +191,7 @@ test("o calendário mostra o dia feito em Hoje e o resumo do mês", async ({ pag
 
 test("o calendário navega entre os meses do período da rotina", async ({ page }) => {
   const start = addDays(today, -40);
-  await createRoutine(page, { title: "Correr", startDate: start });
+  await openRoutine(page, { title: "Correr", startDate: start });
   const calendar = page.getByRole("region", { name: "Calendário" });
   const months = calendar.getByRole("navigation", { name: "Mês do calendário" });
   const currentMonth = today.slice(0, 7);

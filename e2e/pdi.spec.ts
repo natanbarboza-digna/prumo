@@ -1,11 +1,11 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
+import { type CycleData, insertCycle, insertGoal } from "./factories";
 import {
   addAction,
   addArea,
   combobox,
   createCycle,
-  createGoal,
   expectNoAxeViolations,
   resetDatabase,
   textbox,
@@ -14,6 +14,13 @@ import {
 test.beforeEach(resetDatabase);
 
 const cycle2026 = { title: "PDI 2026", startDate: "2026-01-01", endDate: "2026-12-31" };
+
+/** A cycle written to the database (plan 018), then its page. */
+async function openCycle(page: Page, data: Partial<CycleData> = {}) {
+  const { id } = await insertCycle({ ...cycle2026, ...data });
+  await page.goto(`/pdi/${id}`);
+  await expect(page.getByRole("heading", { level: 1, name: "PDI 2026" })).toBeVisible();
+}
 
 test("PDI vazio convida a criar o primeiro ciclo", async ({ page }) => {
   await page.goto("/pdi");
@@ -46,13 +53,14 @@ test("cria ciclo, área, ação e check-in", async ({ page }) => {
 });
 
 test("concluir a ação atualiza o progresso do ciclo e do objetivo", async ({ page }) => {
-  await createGoal(page, { title: "Ser tech lead" });
-  await createCycle(page, cycle2026);
-  await addArea(page, "PDI 2026", "Liderança");
-  await addAction(page, "PDI 2026", "Liderança", {
-    title: "Mentorar um júnior",
-    category: "Mentoria",
-    goal: "Ser tech lead",
+  const goalId = await insertGoal({ title: "Ser tech lead" });
+  await openCycle(page, {
+    areas: [
+      {
+        name: "Liderança",
+        actions: [{ title: "Mentorar um júnior", category: "Mentoria", goalId }],
+      },
+    ],
   });
 
   await page.getByRole("link", { name: "Editar ação: Mentorar um júnior" }).click();
@@ -71,7 +79,7 @@ test("concluir a ação atualiza o progresso do ciclo e do objetivo", async ({ p
 });
 
 test("um segundo ciclo ativo mostra o erro no status", async ({ page }) => {
-  await createCycle(page, { ...cycle2026, status: "Ativo" });
+  await insertCycle({ ...cycle2026, status: "ACTIVE" });
 
   await page.goto("/pdi/new");
   await textbox(page, "Título").fill("PDI paralelo");
@@ -86,8 +94,7 @@ test("um segundo ciclo ativo mostra o erro no status", async ({ page }) => {
 });
 
 test("encerrar deixa o ciclo somente leitura e reabrir devolve a edição", async ({ page }) => {
-  await createCycle(page, { ...cycle2026, status: "Ativo" });
-  await addArea(page, "PDI 2026", "Comunicação");
+  await openCycle(page, { status: "ACTIVE", areas: [{ name: "Comunicação" }] });
 
   await page.getByRole("button", { name: "Encerrar ciclo" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Encerrar" }).click();
@@ -117,8 +124,7 @@ test("datas invertidas no ciclo mostram o erro no fim", async ({ page }) => {
 });
 
 test("as páginas do PDI passam na verificação de acessibilidade", async ({ page }) => {
-  await createCycle(page, cycle2026);
-  await addArea(page, "PDI 2026", "Comunicação");
+  await insertCycle({ ...cycle2026, areas: [{ name: "Comunicação" }] });
 
   await page.goto("/pdi");
   await expect(page.getByRole("heading", { level: 1, name: "PDI" })).toBeVisible();

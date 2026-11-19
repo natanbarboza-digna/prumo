@@ -1,6 +1,8 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import { createRoutine, expectNoAxeViolations, resetDatabase } from "./helpers";
+import { todayInAppTimeZone } from "../src/lib/dates";
+import { insertRoutine } from "./factories";
+import { expectNoAxeViolations, resetDatabase } from "./helpers";
 
 test.beforeEach(resetDatabase);
 
@@ -65,7 +67,7 @@ test.describe("em 375 px", () => {
   });
 
   test("o painel com dados passa no axe", async ({ page }) => {
-    await createRoutine(page, { title: "Ler 20 minutos" });
+    await insertRoutine({ title: "Ler 20 minutos", startDate: todayInAppTimeZone() });
     await open(page, "/");
 
     await expectNoAxeViolations(page);

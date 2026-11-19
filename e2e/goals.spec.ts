@@ -1,15 +1,17 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
-import {
-  combobox,
-  createGoal,
-  createTrack,
-  expectNoAxeViolations,
-  resetDatabase,
-  textbox,
-} from "./helpers";
+import { type GoalData, insertGoal, insertTrack } from "./factories";
+
+import { combobox, createGoal, expectNoAxeViolations, resetDatabase, textbox } from "./helpers";
 
 test.beforeEach(resetDatabase);
+
+/** A goal written to the database (plan 018), then its page. */
+async function openGoal(page: Page, goal: GoalData) {
+  const id = await insertGoal(goal);
+  await page.goto(`/goals/${id}`);
+  await expect(page.getByRole("heading", { level: 1, name: goal.title })).toBeVisible();
+}
 
 test("lista vazia convida a criar o primeiro objetivo", async ({ page }) => {
   await page.goto("/goals");
@@ -54,7 +56,7 @@ test("formulário sem título mostra o erro no campo", async ({ page }) => {
 });
 
 test("arquivar tira o objetivo da lista padrão", async ({ page }) => {
-  await createGoal(page, { title: "Correr 10 km" });
+  await openGoal(page, { title: "Correr 10 km" });
 
   await page.getByRole("link", { name: "Editar" }).click();
   await combobox(page, "Status").selectOption({ label: "Arquivado" });
@@ -74,7 +76,7 @@ test("arquivar tira o objetivo da lista padrão", async ({ page }) => {
 });
 
 test("excluir pede confirmação", async ({ page }) => {
-  await createGoal(page, { title: "Ler 12 livros" });
+  await openGoal(page, { title: "Ler 12 livros" });
 
   await page.getByRole("button", { name: "Excluir" }).click();
   const dialog = page.getByRole("alertdialog", { name: "Excluir objetivo?" });
@@ -90,9 +92,9 @@ test("excluir pede confirmação", async ({ page }) => {
 });
 
 test("objetivo em andamento com data passada aparece como atrasado", async ({ page }) => {
-  await createGoal(page, {
+  await openGoal(page, {
     title: "Tirar certificação",
-    status: "Em andamento",
+    status: "IN_PROGRESS",
     targetDate: "2020-01-31",
   });
 
@@ -119,7 +121,7 @@ test("lista, formulário e detalhe passam no axe", async ({ page }) => {
 test("detalhe do objetivo mostra as trilhas vinculadas e o progresso agregado", async ({
   page,
 }) => {
-  await createGoal(page, { title: "Virar especialista" });
+  await openGoal(page, { title: "Virar especialista" });
   await expect(page.getByText("Nenhuma trilha vinculada a este objetivo.")).toBeVisible();
 
   // The goal page links to a new track with this goal preselected.
@@ -129,7 +131,7 @@ test("detalhe do objetivo mostra as trilhas vinculadas e o progresso agregado", 
   await page.getByRole("button", { name: "Criar trilha" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Arquitetura" })).toBeVisible();
 
-  await createTrack(page, { title: "Outra trilha" });
+  await insertTrack({ title: "Outra trilha" });
 
   await page.goto("/tracks");
   await page.getByRole("link", { name: "Arquitetura" }).click();
