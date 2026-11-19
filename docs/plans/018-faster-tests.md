@@ -1,6 +1,6 @@
 # 018 — Testes e2e mais rápidos
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-19**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `chore/faster-tests`
 
 ## Objetivo
@@ -83,8 +83,20 @@ CLAUDE.md                            (comandos e convenção de testes)
 - Tempo da bateria completa medido antes e depois, registrado neste plano.
 - `CLAUDE.md` e este plano atualizados.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **Modo dev para iterar.** Proposta: `npm run test:e2e` com build (bateria completa e antes do merge) e `npm run test:e2e:dev` com o servidor de desenvolvimento (um spec durante o trabalho). A alternativa é só o modo build.
-2. **`standalone` só no Docker.** Proposta: ligar o `standalone` por variável de ambiente, definida no `Dockerfile`. A alternativa é rodar os e2e com o `server.js` do `standalone`, copiando os arquivos estáticos para ele a cada execução.
-3. **Um teste de criação pela tela por entidade.** Proposta: manter, e trocar o resto da preparação por factories. A alternativa é trocar tudo e confiar só nos testes que já existem para cada formulário.
+- **A medição final da bateria completa não foi feita.** No meio da implementação, o dono do projeto mudou a diretriz: a bateria completa não roda mais nas entregas (fica para o CI, quando houver remoto, ou para quando ele pedir; ver `CLAUDE.md`, Workflow). A rodada que estava medindo o "depois" foi interrompida com 14 testes passados e nenhuma falha. Por isso a meta de "menos da metade do tempo" fica sem número final; os sinais medidos são:
+  - `pdi-routines` no `next dev`: **125 s antes** (preparação pela tela) e **cerca de 84 s depois** (factories), com a compilação do `next dev` incluída;
+  - o mesmo spec contra o build, antes das factories: 74 s (mais 66 s de build);
+  - `auth` + `goals` contra o build, já com as factories: **83 s com o build incluído** (antes, só os testes somavam 50 s no `next dev`, sem contar a subida do servidor).
+- **Todos os specs alterados foram rodados** com o `npm run test:e2e:dev`: `pdi-routines` (6), `routines` (13), `tracks` (8) e, juntos, `pdi`, `goals`, `navigation`, `mobile` e `home` (28), todos passando.
+- **`playwright.dev.config.ts`** reaproveita a configuração principal e só troca o comando do servidor; o `npm run test:e2e:dev` usa esse arquivo (variáveis de ambiente nos scripts do npm não funcionam igual no Windows e no Linux sem uma dependência a mais).
+- **`standalone` conferido:** com `NEXT_OUTPUT=standalone` o build gera `.next/standalone/server.js`; sem a variável, não gera. A imagem Docker não foi montada de novo.
+- **Testes que continuam criando pela tela:** criar objetivo; criar trilha vinculada; adicionar etapas e reordenar; link de recurso inválido (formulário de etapa); rotina diária em Hoje; axe das páginas de rotina; meta semanal pelo formulário; criar ciclo, área, ação e check-in; criar rotina a partir da ação; e os testes de formulário com erro.
+- **CI:** o workflow já chama `npm run test:e2e`, que agora usa o build; não precisou mudar.
+
+## Decisões
+
+1. `npm run test:e2e` contra o build e `npm run test:e2e:dev` contra o `next dev`.
+2. `standalone` só com `NEXT_OUTPUT=standalone`, definida no `Dockerfile`.
+3. Um teste de criação pela tela por entidade; o resto da preparação pelas factories.

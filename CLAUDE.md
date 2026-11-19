@@ -32,21 +32,22 @@ Não adicione dependências fora desta lista sem perguntar antes.
 
 Estes scripts devem existir no `package.json` desde o scaffold:
 
-| Comando                    | O que faz                                                          |
-| -------------------------- | ------------------------------------------------------------------ |
-| `docker compose up -d`     | Sobe o PostgreSQL                                                  |
-| `npm run dev`              | Servidor de desenvolvimento                                        |
-| `npm run lint`             | ESLint                                                             |
-| `npm run typecheck`        | `next typegen` + `tsc --noEmit`                                    |
-| `npm run format`           | Prettier                                                           |
-| `npm test`                 | Vitest                                                             |
-| `npm run test:e2e`         | Playwright                                                         |
-| `npx prisma migrate dev`   | Cria e aplica migration                                            |
-| `npx prisma db seed`       | Dados iniciais (categorias padrão)                                 |
-| `npm run db:seed:demo`     | Dados de demonstração (banco vazio; `-- --reset` apaga tudo antes) |
-| `npm run check:versions`   | Diz se as versões fixadas (ver "Stack") já podem subir             |
-| `npm run pdi:template`     | Gera a planilha modelo de PDI e as planilhas dos e2e               |
-| `npm run auth:create-user` | Cria a conta única (ou troca a senha com `-- --reset-password`)    |
+| Comando                    | O que faz                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| `docker compose up -d`     | Sobe o PostgreSQL                                                              |
+| `npm run dev`              | Servidor de desenvolvimento                                                    |
+| `npm run lint`             | ESLint                                                                         |
+| `npm run typecheck`        | `next typegen` + `tsc --noEmit`                                                |
+| `npm run format`           | Prettier                                                                       |
+| `npm test`                 | Vitest                                                                         |
+| `npm run test:e2e`         | Playwright contra o build (bateria completa: só no CI ou quando o dono pedir)  |
+| `npm run test:e2e:dev`     | Playwright contra o `next dev` (para iterar num spec: `-- e2e/<área>.spec.ts`) |
+| `npx prisma migrate dev`   | Cria e aplica migration                                                        |
+| `npx prisma db seed`       | Dados iniciais (categorias padrão)                                             |
+| `npm run db:seed:demo`     | Dados de demonstração (banco vazio; `-- --reset` apaga tudo antes)             |
+| `npm run check:versions`   | Diz se as versões fixadas (ver "Stack") já podem subir                         |
+| `npm run pdi:template`     | Gera a planilha modelo de PDI e as planilhas dos e2e                           |
+| `npm run auth:create-user` | Cria a conta única (ou troca a senha com `-- --reset-password`)                |
 
 ## Estrutura de pastas
 
@@ -125,7 +126,7 @@ Os campos de `PdiCycle`, `PdiArea`, `PdiAction` e `PdiCheckIn` foram validados p
 2. **TDD.** Escreva o teste, veja-o falhar, implemente o mínimo para passar, refatore. Regras de negócio são testadas no service contra um banco de teste separado (`.env.test`); fluxos de ponta a ponta, no Playwright.
 3. **Branches.** Uma branch por feature a partir da `main` (`feat/goals-crud`, `fix/routine-log-date`). Nunca commite direto na `main`. Não faça merge nem push sem ser pedido.
 4. **Commits.** Conventional Commits em inglês (`feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `chore:`), pequenos e atômicos.
-5. **Pronto significa:** `npm run lint`, `npm run typecheck` e `npm test` passando, migration incluída quando o schema mudou e plano atualizado se o escopo mudou durante a implementação. **E2E:** durante o trabalho e na entrega, rode só os arquivos e2e da área mexida (`npx playwright test e2e/<área>.spec.ts`); a bateria completa roda uma vez, antes do merge (ou no CI, quando houver remoto).
+5. **Pronto significa:** `npm run lint`, `npm run typecheck` e `npm test` passando, migration incluída quando o schema mudou e plano atualizado se o escopo mudou durante a implementação. **E2E:** rode só os arquivos e2e da área mexida (`npm run test:e2e:dev -- e2e/<área>.spec.ts`), inclusive antes do merge. **Não rode a bateria completa** (`npm run test:e2e`): ela fica para o CI, quando houver remoto, ou para o dono do projeto rodar quando quiser.
 6. **Hook de pre-commit e CI.** Todo commit passa pelo `.githooks/pre-commit` (Prettier, lint, typecheck e testes de unidade), ligado pelo `npm install` (script `prepare`). Não pule o hook com `--no-verify`. O CI (`.github/workflows/ci.yml`) roda tudo, inclusive integração, e2e e `npm audit`, quando o projeto estiver no GitHub; se o `prisma.config.ts` passar a exigir outra variável de ambiente, ela precisa entrar no `env` do workflow.
 
 Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um problema fora do escopo, anote em "Pendências" abaixo e siga.
@@ -138,7 +139,7 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 - Sem `any` e sem `@ts-ignore`; se for inevitável, comente o motivo.
 - Segredos só em `.env` (fora do git); mantenha `.env.example` atualizado.
 - **Banco:** IDs em UUID v7 (`@default(uuid(7)) @db.Uuid`); nomes de tabelas, colunas e enums em snake_case no banco (`@@map`/`@map`), camelCase no TypeScript. Datas sem hora são colunas `@db.Date` e circulam na aplicação como string `AAAA-MM-DD` (conversão em `src/lib/dates.ts`, feita no service).
-- **Testes de banco:** `npm test` (integração) e `npm run test:e2e` usam o mesmo banco `_test` e limpam os dados; não rode os dois ao mesmo tempo. Helpers em `src/test/test-database.ts` e, para testes que precisam de uma ação de PDI, `src/test/pdi-fixtures.ts`; o `resetDatabase` dos e2e recria as categorias padrão. O Playwright roda com 1 worker pelo mesmo motivo; helpers de e2e em `e2e/helpers.ts`.
+- **Testes de banco:** `npm test` (integração) e `npm run test:e2e` usam o mesmo banco `_test` e limpam os dados; não rode os dois ao mesmo tempo. Helpers em `src/test/test-database.ts` e, para testes que precisam de uma ação de PDI, `src/test/pdi-fixtures.ts`; o `resetDatabase` dos e2e recria as categorias padrão. O Playwright roda com 1 worker pelo mesmo motivo; helpers de e2e em `e2e/helpers.ts`. **Dados de preparação dos e2e** vêm de `e2e/factories.ts` (SQL direto no banco de teste, plano 018) e o teste abre a página pela URL; a criação pela tela fica só nos testes que provam o formulário. Ao mudar uma coluna do schema, atualize a factory: `src/test/e2e-factories.int.test.ts` falha se ela ficar para trás.
 - **Prisma 7:** depois de `npx prisma migrate dev`, rode `npx prisma generate` (o `migrate dev` não gera mais o cliente).
 - **Reaproveite antes de criar:** campos Zod em `src/lib/form-fields.ts`; erros do Prisma (P2025, P2002, P2003) em `src/lib/prisma-errors.ts`; formulários com o hook `src/components/forms/use-schema-form.ts` + `FormActions` (opção `readForm` para campos repetidos, como grupos de checkbox); opções de objetivo e de categoria dos formulários em `src/modules/goals/options.ts` e `src/modules/categories/options.ts`; exclusão com `ConfirmDeleteButton` e outras confirmações com `ConfirmActionButton`; botões de form com `SubmitButton`; regras puras de rotina (dia previsto, estado, adesão, período de evidência, calendário do mês com `monthCalendar`, `monthRange` e `parseMonth`) em `src/modules/routines/rules.ts`, que não acessa o banco e pode ser importado pelos services de rotinas e de PDI sem importação circular; "esta ação aceita rotina?" com `routineBlocker` (`src/modules/pdi/service.ts`); diferença em dias entre datas com `daysBetween` (`src/lib/dates.ts`); esvaziar todas as tabelas com `truncateStatement` (`src/lib/truncate.ts`); blocos do painel com `DashboardCard` e `EmptyCardText`; abas Trilhas | PDI com `DevelopmentTabs`; calendário mensal da rotina com `RoutineCalendar` (mês na URL, `?mes=AAAA-MM`); marca com `BrandMark`; estado concluído com a variante `success` do `Badge` (a única cor além do vermelho de atraso).
 - **Sessão:** toda Server Action começa com `await requireSession()` (`src/modules/auth/session.ts`), porque uma action pode ser chamada sem passar pela tela. Toda página nova vai dentro de `src/app/(app)/`, cujo layout valida a sessão (num componente dentro de `<Suspense>`) antes de renderizar a página. Os e2e já começam logados (cookie da conta de teste no `playwright.config.ts`, conta recriada pelo `resetDatabase`); para testar sem login, use `test.use({ storageState: { cookies: [], origins: [] } })`.
