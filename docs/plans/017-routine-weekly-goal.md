@@ -1,6 +1,6 @@
 # 017 — Rotinas com meta semanal ("3x por semana")
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-19**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/routine-weekly-goal`
 
 Segundo dos três planos do grupo Rotinas (calendário, metas de frequência, streak).
@@ -122,9 +122,21 @@ CLAUDE.md (modelo de domínio e regras)
 - Capturas do formulário, da tela Hoje e do calendário de uma meta semanal conferidas.
 - `CLAUDE.md` e este plano atualizados.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **Na tela Hoje.** Proposta: a meta semanal aparece todos os dias, com o progresso da semana, e continua aparecendo depois de cumprida ("Meta da semana cumprida"). A alternativa é sumir da tela Hoje quando a meta da semana for cumprida.
-2. **"Pular".** Proposta: não existe na meta semanal, só "Feito". A alternativa é manter "Pular" para registrar uma nota (sem efeito na adesão).
-3. **Como contar a adesão.** Proposta: dias-meta (a meta de cada semana vira os "dias previstos", com feitos limitados à meta e semana incompleta proporcional), para somar com as rotinas de dias fixos no painel e no PDI. A alternativa é contar semanas cumpridas (por exemplo, "3 de 4 semanas"), mais simples de ler, mas que não soma com as outras rotinas.
-4. **Trocar o tipo de uma rotina existente.** Proposta: permitido, mantendo os registros. A alternativa é travar o tipo depois de criada.
+- **`frequency` não é gravado:** é só um campo do formulário. O schema Zod transforma a entrada: na meta semanal, `weekdays` vira os 7 dias e `timesPerWeek` fica com N; nos dias fixos, `timesPerWeek` vira `null`. O banco só tem `timesPerWeek`.
+- **Checagens do schema que só olham para o tipo** (pelo menos um dia nos dias fixos; quantas vezes na meta semanal) usam `when` com "nenhum erro em `frequency`, `weekdays` ou `timesPerWeek`", para os erros aparecerem junto com os outros campos.
+- **Edição de uma meta semanal** abre com os dias desmarcados: se o tipo for trocado para dias fixos, não vêm os 7 dias marcados.
+- **`scheduleText` recebe a rotina** (`weekdays`, `timesPerWeek`, `timeOfDay`) em vez de dois parâmetros; as quatro telas que o usam foram atualizadas.
+- **Evidência do PDI** passou a carregar `timesPerWeek` (`EvidenceRoutine`); sem isso, uma rotina semanal vinculada a uma ação seria contada como diária.
+- **Estado `OPEN` ("livre")** no calendário para um dia sem registro de meta semanal; a legenda da meta semanal só mostra "feita", e a coluna "Meta" tem nome acessível próprio ("semana em andamento, 1 de 3").
+- **Testes de integração do painel e da evidência do PDI** com os dois tipos de rotina foram escritos depois da correção da evidência, como proteção contra regressão (não foram vistos falhando antes).
+- **`expectNoAxeViolations` espera o `<title>`:** na bateria completa, o axe rodou logo depois do "Feito" (uma Server Action), no instante em que o Next atualiza a página e o título fica vazio, e acusou `document-title`. O helper dos e2e agora espera um título não vazio antes de analisar; vale para todos os testes.
+- **Demonstração:** "Exercício" virou meta semanal de 3 vezes, com um padrão de registros sem "pulado".
+
+## Decisões
+
+1. A meta semanal aparece na tela Hoje todos os dias, com o progresso, e continua depois de cumprida.
+2. Sem "Pular" na meta semanal.
+3. Adesão em dias-meta.
+4. Trocar o tipo de uma rotina existente é permitido, mantendo os registros.

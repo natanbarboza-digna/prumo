@@ -89,7 +89,7 @@ Nomes de entidades e campos em inglês no código. Os campos abaixo são o ponto
 
 **Rotina**
 
-- `Routine`: title, description, weekdays (dias da semana em que se aplica), timeOfDay (opcional), startDate, endDate (opcional), goalId (opcional), pdiActionId (opcional)
+- `Routine`: title, description, weekdays (dias da semana em que se aplica), timesPerWeek (opcional: meta semanal, plano 017), timeOfDay (opcional), startDate, endDate (opcional), goalId (opcional), pdiActionId (opcional)
 - `RoutineLog`: routineId, date, status (`DONE`, `SKIPPED`), note. Único por (routineId, date)
 
 **PDI**
@@ -114,6 +114,7 @@ Os campos de `PdiCycle`, `PdiArea`, `PdiAction` e `PdiCheckIn` foram validados p
 - Categoria arquivada não pode ser atribuída a novas ações. Categoria em uso não pode ser excluída, só arquivada.
 - Ciclo com status `CLOSED` é somente leitura.
 - Etapas de trilha, ações de PDI e rotinas podem se vincular a um objetivo; o objetivo mostra o progresso agregado desses itens.
+- **Rotina com meta semanal** (plano 017): `timesPerWeek` de 1 a 6, em quaisquer dias de segunda a domingo; guarda os 7 dias em `weekdays`, então qualquer dia pode ser registrado. Não tem "pulado" (`SkipNotAllowedError`). A adesão é em dias-meta: a meta de cada semana vira os dias previstos (proporcional numa semana incompleta no começo ou no fim), feitos contam até a meta, e a semana atual só conta o que já foi feito. Trocar o tipo de uma rotina mantém os registros.
 - Datas de rotina e de registro são datas sem hora, no fuso `America/Fortaleza`. Nunca derive "hoje" de UTC.
 - **Autenticação** (plano 014): uma conta só, criada pelo terminal (`npm run auth:create-user`); não há cadastro pela tela nem `userId` nas entidades. Senha com `scrypt` (mínimo de 12 caracteres); 5 senhas erradas seguidas bloqueiam a conta por 15 minutos; erro de login sempre genérico. Sessão no banco (tabela `sessions`, só o hash do token), 30 dias, renovada quando usada com menos de 15 dias restantes; trocar a senha encerra as outras sessões.
 - **Importação de PDI por planilha** (`/pdi/import`, plano 013): sempre cria um ciclo novo; tudo ou nada (qualquer erro, nada é gravado, e a tela lista aba, linha e campo). Cada linha passa pelos mesmos schemas Zod dos formulários. Área e categoria das ações são identificadas pelo nome (sem diferenciar maiúsculas); categoria arquivada é recusada; ciclo `Ativo` com outro ativo também. As colunas ficam em `src/modules/pdi/import/sheets.ts`: ao mudá-las, rode `npm run pdi:template` e commite a planilha modelo e as planilhas dos e2e.
@@ -124,7 +125,7 @@ Os campos de `PdiCycle`, `PdiArea`, `PdiAction` e `PdiCheckIn` foram validados p
 2. **TDD.** Escreva o teste, veja-o falhar, implemente o mínimo para passar, refatore. Regras de negócio são testadas no service contra um banco de teste separado (`.env.test`); fluxos de ponta a ponta, no Playwright.
 3. **Branches.** Uma branch por feature a partir da `main` (`feat/goals-crud`, `fix/routine-log-date`). Nunca commite direto na `main`. Não faça merge nem push sem ser pedido.
 4. **Commits.** Conventional Commits em inglês (`feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `chore:`), pequenos e atômicos.
-5. **Pronto significa:** `npm run lint`, `npm run typecheck` e `npm test` passando, migration incluída quando o schema mudou e plano atualizado se o escopo mudou durante a implementação.
+5. **Pronto significa:** `npm run lint`, `npm run typecheck` e `npm test` passando, migration incluída quando o schema mudou e plano atualizado se o escopo mudou durante a implementação. **E2E:** durante o trabalho e na entrega, rode só os arquivos e2e da área mexida (`npx playwright test e2e/<área>.spec.ts`); a bateria completa roda uma vez, antes do merge (ou no CI, quando houver remoto).
 6. **Hook de pre-commit e CI.** Todo commit passa pelo `.githooks/pre-commit` (Prettier, lint, typecheck e testes de unidade), ligado pelo `npm install` (script `prepare`). Não pule o hook com `--no-verify`. O CI (`.github/workflows/ci.yml`) roda tudo, inclusive integração, e2e e `npm audit`, quando o projeto estiver no GitHub; se o `prisma.config.ts` passar a exigir outra variável de ambiente, ela precisa entrar no `env` do workflow.
 
 Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um problema fora do escopo, anote em "Pendências" abaixo e siga.
