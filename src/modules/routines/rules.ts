@@ -2,7 +2,7 @@
 // services can import them without importing each other.
 
 import type { RoutineLogStatus, Weekday } from "@/generated/prisma/enums";
-import { eachDay, weekdayOf } from "@/lib/dates";
+import { addDays, eachDay, weekdayOf } from "@/lib/dates";
 
 export type Schedule = { weekdays: Weekday[]; startDate: string; endDate: string | null };
 
@@ -20,6 +20,9 @@ export type RoutineState = "UPCOMING" | "ACTIVE" | "ENDED";
 export type Period = { from: string; to: string };
 
 /** How far back adherence and history look, counting today. */
+/** Monday first, the order the app shows weeks in. */
+const WEEK_ORDER: readonly Weekday[] = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+
 export const ADHERENCE_DAYS = 30;
 export const HISTORY_DAYS = 14;
 
@@ -105,4 +108,93 @@ function withRate(counts: Omit<Adherence, "rate">): Adherence {
 
 function latest(a: string, b: string): string {
   return a > b ? a : b;
+}
+
+// ---------------------------------------------------------------------------
+// Monthly calendar (plan 016)
+// ---------------------------------------------------------------------------
+
+/** OUTSIDE: a day of the previous or next month, shown to complete the weeks. */
+export type CalendarDayState =
+  "DONE" | "SKIPPED" | "MISSED" | "PENDING" | "NOT_SCHEDULED" | "FUTURE" | "OUTSIDE";
+
+export type CalendarDay = { date: string; state: CalendarDayState; isToday: boolean };
+
+export type MonthCalendar = {
+  /** "YYYY-MM". */
+  month: string;
+  /** Monday-to-Sunday weeks covering the whole month. */
+  weeks: CalendarDay[][];
+  /** The month's scheduled days up to today. */
+  adherence: Adherence;
+};
+
+export type MonthRange = { from: string; to: string };
+
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+const monthOf = (date: string) => date.slice(0, 7);
+
+/** "2026-12" + 1 → "2027-01". */
+export function addMonths(month: string, count: number): string {
+  const [year = 0, monthNumber = 1] = month.split("-").map(Number);
+  const index = year * 12 + (monthNumber - 1) + count;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
+}
+
+function lastDayOf(month: string): string {
+  return addDays(`${addMonths(month, 1)}-01`, -1);
+}
+
+export function monthCalendar(
+  routine: Schedule,
+  logs: readonly { date: string; status: RoutineLogStatus }[],
+  month: string,
+  today: string,
+): MonthCalendar {
+  const first = `${month}-01`;
+  const last = lastDayOf(month);
+  const statusByDate = new Map(logs.map((log) => [log.date, log.status]));
+
+  // Back to the Monday on or before the 1st, forward to the Sunday on or after the last day.
+  const start = addDays(first, -WEEK_ORDER.indexOf(weekdayOf(first)));
+  const end = addDays(last, 6 - WEEK_ORDER.indexOf(weekdayOf(last)));
+
+  const days = eachDay(start, end).map((date): CalendarDay => {
+    const isToday = date === today;
+    if (monthOf(date) !== month) return { date, state: "OUTSIDE", isToday };
+    if (!isScheduledOn(routine, date)) return { date, state: "NOT_SCHEDULED", isToday };
+    if (date > today) return { date, state: "FUTURE", isToday };
+    const status = statusByDate.get(date);
+    if (status === "DONE") return { date, state: "DONE", isToday };
+    if (status === "SKIPPED") return { date, state: "SKIPPED", isToday };
+    return { date, state: isToday ? "PENDING" : "MISSED", isToday };
+  });
+
+  const weeks: CalendarDay[][] = [];
+  for (let index = 0; index < days.length; index += 7) weeks.push(days.slice(index, index + 7));
+
+  return {
+    month,
+    weeks,
+    adherence: computeAdherence(routine, logs, { from: first, to: last }, today),
+  };
+}
+
+/** The months the calendar can show: from the start month to today (or to the end month). */
+export function monthRange(
+  routine: Pick<Schedule, "startDate" | "endDate">,
+  today: string,
+): MonthRange {
+  const from = monthOf(routine.startDate);
+  if (routine.startDate > today) return { from, to: from };
+  const lastDay = routine.endDate !== null && routine.endDate < today ? routine.endDate : today;
+  return { from, to: monthOf(lastDay) };
+}
+
+/** The `?mes=` value when it is a valid month inside the range; otherwise the last month. */
+export function parseMonth(value: string | undefined, range: MonthRange): string {
+  if (value === undefined || !MONTH_PATTERN.test(value)) return range.to;
+  // "YYYY-MM" strings compare in calendar order.
+  return value >= range.from && value <= range.to ? value : range.to;
 }
