@@ -1,6 +1,6 @@
 import type { RoutineLogStatus, Weekday } from "@/generated/prisma/enums";
 import { formatLongDate } from "@/lib/dates";
-import type { Adherence, CalendarDayState } from "@/modules/routines/rules";
+import type { Adherence, CalendarDayState, RoutineStreak } from "@/modules/routines/rules";
 
 export const weekdayShortLabels: Record<Weekday, string> = {
   MON: "Seg",
@@ -127,4 +127,29 @@ export function weekGoalName(goal: { done: number; target: number; current: bool
   if (goal.done >= goal.target) return `meta da semana cumprida, ${goal.done} de ${goal.target}`;
   if (goal.current) return `semana em andamento, ${goal.done} de ${goal.target}`;
   return `meta da semana não cumprida, ${goal.done} de ${goal.target}`;
+}
+
+// ---------------------------------------------------------------------------
+// Streak (plan 019)
+// ---------------------------------------------------------------------------
+
+function streakAmount(n: number, unit: RoutineStreak["unit"]): string {
+  if (unit === "WEEKS") return `${n} ${n === 1 ? "semana" : "semanas"}`;
+  return `${n} ${n === 1 ? "dia" : "dias"}`;
+}
+
+/** "5 dias seguidos" for Hoje, the dashboard and the list; null below 2 (it says little). */
+export function streakShortText(streak: RoutineStreak): string | null {
+  if (streak.current === null || streak.current < 2) return null;
+  return streak.unit === "WEEKS"
+    ? `${streak.current} semanas seguidas`
+    : `${streak.current} dias seguidos`;
+}
+
+/** "Sequência atual: 5 dias · Recorde: 12 dias", on the routine page. */
+export function streakPageText(streak: RoutineStreak): string {
+  if (streak.best === 0) return "Nenhuma sequência ainda";
+  const best = `Recorde: ${streakAmount(streak.best, streak.unit)}`;
+  if (streak.current === null) return best;
+  return `Sequência atual: ${streakAmount(streak.current, streak.unit)} · ${best}`;
 }

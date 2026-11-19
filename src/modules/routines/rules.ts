@@ -299,3 +299,57 @@ export function parseMonth(value: string | undefined, range: MonthRange): string
   // "YYYY-MM" strings compare in calendar order.
   return value >= range.from && value <= range.to ? value : range.to;
 }
+
+// ---------------------------------------------------------------------------
+// Streak (plan 019)
+// ---------------------------------------------------------------------------
+
+/**
+ * `current`: the run that is still going (null for a routine that already
+ * ended); `best`: the longest run in the whole history. In days for fixed-days
+ * routines, in weeks for a weekly goal.
+ */
+export type RoutineStreak = { unit: "DAYS" | "WEEKS"; current: number | null; best: number };
+
+/**
+ * Fixed days: scheduled days done in a row; a skipped day or a scheduled day
+ * that passed without a log breaks the run, a day not scheduled does not count,
+ * and today without a log does not break it yet. Weekly goal: weeks in a row
+ * with the goal met; a closed week below the goal breaks the run, the current
+ * week only adds once met.
+ */
+export function routineStreak(
+  routine: Schedule,
+  logs: readonly { date: string; status: RoutineLogStatus }[],
+  today: string,
+): RoutineStreak {
+  const ended = routine.endDate !== null && routine.endDate < today;
+  const last = ended && routine.endDate !== null ? routine.endDate : today;
+  let run = 0;
+  let best = 0;
+  const add = () => {
+    run++;
+    best = Math.max(best, run);
+  };
+
+  if (routine.timesPerWeek) {
+    for (let monday = mondayOf(routine.startDate); monday <= last; monday = addDays(monday, 7)) {
+      const { done, target } = weekProgress(routine, logs, monday);
+      if (target === 0) continue;
+      if (done >= target) add();
+      // A week that is not over yet does not break the run.
+      else if (addDays(monday, 6) < today) run = 0;
+    }
+    return { unit: "WEEKS", current: ended ? null : run, best };
+  }
+
+  const statusByDate = new Map(logs.map((log) => [log.date, log.status]));
+  for (const date of eachDay(routine.startDate, last)) {
+    if (!isScheduledOn(routine, date)) continue;
+    const status = statusByDate.get(date);
+    if (status === "DONE") add();
+    // Today is not over: no log yet is not a miss.
+    else if (!(date === today && status === undefined)) run = 0;
+  }
+  return { unit: "DAYS", current: ended ? null : run, best };
+}
