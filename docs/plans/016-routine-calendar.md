@@ -1,6 +1,6 @@
 # 016 — Calendário mensal da rotina
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-19**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/routine-calendar`
 
 Primeiro dos três planos do grupo Rotinas (calendário, depois metas de frequência, depois streak). Lembretes ficaram para depois; registrar dias antigos ficou de fora.
@@ -96,8 +96,16 @@ CLAUDE.md                                          (RoutineCalendar e monthCalen
 - Capturas do calendário em 320 px e em 1280 px, nos temas claro e escuro, conferidas.
 - `CLAUDE.md` e este plano atualizados.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **Lugar na página.** Proposta: entre a adesão e o "Histórico". A alternativa é no fim da página, depois do histórico.
-2. **Limite da navegação.** Proposta: só os meses dentro do período da rotina, do início até hoje. A alternativa é navegar livremente para qualquer mês.
-3. **Resumo do mês.** Proposta: mostrar a linha de resumo abaixo do calendário. A alternativa é só o calendário e a legenda.
+- **Estado `OUTSIDE`** para os dias do mês anterior e do seguinte que completam as semanas: a célula fica vazia, e esses dias não entram no resumo.
+- **"Hoje" aparece também quando não é dia previsto:** o contorno de hoje é mostrado em qualquer estado, como referência, inclusive num dia fora da rotina.
+- **Testes de unidade num arquivo próprio** (`src/modules/routines/calendar.test.ts`), com as regras e os textos do calendário, em vez de crescer `rules.test.ts` e `labels.test.ts`.
+- **Os e2e do calendário foram escritos depois da implementação** (as regras e o service seguiram TDD; os e2e não foram vistos falhando antes).
+- **Legenda** com os quatro estados que têm marca visual (feita, pulada, sem registro, pendente); "não prevista" e "futuro" são só o número do dia e ficam fora dela.
+
+## Decisões
+
+1. O calendário fica entre a adesão e o "Histórico".
+2. A navegação vai só pelos meses do período da rotina, do início até hoje (ou até o fim).
+3. A linha de resumo do mês aparece abaixo do calendário.
