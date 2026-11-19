@@ -16,8 +16,10 @@ import {
   ADHERENCE_DAYS,
   type Adherence,
   HISTORY_DAYS,
+  type MonthCalendar,
   computeAdherence,
   isScheduledOn,
+  monthCalendar,
   routineStateOn,
 } from "@/modules/routines/rules";
 import type { RoutineInput, RoutineLogInput } from "@/modules/routines/schemas";
@@ -245,6 +247,17 @@ export async function getRoutineHistory(
     .filter((date) => isScheduledOn(routine, date))
     .reverse()
     .map((date) => ({ date, log: logByDate.get(date) ?? null }));
+}
+
+/** One month of the routine for the calendar (plan 016). `month` is "YYYY-MM". */
+export async function getRoutineMonth(
+  routineId: string,
+  month: string,
+  today: string,
+): Promise<MonthCalendar> {
+  const routine = await getRoutine(routineId);
+  const logs = await logsBetween(routineId, `${month}-01`, addDays(`${month}-01`, 31));
+  return monthCalendar(routine, logs, month, today);
 }
 
 export async function getAdherence(

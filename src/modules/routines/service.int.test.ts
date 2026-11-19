@@ -24,6 +24,7 @@ import {
   getAdherence,
   getRoutine,
   getRoutineHistory,
+  getRoutineMonth,
   listRoutines,
   listRoutinesForDay,
   logRoutine,
@@ -387,5 +388,26 @@ describe("routines created from a PDI action", () => {
     });
 
     expect((await getRoutine(routine.id)).pdiAction?.id).toBe(action.id);
+  });
+});
+
+describe("getRoutineMonth", () => {
+  it("builds the asked month from that month's logs only", async () => {
+    const routine = await createRoutine(routineInput({ startDate: "2026-10-01" }));
+    await logRoutine(routine.id, "2026-10-31", { status: "DONE", note: null }, today);
+    await logRoutine(routine.id, "2026-11-01", { status: "DONE", note: null }, today);
+    await logRoutine(routine.id, "2026-11-02", { status: "SKIPPED", note: null }, today);
+
+    const november = await getRoutineMonth(routine.id, "2026-11", today);
+
+    const day = (date: string) => november.weeks.flat().find((item) => item.date === date);
+    expect(day("2026-10-31")?.state).toBe("OUTSIDE");
+    expect(day("2026-11-01")?.state).toBe("DONE");
+    expect(day("2026-11-02")?.state).toBe("SKIPPED");
+    expect(day("2026-11-03")?.state).toBe("MISSED");
+    expect(november.adherence).toMatchObject({ scheduled: 15, done: 1, skipped: 1 });
+
+    const october = await getRoutineMonth(routine.id, "2026-10", today);
+    expect(october.adherence).toMatchObject({ scheduled: 31, done: 1, skipped: 0, missed: 30 });
   });
 });
