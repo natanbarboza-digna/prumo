@@ -88,7 +88,9 @@ export async function login(
   if (!(await verifyPassword(password, user.passwordHash))) {
     const failed = user.failedLoginCount + 1;
     const locks = failed >= MAX_FAILED_LOGINS;
-    await db.user.update({
+    // updateMany does not throw if the account was deleted meanwhile (the
+    // password check takes a moment); the answer is the same generic error.
+    await db.user.updateMany({
       where: { id: user.id },
       data: {
         failedLoginCount: locks ? 0 : failed,
@@ -98,10 +100,12 @@ export async function login(
     throw new InvalidCredentialsError();
   }
 
-  await db.user.update({
+  const { count } = await db.user.updateMany({
     where: { id: user.id },
     data: { failedLoginCount: 0, lockedUntil: null },
   });
+  // The account disappeared between reading it and now: nothing to log in to.
+  if (count === 0) throw new InvalidCredentialsError();
   return createSession(user.id, now);
 }
 
