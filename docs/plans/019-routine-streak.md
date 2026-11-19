@@ -1,6 +1,6 @@
 # 019 — Sequência (streak) das rotinas
 
-Status: **aguardando aprovação**
+Status: **implementado em 2026-11-20**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/routine-streak`
 
 Último dos três planos do grupo Rotinas (calendário, metas de frequência, streak).
@@ -87,8 +87,15 @@ Só o `routines.spec.ts` roda, conforme a regra do `CLAUDE.md`.
 - `npm run lint`, `npm run typecheck`, `npm test` e o e2e de rotinas passando.
 - `CLAUDE.md` e este plano atualizados.
 
-## Perguntas
+## Mudanças durante a implementação
 
-1. **Onde mostrar.** Proposta: na página da rotina sempre; na tela Hoje, no painel e na lista de rotinas só a sequência atual. A alternativa é mostrar só na página da rotina.
-2. **Limite para aparecer fora da página da rotina.** Proposta: a partir de 2 (dias ou semanas). A alternativa é mostrar sempre, inclusive 0 e 1.
-3. **Rotina encerrada.** Proposta: mostrar só o recorde. A alternativa é mostrar também a última sequência antes do fim.
+- **Testes de unidade num arquivo próprio** (`src/modules/routines/streak.test.ts`), com as regras e os textos.
+- **`getRoutineStreak(routineId, today)`** no service, para a página da rotina; `listRoutines` e `listRoutinesForDay` passaram a carregar todos os registros da rotina (antes, só os do período da adesão ou da semana).
+- **Os 2 e2e de sequência foram escritos depois da implementação** (as regras e o service seguiram TDD). Rodaram o `routines.spec.ts` (15 testes) e, porque a mudança também tocou o card "Hoje" do painel e a lista de rotinas do objetivo, o `home.spec.ts` e o `goals.spec.ts` (13 testes).
+- **No card "Hoje" do painel**, o progresso da meta semanal e a sequência ficam na mesma linha.
+
+## Decisões
+
+1. Página da rotina sempre; tela Hoje, painel e lista de rotinas só com a sequência atual.
+2. Fora da página da rotina, a partir de 2 (dias ou semanas).
+3. Rotina encerrada mostra só o recorde.
