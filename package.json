@@ -23,6 +23,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:dev": "playwright test -c playwright.dev.config.ts",
     "db:seed:demo": "tsx prisma/seed-demo.ts",
     "check:versions": "tsx scripts/check-pinned-versions.ts",
     "pdi:template": "tsx scripts/generate-pdi-template.ts",

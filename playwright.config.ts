@@ -45,11 +45,15 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: `npx next dev --port ${PORT}`,
+    // The production build (plan 018): no per-page compilation while testing,
+    // about 40% faster than `next dev`. playwright.dev.config.ts uses `next dev`
+    // instead, to iterate on a single spec without the build.
+    command: `npx next build && npx next start --port ${PORT}`,
     url: baseURL,
     // Always start a fresh server so it is guaranteed to use the test database.
     reuseExistingServer: false,
-    timeout: 120_000,
+    // The build takes about a minute.
+    timeout: 300_000,
     // Variables set here win over .env, so the app talks to the test database.
     env: { DATABASE_URL: readTestDatabaseUrl() },
   },
