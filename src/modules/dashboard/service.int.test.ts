@@ -36,6 +36,7 @@ function routineInput(overrides: Partial<RoutineInput> = {}): RoutineInput {
     title: "Rotina",
     description: null,
     weekdays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+    timesPerWeek: null,
     timeOfDay: null,
     startDate: addDays(today, -9),
     endDate: null,
@@ -139,6 +140,20 @@ describe("getDashboard", () => {
 
     // Ten scheduled days (9 days ago up to today), two done.
     expect(block.adherence).toMatchObject({ scheduled: 10, done: 2, rate: 20 });
+  });
+
+  it("adds a weekly goal to the 30 days of adherence in goal days (plan 017)", async () => {
+    // Today, 2026-11-16, is a Monday: the week of the 9th is closed, this one just began.
+    await createRoutine(routineInput({ title: "Diária", startDate: "2026-11-09" }));
+    const weekly = await createRoutine(
+      routineInput({ title: "Semanal", timesPerWeek: 2, startDate: "2026-11-09" }),
+    );
+    await logRoutine(weekly.id, "2026-11-10", done, today);
+
+    const { today: block } = await getDashboard(today);
+
+    // Daily: 7 days of the week of the 9th, none done. Weekly: goal 2, 1 done.
+    expect(block.adherence).toMatchObject({ scheduled: 9, done: 1 });
   });
 
   it("joins steps, actions and goals into overdue and upcoming deadlines", async () => {

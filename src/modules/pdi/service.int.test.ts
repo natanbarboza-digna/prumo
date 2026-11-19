@@ -429,6 +429,7 @@ function routineInput(overrides: Partial<RoutineInput> = {}): RoutineInput {
     title: "Praticar",
     description: null,
     weekdays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+    timesPerWeek: null,
     timeOfDay: null,
     startDate: "2026-11-02",
     endDate: null,
@@ -452,6 +453,22 @@ function finish(
 }
 
 describe("action evidence", () => {
+  it("counts a weekly-goal routine in goal days (plan 017)", async () => {
+    const fixture = await pdiActionFixture({
+      cycle: { startDate: "2026-01-01", endDate: "2026-12-31" },
+    });
+    // From Monday the 2nd; today, the 16th, starts a new week.
+    const routine = await createRoutine(routineInput({ timesPerWeek: 2 }), fixture.action.id);
+    for (const date of ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-11"]) {
+      await logRoutine(routine.id, date, done, today);
+    }
+
+    const detail = await getActionDetail(fixture.action.id, today);
+
+    // Two closed weeks with a goal of 2: 2 (of 3 done) + 1.
+    expect(detail.routines[0]?.adherence).toMatchObject({ scheduled: 4, done: 3, missed: 1 });
+  });
+
   it("shows the linked routines with adherence inside the cycle, and their logs newest first", async () => {
     const fixture = await pdiActionFixture({
       cycle: { startDate: "2026-01-01", endDate: "2026-11-10" },

@@ -85,6 +85,8 @@ export type EvidenceRoutine = {
   id: string;
   title: string;
   weekdays: Weekday[];
+  /** Weekly goal (plan 017); null for fixed days. Changes how adherence is counted. */
+  timesPerWeek: number | null;
   timeOfDay: string | null;
   startDate: string;
   endDate: string | null;
@@ -713,6 +715,7 @@ function toEvidenceRoutine(row: Prisma.RoutineGetPayload<object>): EvidenceRouti
     id: row.id,
     title: row.title,
     weekdays: row.weekdays,
+    timesPerWeek: row.timesPerWeek,
     timeOfDay: row.timeOfDay,
     startDate: formatDateOnly(row.startDate),
     endDate: row.endDate === null ? null : formatDateOnly(row.endDate),

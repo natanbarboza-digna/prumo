@@ -17,12 +17,25 @@ import {
   type Adherence,
   HISTORY_DAYS,
   type MonthCalendar,
+  type WeekProgress,
   computeAdherence,
   isScheduledOn,
   monthCalendar,
   routineStateOn,
+  weekProgress,
 } from "@/modules/routines/rules";
 import type { RoutineInput, RoutineLogInput } from "@/modules/routines/schemas";
+
+/** Position of each weekday from Monday (0) to Sunday (6). */
+const WEEK_INDEX: Record<Weekday, number> = {
+  MON: 0,
+  TUE: 1,
+  WED: 2,
+  THU: 3,
+  FRI: 4,
+  SAT: 5,
+  SUN: 6,
+};
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,6 +46,8 @@ export type Routine = {
   title: string;
   description: string | null;
   weekdays: Weekday[];
+  /** Weekly goal (plan 017): N days per week, any days. Null for fixed days. */
+  timesPerWeek: number | null;
   timeOfDay: string | null;
   startDate: string;
   endDate: string | null;
@@ -47,9 +62,19 @@ export type RoutineLog = { date: string; status: RoutineLogStatus; note: string 
 
 export type RoutineSummary = Routine & { adherence: Adherence };
 
-/** A day on the "Today" screen or in a routine's history, with its log if any. */
-export type RoutineDay = { routine: Routine; log: RoutineLog | null };
+/**
+ * A day on the "Today" screen, with its log if any. `week`: the progress of a
+ * weekly-goal routine in that day's week; null for fixed-days routines.
+ */
+export type RoutineDay = { routine: Routine; log: RoutineLog | null; week: WeekProgress | null };
 export type HistoryDay = { date: string; log: RoutineLog | null };
+
+export class SkipNotAllowedError extends Error {
+  constructor(routineId: string) {
+    super(`A weekly-goal routine has no skipped days: ${routineId}`);
+    this.name = "SkipNotAllowedError";
+  }
+}
 
 export class RoutineNotFoundError extends Error {
   constructor(id: string) {
@@ -190,6 +215,8 @@ export async function endRoutine(id: string, today: string): Promise<Routine> {
 
 export async function listRoutinesForDay(date: string): Promise<RoutineDay[]> {
   const day = parseDateOnly(date);
+  const monday = addDays(date, -WEEK_INDEX[weekdayOf(date)]);
+  const sunday = addDays(monday, 6);
   // The period and weekday filters run in SQL; `has` checks the enum array.
   const rows = await db.routine.findMany({
     where: {
@@ -197,13 +224,22 @@ export async function listRoutinesForDay(date: string): Promise<RoutineDay[]> {
       OR: [{ endDate: null }, { endDate: { gte: day } }],
       weekdays: { has: weekdayOf(date) },
     },
-    include: { ...routineInclude, logs: { where: { date: day } } },
+    // The whole week's logs: a weekly goal shows its progress in the week.
+    include: {
+      ...routineInclude,
+      logs: { where: { date: { gte: parseDateOnly(monday), lte: parseDateOnly(sunday) } } },
+    },
     orderBy: routineOrder,
   });
-  return rows.map((row) => ({
-    routine: toRoutine(row),
-    log: row.logs[0] ? toLog(row.logs[0]) : null,
-  }));
+  return rows.map((row) => {
+    const routine = toRoutine(row);
+    const logs = row.logs.map(toLog);
+    return {
+      routine,
+      log: logs.find((log) => log.date === date) ?? null,
+      week: routine.timesPerWeek ? weekProgress(routine, logs, date) : null,
+    };
+  });
 }
 
 /** Creates or replaces the log of one day. */
@@ -216,6 +252,8 @@ export async function logRoutine(
   const routine = await getRoutine(routineId);
   if (date > today) throw new FutureDateError(date);
   if (!isScheduledOn(routine, date)) throw new RoutineNotScheduledError(routineId, date);
+  // A weekly goal has no required day, so there is nothing to skip (plan 017).
+  if (routine.timesPerWeek && input.status === "SKIPPED") throw new SkipNotAllowedError(routineId);
 
   const day = parseDateOnly(date);
   const row = await db.routineLog.upsert({
@@ -337,6 +375,7 @@ function toRoutine(row: RoutineRow): Routine {
     title: row.title,
     description: row.description,
     weekdays: row.weekdays,
+    timesPerWeek: row.timesPerWeek,
     timeOfDay: row.timeOfDay,
     startDate: formatDateOnly(row.startDate),
     endDate: row.endDate === null ? null : formatDateOnly(row.endDate),

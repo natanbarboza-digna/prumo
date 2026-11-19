@@ -17,6 +17,7 @@ import {
   RoutineNotFoundError,
   RoutineNotScheduledError,
   RoutineNotStartedError,
+  SkipNotAllowedError,
   clearLog,
   createRoutine,
   deleteRoutine,
@@ -46,6 +47,7 @@ function routineInput(overrides: Partial<RoutineInput> = {}): RoutineInput {
     startDate: "2026-11-01",
     endDate: null,
     goalId: null,
+    timesPerWeek: null,
     ...overrides,
   };
 }
@@ -409,5 +411,78 @@ describe("getRoutineMonth", () => {
 
     const october = await getRoutineMonth(routine.id, "2026-10", today);
     expect(october.adherence).toMatchObject({ scheduled: 31, done: 1, skipped: 0, missed: 30 });
+  });
+});
+
+describe("weekly goal routines (plan 017)", () => {
+  const allDays = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
+  const weekly = () =>
+    routineInput({
+      title: "Exercício",
+      weekdays: [...allDays],
+      timesPerWeek: 3,
+      // A Monday: no partial first week.
+      startDate: "2026-11-02",
+    });
+  const done = { status: "DONE" as const, note: null };
+
+  it("stores the goal, and editing switches the kind both ways keeping the logs", async () => {
+    const routine = await createRoutine(weekly());
+    expect(routine).toMatchObject({ timesPerWeek: 3, weekdays: [...allDays] });
+    await logRoutine(routine.id, "2026-11-03", done, today);
+
+    const fixed = await updateRoutine(
+      routine.id,
+      routineInput({ title: "Exercício", weekdays: ["MON", "WED"], timesPerWeek: null }),
+    );
+    expect(fixed).toMatchObject({ timesPerWeek: null, weekdays: ["MON", "WED"] });
+
+    const back = await updateRoutine(routine.id, weekly());
+    expect(back.timesPerWeek).toBe(3);
+    await expect(getRoutineHistory(routine.id, today)).resolves.toContainEqual({
+      date: "2026-11-03",
+      log: { date: "2026-11-03", status: "DONE", note: null },
+    });
+  });
+
+  it("accepts done on any day and refuses skipped", async () => {
+    const routine = await createRoutine(weekly());
+
+    await expect(logRoutine(routine.id, "2026-11-08", done, today)).resolves.toMatchObject({
+      status: "DONE",
+    });
+    await expect(
+      logRoutine(routine.id, "2026-11-09", { status: "SKIPPED", note: "viagem" }, today),
+    ).rejects.toThrow(SkipNotAllowedError);
+  });
+
+  it("shows up every day on Today, with the progress of the week", async () => {
+    const routine = await createRoutine(weekly());
+    // Week of Monday the 16th: done on the 16th; a log of the week before does not count.
+    await logRoutine(routine.id, "2026-11-15", done, today);
+    await logRoutine(routine.id, "2026-11-16", done, today);
+    const daily = await createRoutine(routineInput({ title: "Ler" }));
+
+    const items = await listRoutinesForDay("2026-11-16");
+
+    expect(items.find((item) => item.routine.id === routine.id)).toMatchObject({
+      log: { status: "DONE" },
+      week: { done: 1, target: 3 },
+    });
+    expect(items.find((item) => item.routine.id === daily.id)?.week).toBeNull();
+  });
+
+  it("counts adherence in goal days, adding up with fixed-days routines", async () => {
+    const routine = await createRoutine(weekly());
+    for (const date of ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-10"]) {
+      await logRoutine(routine.id, date, done, today);
+    }
+
+    // Weeks of the 2nd (3 of 3) and of the 9th (1 of 3); the current week has nothing yet.
+    await expect(getAdherence(routine.id, today)).resolves.toMatchObject({
+      scheduled: 6,
+      done: 4,
+      missed: 2,
+    });
   });
 });

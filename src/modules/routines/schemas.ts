@@ -21,12 +21,33 @@ const weekdaysField = z
   .union([z.string(), z.array(z.string())])
   .optional()
   .transform((value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]))
-  .pipe(
-    z
-      .array(z.enum(Weekday, { error: "Escolha dias da semana válidos." }))
-      .min(1, "Escolha pelo menos um dia da semana."),
-  )
+  // "At least one day" is checked below, only for fixed-days routines.
+  .pipe(z.array(z.enum(Weekday, { error: "Escolha dias da semana válidos." })))
   .transform((days) => weekdayOrder.filter((day) => days.includes(day)));
+
+/** How a routine repeats (plan 017): on fixed weekdays, or N times per week on any days. */
+export const ROUTINE_FREQUENCIES = ["DAYS", "WEEKLY"] as const;
+
+// Text in (a form value), one of the two kinds out; empty means fixed days.
+const frequencyField = z
+  .string()
+  .optional()
+  .transform((value) => value || "DAYS")
+  .pipe(z.enum(ROUTINE_FREQUENCIES, { error: "Escolha como a rotina se repete." }));
+
+const timesPerWeekField = z
+  .union([z.string(), z.number()])
+  .optional()
+  .transform((value) => (value === undefined || value === "" ? null : Number(value)))
+  .refine((value) => value === null || (Number.isInteger(value) && value >= 1 && value <= 6), {
+    error: "Escolha de 1 a 6 vezes por semana.",
+  });
+
+// The checks below only need these fields, so their errors show up together
+// with the others instead of after they are fixed (see the date check).
+const FREQUENCY_KEYS = new Set(["frequency", "weekdays", "timesPerWeek"]);
+const frequencyFieldsValid = (payload: { issues: readonly { path?: PropertyKey[] }[] }) =>
+  !payload.issues.some((issue) => FREQUENCY_KEYS.has(String(issue.path?.[0])));
 
 const periodFields = z.object({
   startDate: requiredDateOnly("Informe a data de início."),
@@ -37,7 +58,9 @@ export const routineInputSchema = z
   .object({
     title: requiredText(120),
     description: optionalText(2000),
+    frequency: frequencyField,
     weekdays: weekdaysField,
+    timesPerWeek: timesPerWeekField,
     timeOfDay: z
       .string()
       .trim()
@@ -57,7 +80,24 @@ export const routineInputSchema = z
     // This one only needs the two dates, so the error shows up together with
     // the others instead of after they are fixed.
     when: (payload) => periodFields.safeParse(payload.value).success,
-  });
+  })
+  .refine((routine) => routine.frequency !== "DAYS" || routine.weekdays.length > 0, {
+    error: "Escolha pelo menos um dia da semana.",
+    path: ["weekdays"],
+    when: frequencyFieldsValid,
+  })
+  .refine((routine) => routine.frequency !== "WEEKLY" || routine.timesPerWeek !== null, {
+    error: "Escolha quantas vezes por semana.",
+    path: ["timesPerWeek"],
+    when: frequencyFieldsValid,
+  })
+  // A weekly goal stores all seven days, so "is the routine on this day?"
+  // accepts any day; a fixed-days routine has no goal.
+  .transform(({ frequency, ...routine }) =>
+    frequency === "WEEKLY"
+      ? { ...routine, weekdays: [...weekdayOrder] }
+      : { ...routine, timesPerWeek: null },
+  );
 
 /**
  * The PDI action a new routine comes from. Kept apart from the routine fields
@@ -91,7 +131,9 @@ export function readRoutineForm(formData: FormData): RoutineFormValues {
   return {
     title: readText(formData, "title"),
     description: readText(formData, "description"),
+    frequency: readText(formData, "frequency") || "DAYS",
     weekdays: formData.getAll("weekdays").filter((value) => typeof value === "string"),
+    timesPerWeek: readText(formData, "timesPerWeek"),
     timeOfDay: readText(formData, "timeOfDay"),
     startDate: readText(formData, "startDate"),
     endDate: readText(formData, "endDate"),

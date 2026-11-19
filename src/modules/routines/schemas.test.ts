@@ -34,6 +34,7 @@ describe("routineInputSchema", () => {
       startDate: "2026-11-16",
       endDate: null,
       goalId: null,
+      timesPerWeek: null,
     });
   });
 
@@ -153,7 +154,9 @@ describe("readRoutineForm", () => {
     expect(readRoutineForm(formData)).toEqual({
       title: "Correr",
       description: "",
+      frequency: "DAYS",
       weekdays: ["TUE", "THU"],
+      timesPerWeek: "",
       timeOfDay: "",
       startDate: "2026-11-16",
       endDate: "",
@@ -176,5 +179,51 @@ describe("routineLinkSchema", () => {
 
   it("rejects an id that is not a UUID", () => {
     expect(routineLinkSchema.safeParse({ pdiActionId: "abc" }).success).toBe(false);
+  });
+});
+
+describe("routineInputSchema with a weekly goal (plan 017)", () => {
+  const weekly = { ...valid, weekdays: [], frequency: "WEEKLY", timesPerWeek: "3" };
+
+  it("stores the goal and all seven days, whatever days were sent", () => {
+    expect(routineInputSchema.parse({ ...weekly, weekdays: ["MON"] })).toMatchObject({
+      timesPerWeek: 3,
+      weekdays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+    });
+  });
+
+  it("ignores a leftover goal on a fixed-days routine", () => {
+    expect(
+      routineInputSchema.parse({ ...valid, frequency: "DAYS", timesPerWeek: "3" }),
+    ).toMatchObject({
+      timesPerWeek: null,
+      weekdays: ["MON", "WED"],
+    });
+  });
+
+  it("needs how many times per week, from 1 to 6", () => {
+    expect(fieldErrors(routineInputSchema, { ...weekly, timesPerWeek: "" }).timesPerWeek).toEqual([
+      "Escolha quantas vezes por semana.",
+    ]);
+    for (const value of ["0", "7", "2.5", "três"]) {
+      expect(
+        fieldErrors(routineInputSchema, { ...weekly, timesPerWeek: value }).timesPerWeek,
+        value,
+      ).toEqual(["Escolha de 1 a 6 vezes por semana."]);
+    }
+  });
+
+  it("refuses an unknown kind of routine", () => {
+    expect(fieldErrors(routineInputSchema, { ...weekly, frequency: "MONTHLY" }).frequency).toEqual([
+      "Escolha como a rotina se repete.",
+    ]);
+  });
+
+  it("reads the kind and the goal from the form", () => {
+    const formData = new FormData();
+    formData.set("frequency", "WEEKLY");
+    formData.set("timesPerWeek", "4");
+
+    expect(readRoutineForm(formData)).toMatchObject({ frequency: "WEEKLY", timesPerWeek: "4" });
   });
 });
