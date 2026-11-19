@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 import { addDays, formatLongDate, todayInAppTimeZone, weekdayOf } from "../src/lib/dates";
-import { weekdayLongLabels } from "../src/modules/routines/labels";
+import { monthTitle, weekdayLongLabels } from "../src/modules/routines/labels";
+import { addMonths } from "../src/modules/routines/rules";
 import {
   createGoal,
   createRoutine,
@@ -165,4 +166,46 @@ test("as páginas de rotina passam na verificação de acessibilidade", async ({
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
     await expectNoAxeViolations(page);
   }
+});
+
+test("o calendário mostra o dia feito em Hoje e o resumo do mês", async ({ page }) => {
+  await createRoutine(page, { title: "Ler" });
+  const routineUrl = page.url();
+  await page.goto("/today");
+  await page.getByRole("button", { name: "Feito: Ler" }).click();
+  await expect(page.getByText("1 de 1 feita")).toBeVisible();
+
+  await page.goto(routineUrl);
+
+  const calendar = page.getByRole("region", { name: "Calendário" });
+  await expect(calendar.getByRole("table", { name: monthTitle(today.slice(0, 7)) })).toBeVisible();
+  await expect(
+    calendar.getByRole("cell", { name: `${formatLongDate(today)}: feita (hoje)` }),
+  ).toBeVisible();
+  await expect(
+    calendar.getByText(/: 1 feita, 0 puladas e 0 sem registro, 100% de adesão\./),
+  ).toBeVisible();
+});
+
+test("o calendário navega entre os meses do período da rotina", async ({ page }) => {
+  const start = addDays(today, -40);
+  await createRoutine(page, { title: "Correr", startDate: start });
+  const calendar = page.getByRole("region", { name: "Calendário" });
+  const months = calendar.getByRole("navigation", { name: "Mês do calendário" });
+  const currentMonth = today.slice(0, 7);
+  // The current month is the last one: no link forward.
+  await expect(months.getByRole("link", { name: "Próximo mês ›" })).toHaveCount(0);
+
+  await months.getByRole("link", { name: "‹ Mês anterior" }).click();
+
+  const previousMonth = addMonths(currentMonth, -1);
+  await expect(page).toHaveURL((url) => url.searchParams.get("mes") === previousMonth);
+  await expect(calendar.getByRole("table", { name: monthTitle(previousMonth) })).toBeVisible();
+  // 40 days back can reach two months before; go to the first month of the routine.
+  while ((await months.getByRole("link", { name: "‹ Mês anterior" }).count()) > 0) {
+    await months.getByRole("link", { name: "‹ Mês anterior" }).click();
+    await expect(page).toHaveURL(/\?mes=/);
+  }
+  await expect(calendar.getByRole("table", { name: monthTitle(start.slice(0, 7)) })).toBeVisible();
+  await expect(months.getByRole("link", { name: "Próximo mês ›" })).toBeVisible();
 });
