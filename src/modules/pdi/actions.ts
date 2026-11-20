@@ -46,6 +46,8 @@ import {
   getAction,
   getArea,
   getCheckIn,
+  moveAction,
+  moveArea,
   reopenCycle,
   updateAction,
   updateArea,
@@ -340,6 +342,42 @@ export async function updateActionAction(
   }
   revalidatePdiScreens();
   redirect(`/pdi/${cycleId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Manual order (plan 021)
+// ---------------------------------------------------------------------------
+
+const directionSchema = z.enum(["up", "down"]);
+
+export async function moveAreaAction(areaId: string, direction: "up" | "down"): Promise<void> {
+  await requireSession();
+  await ignoreStaleMove(() => moveArea(areaId, directionSchema.parse(direction)));
+}
+
+export async function moveActionAction(actionId: string, direction: "up" | "down"): Promise<void> {
+  await requireSession();
+  await ignoreStaleMove(() => moveAction(actionId, directionSchema.parse(direction)));
+}
+
+/**
+ * The arrows only show on an open cycle, so these errors mean the page is stale
+ * (deleted or closed in another tab): refreshing shows the current state.
+ */
+async function ignoreStaleMove(operation: () => Promise<void>): Promise<void> {
+  try {
+    await operation();
+  } catch (error) {
+    if (!(
+      error instanceof PdiAreaNotFoundError ||
+      error instanceof PdiActionNotFoundError ||
+      error instanceof CycleClosedError
+    )) {
+      throw error;
+    }
+  }
+  revalidatePdiScreens();
+  refresh();
 }
 
 export async function deleteActionAction(actionId: string): Promise<void> {

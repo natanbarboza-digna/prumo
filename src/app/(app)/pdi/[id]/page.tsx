@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { MoveButtons } from "@/components/move-buttons";
 import { ActionList } from "@/components/pdi/action-list";
 import { ActionProgressBar } from "@/components/pdi/action-progress";
 import { CycleStatusBadge } from "@/components/pdi/pdi-badges";
@@ -14,6 +15,7 @@ import {
   deleteAreaAction,
   deleteCheckInAction,
   deleteCycleAction,
+  moveAreaAction,
   reopenCycleAction,
 } from "@/modules/pdi/actions";
 import { getActiveCycleId, getRoutineEvidenceByAction } from "@/modules/pdi/service";
@@ -126,7 +128,7 @@ export default async function CyclePage({ params }: PageProps<"/pdi/[id]">) {
           </p>
         ) : (
           <ul className="grid gap-6" aria-label="Áreas">
-            {cycle.areas.map((area) => (
+            {cycle.areas.map((area, index) => (
               <li key={area.id} className="space-y-3 rounded-lg border p-4">
                 <h3 className="text-lg font-medium break-words">{area.name}</h3>
                 {area.description && (
@@ -140,6 +142,13 @@ export default async function CyclePage({ params }: PageProps<"/pdi/[id]">) {
                 )}
                 {editable && (
                   <div className="flex flex-wrap gap-2">
+                    <MoveButtons
+                      moveUp={moveAreaAction.bind(null, area.id, "up")}
+                      moveDown={moveAreaAction.bind(null, area.id, "down")}
+                      label={area.name}
+                      isFirst={index === 0}
+                      isLast={index === cycle.areas.length - 1}
+                    />
                     <Button asChild size="sm">
                       <Link
                         href={`/pdi/${cycle.id}/actions/new?areaId=${area.id}`}
@@ -174,6 +183,7 @@ export default async function CyclePage({ params }: PageProps<"/pdi/[id]">) {
                     editable={editable}
                     headingLevel="h4"
                     evidence={evidence}
+                    reorderable={editable}
                   />
                 )}
               </li>
