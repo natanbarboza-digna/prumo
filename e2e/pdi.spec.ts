@@ -139,3 +139,61 @@ test("as páginas do PDI passam na verificação de acessibilidade", async ({ pa
   await expect(page.getByRole("heading", { level: 1, name: "Novo ciclo de PDI" })).toBeVisible();
   await expectNoAxeViolations(page);
 });
+
+/** The headings of the areas, or of the actions of one area, in screen order. */
+function areaNames(page: Page) {
+  return page.getByRole("list", { name: "Áreas" }).getByRole("heading", { level: 3 });
+}
+
+function actionTitles(page: Page, area: string) {
+  return page
+    .getByRole("list", { name: "Áreas" })
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("heading", { level: 3, name: area }) })
+    .getByRole("heading", { level: 4 });
+}
+
+test("as setas mudam a ordem das áreas e das ações (plano 021)", async ({ page }) => {
+  await openCycle(page, {
+    areas: [
+      { name: "Comunicação", actions: [{ title: "Curso", category: "Curso" }] },
+      {
+        name: "Liderança",
+        actions: [
+          // Earlier due date listed second: the manual order decides, not the date.
+          { title: "Mentoria", category: "Mentoria", dueDate: "2026-12-01" },
+          { title: "Leitura", category: "Leitura", dueDate: "2026-06-01" },
+        ],
+      },
+    ],
+  });
+  await expect(areaNames(page)).toHaveText(["Comunicação", "Liderança"]);
+  await expect(actionTitles(page, "Liderança")).toHaveText(["Mentoria", "Leitura"]);
+  await expect(page.getByRole("button", { name: "Mover para cima: Comunicação" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Mover para baixo: Leitura" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Mover para baixo: Comunicação" }).click();
+  await expect(areaNames(page)).toHaveText(["Liderança", "Comunicação"]);
+
+  await page.getByRole("button", { name: "Mover para cima: Leitura" }).click();
+  await expect(actionTitles(page, "Liderança")).toHaveText(["Leitura", "Mentoria"]);
+
+  // The order is saved: it survives a reload.
+  await page.reload();
+  await expect(areaNames(page)).toHaveText(["Liderança", "Comunicação"]);
+  await expect(actionTitles(page, "Liderança")).toHaveText(["Leitura", "Mentoria"]);
+  await expectNoAxeViolations(page);
+});
+
+test("ciclo encerrado não mostra as setas (plano 021)", async ({ page }) => {
+  await openCycle(page, {
+    status: "CLOSED",
+    areas: [
+      { name: "Comunicação", actions: [{ title: "Curso", category: "Curso" }] },
+      { name: "Liderança" },
+    ],
+  });
+  await expect(areaNames(page)).toHaveText(["Comunicação", "Liderança"]);
+
+  await expect(page.getByRole("button", { name: /^Mover para/ })).toHaveCount(0);
+});
