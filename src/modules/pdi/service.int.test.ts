@@ -36,6 +36,8 @@ import {
   listCycles,
   listOpenActionsWithDueDate,
   listRoutinesInEffect,
+  moveAction,
+  moveArea,
   reopenCycle,
   updateAction,
   updateArea,
@@ -283,7 +285,7 @@ describe("actions", () => {
     });
   });
 
-  it("orders actions by due date (none last), then creation", async () => {
+  it("keeps actions in creation order on the cycle, whatever their due dates (plan 021)", async () => {
     const { cycle, area, category: cat } = await setup();
     await createAction(cycle.id, actionInput(area.id, cat.id, { title: "Sem prazo" }));
     await createAction(
@@ -297,7 +299,7 @@ describe("actions", () => {
 
     const titles = (await getCycle(cycle.id)).areas[0]!.actions.map((action) => action.title);
 
-    expect(titles).toEqual(["Março", "Dezembro", "Sem prazo"]);
+    expect(titles).toEqual(["Sem prazo", "Dezembro", "Março"]);
   });
 
   it("refuses an archived category for a new action or a category change", async () => {
@@ -392,6 +394,139 @@ describe("actions", () => {
       PdiActionNotFoundError,
     );
     await expect(deleteAction(id)).rejects.toBeInstanceOf(PdiActionNotFoundError);
+  });
+});
+
+describe("manual order of areas and actions (plan 021)", () => {
+  const areaNames = async (cycleId: string) =>
+    (await getCycle(cycleId)).areas.map((area) => area.name);
+  const actionTitles = async (cycleId: string, index = 0) =>
+    (await getCycle(cycleId)).areas[index]!.actions.map((action) => action.title);
+  const areaPosition = async (id: string) =>
+    (await db.pdiArea.findUniqueOrThrow({ where: { id } })).order;
+  const actionPosition = async (id: string) =>
+    (await db.pdiAction.findUniqueOrThrow({ where: { id } })).order;
+
+  /** A cycle with areas A, B and C, without actions. */
+  async function threeAreas() {
+    const cycle = await createCycle(cycleInput());
+    const a = await createArea(cycle.id, areaInput("A"));
+    const b = await createArea(cycle.id, areaInput("B"));
+    const c = await createArea(cycle.id, areaInput("C"));
+    return { cycle, a, b, c };
+  }
+
+  /** The setup cycle with actions 1, 2 and 3 in its area. */
+  async function threeActions() {
+    const base = await setup();
+    const add = (title: string) =>
+      createAction(base.cycle.id, actionInput(base.area.id, base.category.id, { title }));
+    const one = await add("1");
+    const two = await add("2");
+    const three = await add("3");
+    return { ...base, one, two, three };
+  }
+
+  it("puts new areas and actions at the end, starting at 1", async () => {
+    const { cycle, a, c } = await threeAreas();
+    const { area, one, three } = await threeActions();
+
+    expect(await areaPosition(a.id)).toBe(1);
+    expect(await areaPosition(c.id)).toBe(3);
+    expect(await areaPosition(area.id)).toBe(1);
+    expect(await actionPosition(one.id)).toBe(1);
+    expect(await actionPosition(three.id)).toBe(3);
+    expect(await areaNames(cycle.id)).toEqual(["A", "B", "C"]);
+  });
+
+  it("moves an area up and down, and does nothing at either end", async () => {
+    const { cycle, a, b, c } = await threeAreas();
+
+    await moveArea(b.id, "up");
+    expect(await areaNames(cycle.id)).toEqual(["B", "A", "C"]);
+
+    await moveArea(b.id, "down");
+    expect(await areaNames(cycle.id)).toEqual(["A", "B", "C"]);
+
+    await moveArea(a.id, "up");
+    await moveArea(c.id, "down");
+    expect(await areaNames(cycle.id)).toEqual(["A", "B", "C"]);
+  });
+
+  it("moves an action only within its own area", async () => {
+    const { cycle, category: cat, one, two, three } = await threeActions();
+    const second = await createArea(cycle.id, areaInput("Outra"));
+    await createAction(cycle.id, actionInput(second.id, cat.id, { title: "Outra ação" }));
+
+    await moveAction(three.id, "up");
+    expect(await actionTitles(cycle.id)).toEqual(["1", "3", "2"]);
+
+    await moveAction(one.id, "up");
+    await moveAction(two.id, "down");
+    expect(await actionTitles(cycle.id)).toEqual(["1", "3", "2"]);
+    expect(await actionTitles(cycle.id, 1)).toEqual(["Outra ação"]);
+  });
+
+  it("closes the gap when an area or an action is deleted", async () => {
+    const { cycle, a, b, c } = await threeAreas();
+    await deleteArea(b.id);
+    expect(await areaPosition(c.id)).toBe(2);
+    await moveArea(c.id, "up");
+    expect(await areaNames(cycle.id)).toEqual(["C", "A"]);
+    expect(await areaPosition(a.id)).toBe(2);
+
+    const { one, three } = await threeActions();
+    await deleteAction(one.id);
+    expect(await actionPosition(three.id)).toBe(2);
+  });
+
+  it("sends an action that changes area to the end of the new one, closing the old gap", async () => {
+    const { cycle, area, category: cat, one, three } = await threeActions();
+    const other = await createArea(cycle.id, areaInput("Outra"));
+    await createAction(cycle.id, actionInput(other.id, cat.id, { title: "Já estava" }));
+
+    await updateAction(one.id, actionInput(other.id, cat.id, { title: "1" }));
+
+    expect(await actionTitles(cycle.id, 0)).toEqual(["2", "3"]);
+    expect(await actionTitles(cycle.id, 1)).toEqual(["Já estava", "1"]);
+    expect(await actionPosition(three.id)).toBe(2);
+
+    // Editing without changing the area keeps the action in place.
+    await moveAction(three.id, "up");
+    await updateAction(three.id, actionInput(area.id, cat.id, { title: "3 editada" }));
+    expect(await actionTitles(cycle.id, 0)).toEqual(["3 editada", "2"]);
+  });
+
+  it("refuses to reorder a closed cycle", async () => {
+    const { cycle, area, two } = await threeActions();
+    await closeCycle(cycle.id);
+
+    await expect(moveArea(area.id, "down")).rejects.toBeInstanceOf(CycleClosedError);
+    await expect(moveAction(two.id, "up")).rejects.toBeInstanceOf(CycleClosedError);
+  });
+
+  it("rejects areas and actions that do not exist", async () => {
+    await expect(moveArea(MISSING_ID, "up")).rejects.toBeInstanceOf(PdiAreaNotFoundError);
+    await expect(moveAction(MISSING_ID, "up")).rejects.toBeInstanceOf(PdiActionNotFoundError);
+  });
+
+  it("keeps the goal's list of actions ordered by due date", async () => {
+    const goal = await createGoal({
+      title: "Objetivo",
+      description: null,
+      status: "NOT_STARTED",
+      targetDate: null,
+    });
+    const { cycle, area, category: cat } = await setup();
+    const add = (title: string, dueDate: string | null) =>
+      createAction(cycle.id, actionInput(area.id, cat.id, { title, dueDate, goalId: goal.id }));
+    await add("Sem prazo", null);
+    await add("Dezembro", "2026-12-01");
+    await add("Março", "2026-03-01");
+
+    const titles = (await listActionsForGoal(goal.id)).map((action) => action.title);
+
+    expect(titles).toEqual(["Março", "Dezembro", "Sem prazo"]);
   });
 });
 

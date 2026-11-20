@@ -181,13 +181,16 @@ export async function importPdi(file: Buffer): Promise<ImportResult> {
     data: {
       ...toCycleData(cycle),
       areas: {
-        create: areas.map((area) => ({
+        // Areas and actions keep the order of the rows (plan 021).
+        create: areas.map((area, areaIndex) => ({
           ...area.data,
+          order: areaIndex + 1,
           actions: {
             create: actions
               .filter((action) => key(action.area) === key(area.name))
-              .map((action) => ({
+              .map((action, actionIndex) => ({
                 ...action.data,
+                order: actionIndex + 1,
                 categoryId: action.categoryId,
                 dueDate: action.data.dueDate === null ? null : parseDateOnly(action.data.dueDate),
               })),

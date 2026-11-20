@@ -8,6 +8,7 @@ import type {
 import { db } from "@/lib/db";
 import { formatDateOnly, parseDateOnly, todayInAppTimeZone } from "@/lib/dates";
 import { isUuid } from "@/lib/form-fields";
+import { closeGap } from "@/lib/positions";
 import { isRecordNotFound } from "@/lib/prisma-errors";
 import { CategoryNotFoundError } from "@/modules/categories/service";
 import { GoalNotFoundError } from "@/modules/goals/service";
@@ -274,10 +275,11 @@ const summaryInclude = {
   areas: { select: { actions: { select: { status: true } } } },
 } satisfies Prisma.PdiCycleInclude;
 
+// The cycle page follows the manual order (plan 021); other lists use actionOrder.
 const detailInclude = {
   areas: {
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    include: { actions: { include: actionInclude, orderBy: actionOrder } },
+    orderBy: { order: "asc" },
+    include: { actions: { include: actionInclude, orderBy: { order: "asc" } } },
   },
   checkIns: { orderBy: [{ date: "desc" }, { createdAt: "desc" }] },
 } satisfies Prisma.PdiCycleInclude;
@@ -362,9 +364,16 @@ export async function getArea(id: string): Promise<Omit<PdiArea, "actions">> {
   return toAreaFields(row);
 }
 
+/** A new area goes to the end of the cycle. */
 export async function createArea(cycleId: string, input: AreaInput) {
   await openCycle(cycleId);
-  return toAreaFields(await db.pdiArea.create({ data: { ...input, cycleId } }));
+  const row = await db.$transaction(async (tx) => {
+    const last = await tx.pdiArea.aggregate({ where: { cycleId }, _max: { order: true } });
+    return tx.pdiArea.create({
+      data: { ...input, cycleId, order: (last._max.order ?? 0) + 1 },
+    });
+  });
+  return toAreaFields(row);
 }
 
 export async function updateArea(id: string, input: AreaInput) {
@@ -373,11 +382,32 @@ export async function updateArea(id: string, input: AreaInput) {
   return toAreaFields(await db.pdiArea.update({ where: { id }, data: input }));
 }
 
-/** Deleting an area deletes its actions. */
+/** Deleting an area deletes its actions; the areas after it move up one place. */
 export async function deleteArea(id: string): Promise<void> {
   const area = await findArea(id);
   await openCycle(area.cycleId);
-  await ignoreGone(() => db.pdiArea.delete({ where: { id } }));
+  await db.$transaction(async (tx) => {
+    // Already deleted in another tab: the outcome the user wanted anyway.
+    const { count } = await tx.pdiArea.deleteMany({ where: { id } });
+    if (count > 0) await closeGap(tx, "pdi_areas", area.cycleId, area.order);
+  });
+}
+
+/** Swaps the area with its neighbour in the cycle. At either end it does nothing. */
+export async function moveArea(id: string, direction: Direction): Promise<void> {
+  const area = await findArea(id);
+  await openCycle(area.cycleId);
+  await db.$transaction(async (tx) => {
+    const neighbour = await tx.pdiArea.findFirst({
+      where: { cycleId: area.cycleId, order: beyond(area.order, direction) },
+      orderBy: { order: direction === "up" ? "desc" : "asc" },
+    });
+    if (!neighbour) return;
+    // (cycle, position) is unique, so park the area on a free value first.
+    await tx.pdiArea.update({ where: { id }, data: { order: -1 } });
+    await tx.pdiArea.update({ where: { id: neighbour.id }, data: { order: area.order } });
+    await tx.pdiArea.update({ where: { id }, data: { order: neighbour.order } });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -391,7 +421,12 @@ export async function getAction(id: string): Promise<PdiAction> {
 export async function createAction(cycleId: string, input: ActionInput): Promise<PdiAction> {
   await openCycle(cycleId);
   await assertActionReferences(cycleId, input, null);
-  const row = await db.pdiAction.create({ data: toActionData(input), include: actionInclude });
+  const row = await db.$transaction(async (tx) =>
+    tx.pdiAction.create({
+      data: { ...toActionData(input), order: await nextActionPosition(tx, input.areaId) },
+      include: actionInclude,
+    }),
+  );
   return toAction(row);
 }
 
@@ -434,13 +469,37 @@ export async function updateAction(
         });
       }
     }
-    return tx.pdiAction.update({
+    // Another area: to the end of the new one, and the old one closes the gap.
+    const moved = input.areaId !== current.areaId;
+    const updated = await tx.pdiAction.update({
       where: { id },
-      data: toActionData(input),
+      data: {
+        ...toActionData(input),
+        ...(moved && { order: await nextActionPosition(tx, input.areaId) }),
+      },
       include: actionInclude,
     });
+    if (moved) await closeGap(tx, "pdi_actions", current.areaId, current.order);
+    return updated;
   });
   return toAction(row);
+}
+
+/** Swaps the action with its neighbour in the same area. At either end it does nothing. */
+export async function moveAction(id: string, direction: Direction): Promise<void> {
+  const action = await findAction(id);
+  await openCycle(action.area.cycleId);
+  await db.$transaction(async (tx) => {
+    const neighbour = await tx.pdiAction.findFirst({
+      where: { areaId: action.areaId, order: beyond(action.order, direction) },
+      orderBy: { order: direction === "up" ? "desc" : "asc" },
+    });
+    if (!neighbour) return;
+    // (area, position) is unique, so park the action on a free value first.
+    await tx.pdiAction.update({ where: { id }, data: { order: -1 } });
+    await tx.pdiAction.update({ where: { id: neighbour.id }, data: { order: action.order } });
+    await tx.pdiAction.update({ where: { id }, data: { order: neighbour.order } });
+  });
 }
 
 /** Linked routines that have not ended: running (even if ending today) or upcoming. */
@@ -528,10 +587,15 @@ export async function getRoutineEvidenceByAction(
   );
 }
 
+/** The actions after it in the area move up one place. */
 export async function deleteAction(id: string): Promise<void> {
   const action = await findAction(id);
   await openCycle(action.area.cycleId);
-  await ignoreGone(() => db.pdiAction.delete({ where: { id } }));
+  await db.$transaction(async (tx) => {
+    // Already deleted in another tab: the outcome the user wanted anyway.
+    const { count } = await tx.pdiAction.deleteMany({ where: { id } });
+    if (count > 0) await closeGap(tx, "pdi_actions", action.areaId, action.order);
+  });
 }
 
 export async function listActionsForGoal(goalId: string): Promise<GoalPdiAction[]> {
@@ -683,6 +747,19 @@ async function findCheckIn(id: string): Promise<CheckInRow> {
   const row = await db.pdiCheckIn.findUnique({ where: { id } });
   if (!row) throw new PdiCheckInNotFoundError(id);
   return row;
+}
+
+export type Direction = "up" | "down";
+
+/** Positions before (up) or after (down) the given one. */
+function beyond(position: number, direction: Direction) {
+  return direction === "up" ? { lt: position } : { gt: position };
+}
+
+/** The position after the last action of the area. */
+async function nextActionPosition(tx: Prisma.TransactionClient, areaId: string) {
+  const last = await tx.pdiAction.aggregate({ where: { areaId }, _max: { order: true } });
+  return (last._max.order ?? 0) + 1;
 }
 
 /** Deleted in the meantime (another tab): the outcome the user wanted anyway. */

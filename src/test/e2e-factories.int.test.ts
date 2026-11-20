@@ -110,8 +110,11 @@ describe("e2e factories", () => {
               status: "IN_PROGRESS",
               dueDate: "2026-12-01",
             },
+            // Earlier due date, but listed second: the given order wins (plan 021).
+            { title: "Ler", category: "Leitura", dueDate: "2026-11-01" },
           ],
         },
+        { name: "Liderança" },
       ],
       checkIns: [{ date: "2026-11-02", summary: "Alinhamento" }],
     });
@@ -126,7 +129,9 @@ describe("e2e factories", () => {
         dueDate: "2026-12-01",
         category: { id: await categoryId("Prática") },
       },
+      { id: actionIds["Ler"], title: "Ler" },
     ]);
+    expect(cycle.areas.map((area) => area.name)).toEqual(["Comunicação", "Liderança"]);
     expect(cycle.checkIns).toMatchObject([{ date: "2026-11-02", summary: "Alinhamento" }]);
   });
 });

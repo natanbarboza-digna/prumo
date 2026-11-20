@@ -104,6 +104,47 @@ describe("importPdi", () => {
     expect(cycle.checkIns).toMatchObject([{ date: "2027-02-15", summary: "Início do ciclo" }]);
   });
 
+  it("keeps the order of the rows for areas and actions (plan 021)", async () => {
+    await ensureDefaultCategories(db);
+    const action = (area: string, title: string, dueDate: Date | null) => ({
+      area,
+      category: "Curso",
+      title,
+      description: null,
+      expectedResult: null,
+      dueDate,
+      status: null,
+      evidence: null,
+      managerComment: null,
+    });
+
+    const result = await run(
+      content({
+        areas: [
+          { name: "Zeta", description: null, expectedOutcome: null },
+          { name: "Alfa", description: null, expectedOutcome: null },
+        ],
+        // Due dates out of order and areas interleaved: the rows decide.
+        actions: [
+          action("Alfa", "Sem prazo", null),
+          action("Zeta", "Primeira da Zeta", utc(2027, 5, 1)),
+          action("Alfa", "Dezembro", utc(2027, 12, 1)),
+          action("Alfa", "Março", utc(2027, 3, 1)),
+        ],
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const cycle = await getCycle(result.cycleId);
+    expect(cycle.areas.map((area) => area.name)).toEqual(["Zeta", "Alfa"]);
+    expect(cycle.areas[1]?.actions.map((item) => item.title)).toEqual([
+      "Sem prazo",
+      "Dezembro",
+      "Março",
+    ]);
+  });
+
   it("accepts a file without the optional Check-ins sheet", async () => {
     await ensureDefaultCategories(db);
     const withoutCheckIns = content();

@@ -198,11 +198,13 @@ model PdiArea {
   name            String      @db.VarChar(120)
   description     String?
   expectedOutcome String?     @map("expected_outcome")
+  /// Manual order inside the cycle, 1, 2, 3… (plan 021). "order" is an SQL reserved word.
+  order           Int         @map("position")
   actions         PdiAction[]
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
-  @@index([cycleId])
+  @@unique([cycleId, order])
   @@map("pdi_areas")
 }
 
@@ -219,13 +221,15 @@ model PdiAction {
   status         PdiActionStatus @default(NOT_STARTED)
   evidence       String?
   managerComment String?         @map("manager_comment")
+  /// Manual order inside the area, 1, 2, 3… (plan 021).
+  order          Int             @map("position")
   goalId         String?         @map("goal_id") @db.Uuid
   goal           Goal?           @relation(fields: [goalId], references: [id], onDelete: SetNull)
   routines       Routine[]
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
 
-  @@index([areaId])
+  @@unique([areaId, order])
   @@index([categoryId])
   @@index([goalId])
   @@map("pdi_actions")

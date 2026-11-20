@@ -61,11 +61,20 @@ describe("getGoalProgress", () => {
     const cycle = await db.pdiCycle.create({
       data: { title: "Ciclo", startDate: new Date("2026-01-01"), endDate: new Date("2026-12-31") },
     });
-    const area = await db.pdiArea.create({ data: { cycleId: cycle.id, name: "Área" } });
+    const area = await db.pdiArea.create({ data: { cycleId: cycle.id, name: "Área", order: 1 } });
     const category = await db.actionCategory.create({ data: { name: "Curso" } });
+    let order = 0;
     for (const status of ["DONE", "IN_PROGRESS", "CANCELLED"] as const) {
+      order++;
       await db.pdiAction.create({
-        data: { areaId: area.id, categoryId: category.id, title: "Ação", status, goalId: goal.id },
+        data: {
+          areaId: area.id,
+          categoryId: category.id,
+          title: "Ação",
+          status,
+          goalId: goal.id,
+          order,
+        },
       });
     }
 
@@ -228,16 +237,18 @@ describe("getGoalsProgress", () => {
     const cycle = await db.pdiCycle.create({
       data: { title: "Ciclo", startDate: new Date("2026-01-01"), endDate: new Date("2026-12-31") },
     });
-    const area = await db.pdiArea.create({ data: { cycleId: cycle.id, name: "Área" } });
+    const area = await db.pdiArea.create({ data: { cycleId: cycle.id, name: "Área", order: 1 } });
     const category = await db.actionCategory.create({ data: { name: "Curso" } });
+    let order = 0;
     for (const [goalId, status] of [
       [first.id, "DONE"],
       [second.id, "IN_PROGRESS"],
       [second.id, "DONE"],
       [second.id, "CANCELLED"],
     ] as const) {
+      order++;
       await db.pdiAction.create({
-        data: { areaId: area.id, categoryId: category.id, title: "Ação", status, goalId },
+        data: { areaId: area.id, categoryId: category.id, title: "Ação", status, goalId, order },
       });
     }
 

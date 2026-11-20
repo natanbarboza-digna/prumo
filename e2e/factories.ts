@@ -196,10 +196,15 @@ export function insertCycle(
     });
     const areaIds: string[] = [];
     const actionIds: Record<string, string> = {};
-    for (const area of cycle.areas ?? []) {
-      const areaId = await insert(client, "pdi_areas", { cycle_id: id, name: area.name });
+    // Areas and actions keep the order they are given in (plan 021).
+    for (const [areaIndex, area] of (cycle.areas ?? []).entries()) {
+      const areaId = await insert(client, "pdi_areas", {
+        cycle_id: id,
+        name: area.name,
+        position: areaIndex + 1,
+      });
       areaIds.push(areaId);
-      for (const action of area.actions ?? []) {
+      for (const [actionIndex, action] of (area.actions ?? []).entries()) {
         const { rows } = await client.query<{ id: string }>(
           "SELECT id FROM action_categories WHERE name = $1",
           [action.category],
@@ -215,6 +220,7 @@ export function insertCycle(
           due_date: action.dueDate ?? null,
           status: action.status ?? "NOT_STARTED",
           goal_id: action.goalId ?? null,
+          position: actionIndex + 1,
         });
       }
     }

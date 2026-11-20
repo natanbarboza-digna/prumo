@@ -25,8 +25,8 @@ async function useCategory(categoryId: string) {
   const cycle = await db.pdiCycle.create({
     data: { title: "Ciclo", startDate: new Date("2026-01-01"), endDate: new Date("2026-12-31") },
   });
-  const area = await db.pdiArea.create({ data: { cycleId: cycle.id, name: "Área" } });
-  await db.pdiAction.create({ data: { areaId: area.id, categoryId, title: "Ação" } });
+  const area = await db.pdiArea.create({ data: { cycleId: cycle.id, name: "Área", order: 1 } });
+  await db.pdiAction.create({ data: { areaId: area.id, categoryId, title: "Ação", order: 1 } });
 }
 
 describe("categories", () => {
