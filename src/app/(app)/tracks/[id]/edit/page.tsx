@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { ArchivedTrackNotice } from "@/components/tracks/archived-track-notice";
 import { TrackForm } from "@/components/tracks/track-form";
 import { goalOptions } from "@/modules/goals/options";
 import { updateTrackAction } from "@/modules/tracks/actions";
@@ -10,6 +11,9 @@ export const metadata: Metadata = { title: "Editar trilha" };
 
 export default async function EditTrackPage({ params }: PageProps<"/tracks/[id]/edit">) {
   const track = await loadTrack((await params).id);
+  if (track.archivedAt !== null) {
+    return <ArchivedTrackNotice trackId={track.id} heading="Editar trilha" />;
+  }
   const goals = await goalOptions(track.goal);
 
   return (

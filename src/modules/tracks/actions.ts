@@ -18,8 +18,10 @@ import {
   trackStepInputSchema,
 } from "@/modules/tracks/schemas";
 import {
+  TrackArchivedError,
   TrackNotFoundError,
   TrackStepNotFoundError,
+  archiveTrack,
   createStep,
   createTrack,
   deleteStep,
@@ -27,6 +29,7 @@ import {
   getStep,
   moveStep,
   setStepStatus,
+  unarchiveTrack,
   updateStep,
   updateTrack,
 } from "@/modules/tracks/service";
@@ -71,13 +74,17 @@ function readStepForm(formData: FormData): TrackStepFormValues {
 
 const goalGone: TrackFieldErrors = { goalId: ["Este objetivo não existe mais."] };
 
+/** Archived in another tab while the form was open (plan 024). */
+const ARCHIVED_MESSAGE = "Esta trilha está arquivada. Desarquive para fazer alterações.";
+
 // ---------------------------------------------------------------------------
 // Tracks
 // ---------------------------------------------------------------------------
 
-/** Tracks show up on their own pages and on the dashboard. */
+/** Tracks show up on their own pages, on goal pages and on the dashboard. */
 function revalidateTrackScreens() {
-  revalidatePath("/tracks");
+  revalidatePath("/tracks", "layout");
+  revalidatePath("/goals", "layout");
   revalidatePath("/");
 }
 
@@ -118,10 +125,35 @@ export async function updateTrackAction(
     if (error instanceof TrackNotFoundError) {
       return { formError: "Esta trilha não existe mais.", values };
     }
+    if (error instanceof TrackArchivedError) return { formError: ARCHIVED_MESSAGE, values };
     throw error;
   }
   revalidateTrackScreens();
   redirect(`/tracks/${id}`);
+}
+
+/** "Arquivar trilha" and "Desarquivar" on the track page (plan 024). */
+export async function archiveTrackAction(id: string): Promise<void> {
+  await requireSession();
+  await ignoreMissingTrack(() => archiveTrack(id));
+  revalidateTrackScreens();
+  refresh();
+}
+
+export async function unarchiveTrackAction(id: string): Promise<void> {
+  await requireSession();
+  await ignoreMissingTrack(() => unarchiveTrack(id));
+  revalidateTrackScreens();
+  refresh();
+}
+
+/** Deleted in another tab: refreshing shows the not-found page. */
+async function ignoreMissingTrack(operation: () => Promise<unknown>): Promise<void> {
+  try {
+    await operation();
+  } catch (error) {
+    if (!(error instanceof TrackNotFoundError)) throw error;
+  }
 }
 
 export async function deleteTrackAction(id: string): Promise<void> {
@@ -156,6 +188,7 @@ export async function createStepAction(
     if (error instanceof TrackNotFoundError) {
       return { formError: "Esta trilha não existe mais.", values };
     }
+    if (error instanceof TrackArchivedError) return { formError: ARCHIVED_MESSAGE, values };
     throw error;
   }
   revalidateTrackScreens();
@@ -179,6 +212,7 @@ export async function updateStepAction(
     if (error instanceof TrackStepNotFoundError) {
       return { formError: "Esta etapa não existe mais.", values };
     }
+    if (error instanceof TrackArchivedError) return { formError: ARCHIVED_MESSAGE, values };
     throw error;
   }
   revalidateTrackScreens();
@@ -192,7 +226,8 @@ export async function deleteStepAction(stepId: string): Promise<void> {
     trackId = (await getStep(stepId)).trackId;
     await deleteStep(stepId);
   } catch (error) {
-    if (error instanceof TrackStepNotFoundError) {
+    // Gone or archived meanwhile (the button is hidden then): show the current state.
+    if (error instanceof TrackStepNotFoundError || error instanceof TrackArchivedError) {
       refresh();
       return;
     }
@@ -216,11 +251,16 @@ export async function moveStepAction(stepId: string, direction: "up" | "down"): 
   refresh();
 }
 
-/** A step deleted in another tab is not an error worth a crash page: just refresh. */
+/**
+ * A step deleted, or its track archived, in another tab is not an error worth a
+ * crash page: just refresh.
+ */
 async function ignoreMissingStep(operation: () => Promise<unknown>): Promise<void> {
   try {
     await operation();
   } catch (error) {
-    if (!(error instanceof TrackStepNotFoundError)) throw error;
+    if (!(error instanceof TrackStepNotFoundError || error instanceof TrackArchivedError)) {
+      throw error;
+    }
   }
 }

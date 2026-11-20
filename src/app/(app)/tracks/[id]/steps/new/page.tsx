@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { ArchivedTrackNotice } from "@/components/tracks/archived-track-notice";
 import { StepForm } from "@/components/tracks/step-form";
 import { createStepAction } from "@/modules/tracks/actions";
 
@@ -9,6 +10,9 @@ export const metadata: Metadata = { title: "Nova etapa" };
 
 export default async function NewStepPage({ params }: PageProps<"/tracks/[id]/steps/new">) {
   const track = await loadTrack((await params).id);
+  if (track.archivedAt !== null) {
+    return <ArchivedTrackNotice trackId={track.id} heading="Nova etapa" />;
+  }
 
   return (
     <div className="max-w-2xl space-y-6">

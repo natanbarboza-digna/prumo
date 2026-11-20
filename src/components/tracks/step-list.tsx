@@ -13,15 +13,19 @@ type StepListProps = {
   trackId: string;
   steps: TrackStep[];
   today: string;
+  /** False on an archived track (plan 024): no buttons, the list is read-only. */
+  editable?: boolean;
 };
 
 // Server Component: each button is a tiny <form> whose action is a Server
 // Action with its arguments bound, so it works even before JavaScript loads.
-export function StepList({ trackId, steps, today }: StepListProps) {
+export function StepList({ trackId, steps, today, editable = true }: StepListProps) {
   if (steps.length === 0) {
     return (
       <p className="text-muted-foreground">
-        Nenhuma etapa ainda. Adicione a primeira para começar a acompanhar o progresso.
+        {editable
+          ? "Nenhuma etapa ainda. Adicione a primeira para começar a acompanhar o progresso."
+          : "Nenhuma etapa."}
       </p>
     );
   }
@@ -61,52 +65,56 @@ export function StepList({ trackId, steps, today }: StepListProps) {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <form action={setStepStatusAction.bind(null, step.id, done ? "NOT_STARTED" : "DONE")}>
-                <SubmitButton
+            {editable && (
+              <div className="flex flex-wrap items-center gap-2">
+                <form
+                  action={setStepStatusAction.bind(null, step.id, done ? "NOT_STARTED" : "DONE")}
+                >
+                  <SubmitButton
+                    size="sm"
+                    variant={done ? "outline" : "default"}
+                    aria-label={`${done ? "Reabrir" : "Concluir"}: ${step.title}`}
+                  >
+                    {done ? "Reabrir" : "Concluir"}
+                  </SubmitButton>
+                </form>
+                <form action={moveStepAction.bind(null, step.id, "up")}>
+                  <SubmitButton
+                    size="icon-sm"
+                    variant="outline"
+                    disabled={isFirst}
+                    aria-label={`Mover para cima: ${step.title}`}
+                  >
+                    <ArrowUp aria-hidden="true" />
+                  </SubmitButton>
+                </form>
+                <form action={moveStepAction.bind(null, step.id, "down")}>
+                  <SubmitButton
+                    size="icon-sm"
+                    variant="outline"
+                    disabled={isLast}
+                    aria-label={`Mover para baixo: ${step.title}`}
+                  >
+                    <ArrowDown aria-hidden="true" />
+                  </SubmitButton>
+                </form>
+                <Button asChild size="sm" variant="outline">
+                  <Link
+                    href={`/tracks/${trackId}/steps/${step.id}/edit`}
+                    aria-label={`Editar: ${step.title}`}
+                  >
+                    Editar
+                  </Link>
+                </Button>
+                <ConfirmDeleteButton
                   size="sm"
-                  variant={done ? "outline" : "default"}
-                  aria-label={`${done ? "Reabrir" : "Concluir"}: ${step.title}`}
-                >
-                  {done ? "Reabrir" : "Concluir"}
-                </SubmitButton>
-              </form>
-              <form action={moveStepAction.bind(null, step.id, "up")}>
-                <SubmitButton
-                  size="icon-sm"
-                  variant="outline"
-                  disabled={isFirst}
-                  aria-label={`Mover para cima: ${step.title}`}
-                >
-                  <ArrowUp aria-hidden="true" />
-                </SubmitButton>
-              </form>
-              <form action={moveStepAction.bind(null, step.id, "down")}>
-                <SubmitButton
-                  size="icon-sm"
-                  variant="outline"
-                  disabled={isLast}
-                  aria-label={`Mover para baixo: ${step.title}`}
-                >
-                  <ArrowDown aria-hidden="true" />
-                </SubmitButton>
-              </form>
-              <Button asChild size="sm" variant="outline">
-                <Link
-                  href={`/tracks/${trackId}/steps/${step.id}/edit`}
-                  aria-label={`Editar: ${step.title}`}
-                >
-                  Editar
-                </Link>
-              </Button>
-              <ConfirmDeleteButton
-                size="sm"
-                action={deleteStepAction.bind(null, step.id)}
-                title="Excluir etapa?"
-                description={`“${step.title}” será excluída. Essa ação não pode ser desfeita.`}
-                triggerLabel={`Excluir: ${step.title}`}
-              />
-            </div>
+                  action={deleteStepAction.bind(null, step.id)}
+                  title="Excluir etapa?"
+                  description={`“${step.title}” será excluída. Essa ação não pode ser desfeita.`}
+                  triggerLabel={`Excluir: ${step.title}`}
+                />
+              </div>
+            )}
           </li>
         );
       })}

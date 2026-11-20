@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { TrackStatusBadge } from "@/components/tracks/track-badges";
+import { TrackArchivedBadge, TrackStatusBadge } from "@/components/tracks/track-badges";
 import { TrackProgress } from "@/components/tracks/track-progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { type TrackSummary, deriveTrackStatus } from "@/modules/tracks/service";
@@ -29,6 +29,7 @@ export function TrackList({ tracks, showGoal = true, headingLevel = "h2" }: Trac
               </CardTitle>
               <CardDescription className="flex flex-wrap items-center gap-2">
                 <TrackStatusBadge status={deriveTrackStatus(track.counts)} />
+                {track.archivedAt !== null && <TrackArchivedBadge />}
                 {showGoal && track.goal && (
                   <span>
                     Objetivo:{" "}

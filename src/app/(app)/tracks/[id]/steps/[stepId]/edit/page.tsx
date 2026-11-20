@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { ArchivedTrackNotice } from "@/components/tracks/archived-track-notice";
 import { StepForm } from "@/components/tracks/step-form";
 import { updateStepAction } from "@/modules/tracks/actions";
 
@@ -16,6 +17,9 @@ export default async function EditStepPage({
   // Only steps of this track are reachable under its URL.
   const step = track.steps.find((candidate) => candidate.id === stepId);
   if (!step) notFound();
+  if (track.archivedAt !== null) {
+    return <ArchivedTrackNotice trackId={track.id} heading="Editar etapa" />;
+  }
 
   return (
     <div className="max-w-2xl space-y-6">

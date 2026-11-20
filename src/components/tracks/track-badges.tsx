@@ -21,6 +21,10 @@ export function StepStatusBadge({ status }: { status: TrackStepStatus }) {
   return <Badge variant={variants[status]}>{trackStepStatusLabels[status]}</Badge>;
 }
 
+export function TrackArchivedBadge() {
+  return <Badge variant="outline">Arquivada</Badge>;
+}
+
 export function StepOverdueBadge() {
   return <Badge variant="destructive">Atrasada</Badge>;
 }
