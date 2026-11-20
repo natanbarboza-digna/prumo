@@ -43,8 +43,11 @@ export type Routine = {
   startDate: string;
   endDate: string | null;
   goal: { id: string; title: string } | null;
-  /** The PDI action the routine was created from, if any. */
-  pdiAction: { id: string; title: string; cycleId: string } | null;
+  /**
+   * The PDI action the routine puts into practice, if any. `cycleClosed`: the
+   * action's cycle is read-only, so the link cannot be undone (plan 020).
+   */
+  pdiAction: { id: string; title: string; cycleId: string; cycleClosed: boolean } | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -94,6 +97,20 @@ export class FutureDateError extends Error {
   }
 }
 
+export class RoutineAlreadyLinkedError extends Error {
+  constructor(id: string) {
+    super(`Routine is already linked to a PDI action: ${id}`);
+    this.name = "RoutineAlreadyLinkedError";
+  }
+}
+
+export class RoutineEndedError extends Error {
+  constructor(id: string) {
+    super(`Routine has already ended: ${id}`);
+    this.name = "RoutineEndedError";
+  }
+}
+
 export class RoutineNotScheduledError extends Error {
   constructor(id: string, date: string) {
     super(`Routine ${id} is not scheduled on ${date}`);
@@ -107,7 +124,13 @@ export class RoutineNotScheduledError extends Error {
 
 const routineInclude = {
   goal: { select: { id: true, title: true } },
-  pdiAction: { select: { id: true, title: true, area: { select: { cycleId: true } } } },
+  pdiAction: {
+    select: {
+      id: true,
+      title: true,
+      area: { select: { cycleId: true, cycle: { select: { status: true } } } },
+    },
+  },
 } satisfies Prisma.RoutineInclude;
 
 // Earliest time first, routines without a time last, then alphabetical.
@@ -206,6 +229,60 @@ export async function endRoutine(id: string, today: string): Promise<Routine> {
   const row = await db.routine.update({
     where: { id },
     data: { endDate: parseDateOnly(today) },
+    include: routineInclude,
+  });
+  return toRoutine(row);
+}
+
+// ---------------------------------------------------------------------------
+// Link to a PDI action (plan 020)
+// ---------------------------------------------------------------------------
+
+/** Routines that can be linked to a PDI action: no link yet and not ended. */
+export async function listLinkableRoutines(today: string): Promise<Routine[]> {
+  const rows = await db.routine.findMany({
+    where: {
+      pdiActionId: null,
+      OR: [{ endDate: null }, { endDate: { gte: parseDateOnly(today) } }],
+    },
+    include: routineInclude,
+    orderBy: [{ title: "asc" }, { id: "asc" }],
+  });
+  return rows.map(toRoutine);
+}
+
+/**
+ * Links an existing routine to a PDI action. The action must take routines (the
+ * same rule as creating one from it); the routine must be free and not ended.
+ */
+export async function linkRoutine(
+  actionId: string,
+  routineId: string,
+  today: string,
+): Promise<Routine> {
+  await assertActionTakesRoutine(actionId);
+  const routine = await getRoutine(routineId);
+  if (routine.pdiAction !== null) throw new RoutineAlreadyLinkedError(routineId);
+  if (routineStateOn(routine, today) === "ENDED") throw new RoutineEndedError(routineId);
+  const row = await db.routine.update({
+    where: { id: routineId },
+    data: { pdiActionId: actionId },
+    include: routineInclude,
+  });
+  return toRoutine(row);
+}
+
+/**
+ * Removes the routine's link to its PDI action. The routine and its logs stay;
+ * they just stop counting as evidence. A closed cycle is read-only.
+ */
+export async function unlinkRoutine(routineId: string): Promise<Routine> {
+  const routine = await getRoutine(routineId);
+  if (routine.pdiAction === null) return routine;
+  if (routine.pdiAction.cycleClosed) throw new CycleClosedError(routine.pdiAction.cycleId);
+  const row = await db.routine.update({
+    where: { id: routineId },
+    data: { pdiActionId: null },
     include: routineInclude,
   });
   return toRoutine(row);
@@ -393,6 +470,7 @@ function toRoutine(row: RoutineRow): Routine {
       id: row.pdiAction.id,
       title: row.pdiAction.title,
       cycleId: row.pdiAction.area.cycleId,
+      cycleClosed: row.pdiAction.area.cycle.status === "CLOSED",
     },
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

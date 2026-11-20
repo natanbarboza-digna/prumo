@@ -9,11 +9,14 @@ import {
   CycleClosedError,
   PdiActionNotFoundError,
   closeCycle,
+  getActionDetail,
   updateAction,
 } from "@/modules/pdi/service";
 import type { RoutineInput } from "@/modules/routines/schemas";
 import {
   FutureDateError,
+  RoutineAlreadyLinkedError,
+  RoutineEndedError,
   RoutineNotFoundError,
   RoutineNotScheduledError,
   RoutineNotStartedError,
@@ -27,9 +30,12 @@ import {
   getRoutineHistory,
   getRoutineMonth,
   getRoutineStreak,
+  linkRoutine,
+  listLinkableRoutines,
   listRoutines,
   listRoutinesForDay,
   logRoutine,
+  unlinkRoutine,
   updateRoutine,
 } from "@/modules/routines/service";
 import { pdiActionFixture } from "@/test/pdi-fixtures";
@@ -308,7 +314,12 @@ describe("routines created from a PDI action", () => {
 
     const routine = await createRoutine(routineInput(), action.id);
 
-    expect(routine.pdiAction).toEqual({ id: action.id, title: action.title, cycleId: cycle.id });
+    expect(routine.pdiAction).toEqual({
+      id: action.id,
+      title: action.title,
+      cycleId: cycle.id,
+      cycleClosed: false,
+    });
     expect((await getRoutine(routine.id)).pdiAction?.id).toBe(action.id);
   });
 
@@ -391,6 +402,115 @@ describe("routines created from a PDI action", () => {
     });
 
     expect((await getRoutine(routine.id)).pdiAction?.id).toBe(action.id);
+  });
+});
+
+describe("linking an existing routine to a PDI action (plan 020)", () => {
+  it("lists the routines without a link that have not ended, by title", async () => {
+    const { action } = await pdiActionFixture();
+    await createRoutine(routineInput({ title: "Vinculada" }), action.id);
+    await createRoutine(routineInput({ title: "Encerrada", endDate: "2026-11-15" }));
+    await createRoutine(routineInput({ title: "Termina hoje", endDate: today }));
+    await createRoutine(routineInput({ title: "Futura", startDate: "2026-12-01" }));
+    await createRoutine(routineInput({ title: "Ler" }));
+
+    const routines = await listLinkableRoutines(today);
+
+    expect(routines.map((routine) => routine.title)).toEqual(["Futura", "Ler", "Termina hoje"]);
+  });
+
+  it("links the routine, and the action shows it as evidence", async () => {
+    const { action, cycle } = await pdiActionFixture();
+    const routine = await createRoutine(routineInput({ title: "Ler" }));
+    await logRoutine(routine.id, "2026-11-10", done, today);
+
+    const linked = await linkRoutine(action.id, routine.id, today);
+
+    expect(linked.pdiAction).toEqual({
+      id: action.id,
+      title: action.title,
+      cycleId: cycle.id,
+      cycleClosed: false,
+    });
+    const detail = await getActionDetail(action.id, today);
+    expect(detail.routines.map(({ routine }) => routine.id)).toEqual([routine.id]);
+    expect(detail.logs).toMatchObject([{ routineId: routine.id, date: "2026-11-10" }]);
+  });
+
+  it("follows the same rule as creating a routine from the action", async () => {
+    const routine = await createRoutine(routineInput());
+
+    const category = await pdiActionFixture({ allowsRoutine: false });
+    await expect(linkRoutine(category.action.id, routine.id, today)).rejects.toBeInstanceOf(
+      CategoryDisallowsRoutineError,
+    );
+
+    const finished = await pdiActionFixture({ status: "DONE" });
+    await expect(linkRoutine(finished.action.id, routine.id, today)).rejects.toBeInstanceOf(
+      ActionFinishedError,
+    );
+
+    const closed = await pdiActionFixture();
+    await closeCycle(closed.cycle.id);
+    await expect(linkRoutine(closed.action.id, routine.id, today)).rejects.toBeInstanceOf(
+      CycleClosedError,
+    );
+
+    await expect(linkRoutine(MISSING_ID, routine.id, today)).rejects.toBeInstanceOf(
+      PdiActionNotFoundError,
+    );
+    expect((await getRoutine(routine.id)).pdiAction).toBeNull();
+  });
+
+  it("rejects a routine that is already linked, that ended or that does not exist", async () => {
+    const { action } = await pdiActionFixture();
+    const other = await pdiActionFixture();
+    const linked = await createRoutine(routineInput(), other.action.id);
+    const ended = await createRoutine(routineInput({ endDate: "2026-11-15" }));
+
+    await expect(linkRoutine(action.id, linked.id, today)).rejects.toBeInstanceOf(
+      RoutineAlreadyLinkedError,
+    );
+    await expect(linkRoutine(action.id, ended.id, today)).rejects.toBeInstanceOf(RoutineEndedError);
+    await expect(linkRoutine(action.id, MISSING_ID, today)).rejects.toBeInstanceOf(
+      RoutineNotFoundError,
+    );
+    expect((await getRoutine(linked.id)).pdiAction?.id).toBe(other.action.id);
+  });
+
+  it("unlinks the routine and keeps it with its logs", async () => {
+    const { action } = await pdiActionFixture();
+    const routine = await createRoutine(routineInput(), action.id);
+    await logRoutine(routine.id, "2026-11-10", done, today);
+
+    const unlinked = await unlinkRoutine(routine.id);
+
+    expect(unlinked.pdiAction).toBeNull();
+    expect((await getActionDetail(action.id, today)).routines).toEqual([]);
+    expect(await db.routineLog.count({ where: { routineId: routine.id } })).toBe(1);
+  });
+
+  it("unlinks from a finished action of an open cycle, and does nothing without a link", async () => {
+    const { action } = await pdiActionFixture();
+    const routine = await createRoutine(routineInput(), action.id);
+    await db.pdiAction.update({ where: { id: action.id }, data: { status: "DONE" } });
+
+    expect((await unlinkRoutine(routine.id)).pdiAction).toBeNull();
+    expect((await unlinkRoutine(routine.id)).pdiAction).toBeNull();
+  });
+
+  it("does not unlink from a closed cycle, which is read-only", async () => {
+    const { action, cycle } = await pdiActionFixture();
+    const routine = await createRoutine(routineInput(), action.id);
+    await closeCycle(cycle.id);
+
+    expect((await getRoutine(routine.id)).pdiAction?.cycleClosed).toBe(true);
+    await expect(unlinkRoutine(routine.id)).rejects.toBeInstanceOf(CycleClosedError);
+    expect((await getRoutine(routine.id)).pdiAction?.id).toBe(action.id);
+  });
+
+  it("rejects a routine that does not exist", async () => {
+    await expect(unlinkRoutine(MISSING_ID)).rejects.toBeInstanceOf(RoutineNotFoundError);
   });
 });
 

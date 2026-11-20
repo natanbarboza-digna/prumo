@@ -9,6 +9,7 @@ import {
   optionalDateOnly,
   requiredDateOnly,
   requiredText,
+  requiredUuid,
 } from "@/lib/form-fields";
 
 /** Monday first, the order the app shows and stores weekdays in. */
@@ -106,6 +107,13 @@ export const routineInputSchema = z
 export const routineLinkSchema = z.object({
   pdiActionId: optionalUuid("Ação de PDI inválida."),
 });
+
+/** The "Vincular rotina existente" form on a PDI action (plan 020). */
+export const linkExistingRoutineSchema = z.object({
+  routineId: requiredUuid("Escolha uma rotina."),
+});
+
+export type LinkExistingRoutineValues = z.input<typeof linkExistingRoutineSchema>;
 
 export const routineLogInputSchema = z.object({
   status: z.enum(RoutineLogStatus, { error: "Escolha feito ou pulado." }),

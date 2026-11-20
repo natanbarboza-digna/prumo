@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   readRoutineForm,
   routineInputSchema,
+  linkExistingRoutineSchema,
   routineLinkSchema,
   routineLogInputSchema,
 } from "@/modules/routines/schemas";
@@ -225,5 +226,21 @@ describe("routineInputSchema with a weekly goal (plan 017)", () => {
     formData.set("timesPerWeek", "4");
 
     expect(readRoutineForm(formData)).toMatchObject({ frequency: "WEEKLY", timesPerWeek: "4" });
+  });
+});
+
+describe("linkExistingRoutineSchema", () => {
+  const routineId = "0190a3e4-0000-7000-8000-000000000000";
+
+  it("accepts a routine id", () => {
+    expect(linkExistingRoutineSchema.parse({ routineId })).toEqual({ routineId });
+  });
+
+  it("asks for a routine when none is chosen or the id is invalid", () => {
+    for (const value of ["", "abc"]) {
+      const result = linkExistingRoutineSchema.safeParse({ routineId: value });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe("Escolha uma rotina.");
+    }
   });
 });
