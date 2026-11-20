@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { DashboardCard, EmptyCardText } from "@/components/dashboard/dashboard-card";
 import { LogControls } from "@/components/routines/log-controls";
+import { WeeklyAdherenceChart } from "@/components/routines/weekly-adherence-chart";
 import { formatLongDate } from "@/lib/dates";
 import { recentAdherenceText } from "@/modules/dashboard/labels";
 import type { Dashboard } from "@/modules/dashboard/service";
@@ -55,6 +56,13 @@ export function TodayCard({ block, today }: { block: Dashboard["today"]; today: 
       )}
 
       <p className="text-muted-foreground text-sm">{recentAdherenceText(block.adherence)}</p>
+      {block.weekly.some((week) => week.adherence !== null) && (
+        <WeeklyAdherenceChart
+          weeks={block.weekly}
+          title="Adesão das rotinas ativas por semana (últimas 12)"
+          compact
+        />
+      )}
     </DashboardCard>
   );
 }
