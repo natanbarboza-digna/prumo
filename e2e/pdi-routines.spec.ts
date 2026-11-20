@@ -188,3 +188,98 @@ test("desligar 'permite rotina' bloqueia novas rotinas e mantém a existente", a
   await expect(linkedRoutines(page).getByRole("link", { name: "Praticar oratória" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Criar rotina" })).toHaveCount(0);
 });
+
+test("vincular uma rotina existente pela página da ação (plano 020)", async ({ page }) => {
+  const { cycleId, actionId } = await practiceAction(page);
+  const routineId = await insertRoutine({
+    title: "Ler em voz alta",
+    startDate: addDays(today, -3),
+    logs: [{ date: addDays(today, -1) }],
+  });
+  await page.goto(`/pdi/${cycleId}/actions/${actionId}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Praticar oratória" })).toBeVisible();
+  await expectNoAxeViolations(page);
+
+  await combobox(page, "Vincular rotina existente").selectOption({ label: "Ler em voz alta" });
+  await page.getByRole("button", { name: "Vincular", exact: true }).click();
+
+  await expect(linkedRoutines(page).getByRole("link", { name: "Ler em voz alta" })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Registros" }).getByRole("listitem")).toHaveCount(1);
+  // The only routine is now linked, so the selector goes away.
+  await expect(combobox(page, "Vincular rotina existente")).toHaveCount(0);
+
+  await page.goto(`/routines/${routineId}`);
+  await expect(page.getByRole("link", { name: "Praticar oratória" })).toBeVisible();
+});
+
+test("desvincular pela página da rotina mantém a rotina (plano 020)", async ({ page }) => {
+  const { cycleId, actionId } = await practiceAction(page);
+  const routineId = await insertRoutine({
+    title: "Ler em voz alta",
+    startDate: today,
+    pdiActionId: actionId,
+  });
+  await page.goto(`/routines/${routineId}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Ler em voz alta" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Desvincular da ação" }).click();
+  const dialog = page.getByRole("alertdialog", { name: "Desvincular da ação de PDI?" });
+  await expect(dialog).toContainText("A rotina e os registros continuam.");
+  await dialog.getByRole("button", { name: "Desvincular" }).click();
+  // While the dialog is open the page behind it is hidden from the accessibility
+  // tree, so wait for it to close before checking that the link is gone.
+  await expect(dialog).toBeHidden();
+
+  await expect(page.getByText("Ação de PDI:")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Praticar oratória" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Desvincular da ação" })).toHaveCount(0);
+
+  await page.goto(`/pdi/${cycleId}/actions/${actionId}`);
+  await expect(linkedRoutines(page).getByText(/Nenhuma rotina vinculada/)).toBeVisible();
+  // Free again, so it can be linked back.
+  await expect(combobox(page, "Vincular rotina existente")).toBeVisible();
+});
+
+test("desvincular pela ação; ciclo encerrado não deixa desvincular (plano 020)", async ({
+  page,
+}) => {
+  const { cycleId, actionId } = await practiceAction(page);
+  await insertRoutine({ title: "Manhã", startDate: today, pdiActionId: actionId });
+  await insertRoutine({ title: "Noite", startDate: today, pdiActionId: actionId });
+  await page.goto(`/pdi/${cycleId}/actions/${actionId}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Praticar oratória" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Desvincular a rotina Manhã" }).click();
+  const dialog = page.getByRole("alertdialog", { name: "Desvincular rotina?" });
+  await dialog.getByRole("button", { name: "Desvincular" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(linkedRoutines(page).getByRole("link", { name: "Manhã" })).toHaveCount(0);
+  await expect(linkedRoutines(page).getByRole("link", { name: "Noite" })).toBeVisible();
+
+  const closed = await insertCycle({
+    ...cycle,
+    title: "PDI anterior",
+    status: "CLOSED",
+    areas: [{ name: "Comunicação", actions: [{ title: "Apresentar", category: "Prática" }] }],
+  });
+  const closedActionId = closed.actionIds["Apresentar"] ?? "";
+  const routineId = await insertRoutine({
+    title: "Apresentar toda semana",
+    startDate: today,
+    pdiActionId: closedActionId,
+  });
+
+  await page.goto(`/pdi/${closed.id}/actions/${closedActionId}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Apresentar" })).toBeVisible();
+  await expect(
+    linkedRoutines(page).getByRole("link", { name: "Apresentar toda semana" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /Desvincular/ })).toHaveCount(0);
+  await expect(combobox(page, "Vincular rotina existente")).toHaveCount(0);
+
+  await page.goto(`/routines/${routineId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Apresentar toda semana" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Desvincular da ação" })).toHaveCount(0);
+});
