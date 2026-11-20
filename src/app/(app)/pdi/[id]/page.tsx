@@ -101,6 +101,13 @@ export default async function CyclePage({ params }: PageProps<"/pdi/[id]">) {
               .
             </p>
           )}
+          {/* A plain <a>, not <Link>: the route answers with a file, not a page,
+              so there is nothing for Next to prefetch or render (plan 022). */}
+          <Button asChild variant="outline">
+            <a href={`/pdi/${cycle.id}/export`} download>
+              Baixar planilha
+            </a>
+          </Button>
         </div>
       </div>
 
