@@ -58,12 +58,12 @@ Estes scripts devem existir no `package.json` desde o scaffold:
 src/
   app/                  rotas do App Router; só composição de UI e chamada de actions
     (app)/              telas que exigem login (grupo de rotas: não muda a URL)
-      goals/  tracks/  routines/  pdi/  settings/categories/  settings/account/
+      goals/  tracks/  routines/  pdi/  search/  settings/categories/  settings/account/
     (auth)/login/       tela de login
   proxy.ts              redireciona para /login quem chega sem o cookie de sessão
   components/           componentes da aplicação
   components/ui/        componentes do shadcn/ui
-  modules/<dominio>/    um diretório por domínio: goals, tracks, routines, pdi, categories, auth, dashboard (só leitura)
+  modules/<dominio>/    um diretório por domínio: goals, tracks, routines, pdi, categories, auth, dashboard e search (só leitura)
     schemas.ts          schemas Zod
     service.ts          regras de negócio e acesso ao banco
     actions.ts          Server Actions (validam com Zod e chamam o service)
@@ -124,6 +124,7 @@ Os campos de `PdiCycle`, `PdiArea`, `PdiAction` e `PdiCheckIn` foram validados p
 - **Duplicar trilha** (plano 026): `duplicateTrack` cria "Cópia de …" (`copyTitle`, cortado em 120 caracteres) com a mesma descrição, o mesmo objetivo e as etapas na mesma ordem, todas "Não iniciada" e sem prazo. Funciona também na trilha arquivada; a cópia nasce ativa.
 - **Rotina com meta semanal** (plano 017): `timesPerWeek` de 1 a 6, em quaisquer dias de segunda a domingo; guarda os 7 dias em `weekdays`, então qualquer dia pode ser registrado. Não tem "pulado" (`SkipNotAllowedError`). A adesão é em dias-meta: a meta de cada semana vira os dias previstos (proporcional numa semana incompleta no começo ou no fim), feitos contam até a meta, e a semana atual só conta o que já foi feito. Trocar o tipo de uma rotina mantém os registros.
 - **Sequência (streak) da rotina** (plano 019): calculada dos registros, sem coluna nova. Dias fixos contam dias previstos seguidos com "feito" (pulado ou previsto sem registro quebra; dia não previsto não conta; hoje sem registro não quebra). Meta semanal conta semanas seguidas com a meta cumprida (semana fechada abaixo da meta quebra; a atual só soma quando cumprida). Rotina encerrada só tem recorde. Fora da página da rotina, aparece a partir de 2.
+- **Busca única** (`/search?q=`, plano 027): lupa no cabeçalho; procura o termo (2 a 100 caracteres) como trecho em objetivos, trilhas, etapas, rotinas, ciclos e ações de PDI, sem diferenciar maiúsculas nem acentos (extensão `unaccent`, SQL em `src/modules/search/service.ts` com o termo sempre como parâmetro e `%`/`_` escapados por `likePattern`). Até 20 por grupo, mais recentes primeiro; itens arquivados, encerrados ou de ciclo encerrado aparecem com selo.
 - Datas de rotina e de registro são datas sem hora, no fuso `America/Fortaleza`. Nunca derive "hoje" de UTC.
 - **Autenticação** (plano 014): uma conta só, criada pelo terminal (`npm run auth:create-user`); não há cadastro pela tela nem `userId` nas entidades. Senha com `scrypt` (mínimo de 12 caracteres); 5 senhas erradas seguidas bloqueiam a conta por 15 minutos; erro de login sempre genérico. Sessão no banco (tabela `sessions`, só o hash do token), 30 dias, renovada quando usada com menos de 15 dias restantes; trocar a senha encerra as outras sessões.
 - **Importação de PDI por planilha** (`/pdi/import`, plano 013): sempre cria um ciclo novo; tudo ou nada (qualquer erro, nada é gravado, e a tela lista aba, linha e campo). Cada linha passa pelos mesmos schemas Zod dos formulários. Área e categoria das ações são identificadas pelo nome (sem diferenciar maiúsculas); categoria arquivada é recusada; ciclo `Ativo` com outro ativo também. Antes de gravar, a tela mostra uma prévia do que será criado; o navegador guarda o arquivo e o reenvia em "Confirmar importação", que valida tudo de novo (plano 022). As colunas ficam em `src/modules/pdi/import/sheets.ts`: ao mudá-las, rode `npm run pdi:template` e commite a planilha modelo e as planilhas dos e2e.

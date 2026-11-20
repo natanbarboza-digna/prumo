@@ -1,6 +1,6 @@
 # 027 — Busca única
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-20**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/global-search`
 
 Último plano do grupo Listas (arquivar trilhas, duplicar trilha, busca única). Retoma a "busca por texto" que ficou fora dos planos 001 e 002.
@@ -104,6 +104,25 @@ Rodam o `search.spec.ts` e o `mobile.spec.ts`.
 - Migration incluída.
 - `npm run container:up` e `npm run container:check` passando (plano 025), o que também prova a extensão no contêiner `migrate`.
 - `CLAUDE.md` e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Sem `error.tsx` próprio:** o `error.tsx` de `src/app/(app)/` já cobre a rota.
+- **`await connection()` na página:** o "hoje" (para saber se a rotina está encerrada) é lido antes do banco; sem a chamada, o Next tentava pré-renderizar a página e acusava `new Date()` no log do servidor. Os outros lugares que leem o "hoje" fazem o mesmo.
+- **Ids com `useId`** no formulário e nos títulos dos grupos (Server Components também podem usar `useId`), porque o Next guarda cópias escondidas das páginas visitadas.
+- **Escape do `LIKE` com `!`** (`ESCAPE '!'`) em vez de `\`, para não depender de como a barra invertida passa pelo template do Prisma.
+- **Linha de contexto:** objetivo mostra o status; trilha, o objetivo vinculado; etapa, a trilha; ciclo, o período; ação, o ciclo e a área; rotina, nada.
+- **`mobile.spec.ts`:** a página entrou como `/search?q=prumo`, para a verificação de rolagem horizontal pegar o estado com resultados.
+- **Verificações:**
+  - `npm run lint`, `npm run typecheck` e `npm test` (511 testes);
+  - e2e: `search.spec.ts` (3 testes) e `mobile.spec.ts` (5);
+  - `npm run container:up` e `npm run container:check` passando. O `migrate` do contêiner achou 10 migrations e nenhuma pendente, porque a do `unaccent` já tinha sido aplicada no banco de desenvolvimento durante a implementação. A extensão está nesse banco (o app do contêiner usa o mesmo), mas o contêiner não a aplicou sozinho desta vez: a prova de que a migration roda num banco novo é o `global-setup` dos testes, que aplica todas as migrations no banco de teste.
+
+## Decisões
+
+1. Lupa no cabeçalho que leva a `/search`.
+2. Sem diferenciar acentos, com a extensão `unaccent`.
+3. Itens arquivados e encerrados entram, com selo.
 
 ## Perguntas (cada uma com uma proposta)
 
