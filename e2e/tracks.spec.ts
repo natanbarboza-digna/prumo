@@ -163,3 +163,73 @@ test("lista, detalhe e formulários de trilha passam no axe", async ({ page }) =
   await expect(page.getByRole("heading", { level: 1, name: "Nova trilha" })).toBeVisible();
   await expectNoAxeViolations(page);
 });
+
+function trackLinks(page: Page) {
+  return page.getByRole("list", { name: "Trilhas" }).getByRole("heading", { level: 2 });
+}
+
+function trackFilter(page: Page) {
+  return page.getByRole("navigation", { name: "Filtrar trilhas" });
+}
+
+test("arquivar deixa a trilha somente leitura e fora da lista padrão (plano 024)", async ({
+  page,
+}) => {
+  await openTrack(page, "Inglês", { steps: [{ title: "Gramática" }] });
+
+  await page.getByRole("button", { name: "Arquivar trilha" }).click();
+  const dialog = page.getByRole("alertdialog", { name: "Arquivar trilha?" });
+  await dialog.getByRole("button", { name: "Arquivar" }).click();
+  await expect(dialog).toBeHidden();
+
+  await expect(page.getByRole("note")).toContainText("somente leitura");
+  await expect(page.getByRole("button", { name: "Desarquivar" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Editar trilha" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Adicionar etapa" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Concluir: Gramática" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Excluir trilha" })).toBeVisible();
+  await expectNoAxeViolations(page);
+
+  await page.goto("/tracks");
+  await expect(page.getByText("Você ainda não tem trilhas cadastradas.")).toBeVisible();
+  await trackFilter(page).getByRole("link", { name: "Arquivadas" }).click();
+  await expect(trackLinks(page)).toHaveText(["Inglês"]);
+  await expect(page.getByRole("list", { name: "Trilhas" })).toContainText("Arquivada");
+});
+
+test("desarquivar devolve a edição e a trilha à lista (plano 024)", async ({ page }) => {
+  const { id } = await insertTrack({ title: "Inglês", archivedAt: new Date() });
+  await page.goto(`/tracks/${id}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Inglês" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Desarquivar" }).click();
+
+  await expect(page.getByRole("button", { name: "Arquivar trilha" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Adicionar etapa" })).toBeVisible();
+  await expect(page.getByRole("note")).toHaveCount(0);
+  await page.goto("/tracks");
+  await expect(trackLinks(page)).toHaveText(["Inglês"]);
+});
+
+test("os filtros da lista mostram só as trilhas da situação (plano 024)", async ({ page }) => {
+  await insertTrack({ title: "Não começada", steps: [{ title: "A" }] });
+  await insertTrack({
+    title: "Começada",
+    steps: [{ title: "A", status: "DONE" }, { title: "B" }],
+  });
+  await insertTrack({ title: "Terminada", steps: [{ title: "A", status: "DONE" }] });
+  await insertTrack({ title: "Guardada", archivedAt: new Date() });
+
+  await page.goto("/tracks");
+  await expect(page.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
+  await expect(trackFilter(page).locator('[aria-current="page"]')).toHaveText("Ativas");
+  await expect(trackLinks(page)).toHaveCount(3);
+
+  await trackFilter(page).getByRole("link", { name: "Em andamento" }).click();
+  await expect(trackLinks(page)).toHaveText(["Começada"]);
+  await trackFilter(page).getByRole("link", { name: "Concluídas" }).click();
+  await expect(trackLinks(page)).toHaveText(["Terminada"]);
+  await trackFilter(page).getByRole("link", { name: "Todas" }).click();
+  await expect(trackLinks(page)).toHaveCount(4);
+  await expectNoAxeViolations(page);
+});
