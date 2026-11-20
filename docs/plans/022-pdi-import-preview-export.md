@@ -1,6 +1,6 @@
 # 022 — Prévia da importação e exportação do ciclo para planilha
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-20**, aprovado com a dependência e as propostas das perguntas (ver "Decisões")
 Branch: `feat/pdi-import-preview-export`
 
 Último plano do grupo PDI (vincular rotina existente, reordenar áreas e ações, prévia e exportação). Retoma o que ficou fora do plano 013.
@@ -123,6 +123,23 @@ Rodam o `pdi-import.spec.ts` e o `pdi.spec.ts` (a página do ciclo ganha o botã
 - `npm run lint`, `npm run typecheck`, `npm test` e os e2e da área passando.
 - `npm audit` em 0 avisos depois de mover a dependência.
 - `CLAUDE.md` e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **O formulário não usa mais o reset automático do React:** depois de uma action de `<form action>`, o React limpa os campos, e o arquivo da prévia se perderia. O envio passou a ser pelo `onSubmit`, que guarda o `File` no estado e chama a action com um `FormData` montado à mão; a confirmação reenvia esse `File`. Sem JavaScript, o formulário ainda posta direto e recebe a prévia.
+- **Foco:** ao aparecer, a prévia recebe o foco no título "Confira antes de importar"; "Escolher outro arquivo" devolve o foco ao campo do arquivo.
+- **Resumo da prévia** em `importSummaryText` (`src/modules/pdi/labels.ts`), com "nenhuma ação" e "nenhum check-in" quando a contagem é zero.
+- **Nome do arquivo** em `exportFileName` (`src/modules/pdi/export/file-name.ts`), com teste de unidade próprio.
+- **Check-ins na planilha exportada** do mais antigo para o mais novo (a página do ciclo mostra o mais novo primeiro).
+- **Botão "Baixar planilha"** é um `<a download>` comum, não `<Link>`: a rota responde com um arquivo, não com uma página.
+- **Verificações extras:** `next build` (a rota sai como dinâmica, `ƒ /pdi/[id]/export`) e, além do `pdi-import.spec.ts` (5 testes) e do `pdi.spec.ts`, o `mobile.spec.ts`, porque a fila de botões do ciclo cresceu (14 testes nos dois).
+- **`npm audit`:** ao mover o `write-excel-file`, o audit mostrou 3 avisos altos que não vêm desta mudança (`effect`, dependência do Prisma). Ficaram registrados nas Pendências do `CLAUDE.md`, fora do escopo deste plano. O critério "audit em 0" não foi cumprido por causa deles.
+
+## Decisões
+
+1. O arquivo fica no navegador entre a prévia e a confirmação, e é validado de novo ao confirmar.
+2. Route Handler `GET /pdi/[id]/export` para o download, com a exceção registrada no `CLAUDE.md`.
+3. Ciclo encerrado sai como "Encerrado", sem mudar a importação.
 
 ## Perguntas (cada uma com uma proposta)
 

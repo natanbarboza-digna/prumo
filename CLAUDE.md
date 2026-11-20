@@ -11,12 +11,12 @@ O dono do projeto vem de Python/Django e está aprendendo Next.js e TypeScript. 
 - Prisma como ORM, com migrations versionadas
 - Tailwind CSS + shadcn/ui
 - Zod para validação, com o mesmo schema no formulário e no servidor
-- Server Actions para mutações; Route Handlers só se houver consumidor externo
+- Server Actions para mutações; Route Handlers só se houver consumidor externo ou download de arquivo (`/pdi/[id]/export`, plano 022)
 - Vitest (unidade e integração) e Playwright (fluxos principais)
 - ESLint + Prettier
 - `next-themes` (tema claro/escuro) e `@axe-core/playwright` (verificação de acessibilidade nos e2e)
 
-Dependências de suporte já aprovadas: `@prisma/adapter-pg`, `pg`, `@types/pg`, `dotenv`, `tsx`, `vite`, `eslint-config-prettier`, `semver` e `@types/semver` (comparação de versões no `check:versions`), `read-excel-file` (leitura da planilha de PDI) e `write-excel-file` (só em desenvolvimento: planilha modelo e planilhas de teste) e as que o `shadcn` instala (`cn`, `class-variance-authority`, `lucide-react`, `tw-animate-css`, `radix-ui`, o próprio `shadcn` como devDependency por causa do `shadcn/tailwind.css`).
+Dependências de suporte já aprovadas: `@prisma/adapter-pg`, `pg`, `@types/pg`, `dotenv`, `tsx`, `vite`, `eslint-config-prettier`, `semver` e `@types/semver` (comparação de versões no `check:versions`), `read-excel-file` (leitura da planilha de PDI) e `write-excel-file` (exportação do ciclo, planilha modelo e planilhas de teste; dependência de produção desde o plano 022) e as que o `shadcn` instala (`cn`, `class-variance-authority`, `lucide-react`, `tw-animate-css`, `radix-ui`, o próprio `shadcn` como devDependency por causa do `shadcn/tailwind.css`).
 
 Versões fixadas por incompatibilidade: TypeScript 6.0 (o `typescript-eslint` ainda não aceita a 7), ESLint 9 (os plugins `react`, `jsx-a11y` e `import` do `eslint-config-next` ainda não aceitam a 10) e Prisma 7.10 (a tag `latest` aponta para a RC do Prisma 8). Rode `npm run check:versions` para saber se alguma já pode subir. Ao subir o Prisma, teste sem o `SerialClient` (`src/lib/db.ts`, plano 010); se o aviso de depreciação do `pg` não voltar, remova a classe. O projeto roda em Node 26 (`engines` e `.nvmrc`), com `@types/node` na mesma versão.
 
@@ -121,7 +121,8 @@ Os campos de `PdiCycle`, `PdiArea`, `PdiAction` e `PdiCheckIn` foram validados p
 - **Sequência (streak) da rotina** (plano 019): calculada dos registros, sem coluna nova. Dias fixos contam dias previstos seguidos com "feito" (pulado ou previsto sem registro quebra; dia não previsto não conta; hoje sem registro não quebra). Meta semanal conta semanas seguidas com a meta cumprida (semana fechada abaixo da meta quebra; a atual só soma quando cumprida). Rotina encerrada só tem recorde. Fora da página da rotina, aparece a partir de 2.
 - Datas de rotina e de registro são datas sem hora, no fuso `America/Fortaleza`. Nunca derive "hoje" de UTC.
 - **Autenticação** (plano 014): uma conta só, criada pelo terminal (`npm run auth:create-user`); não há cadastro pela tela nem `userId` nas entidades. Senha com `scrypt` (mínimo de 12 caracteres); 5 senhas erradas seguidas bloqueiam a conta por 15 minutos; erro de login sempre genérico. Sessão no banco (tabela `sessions`, só o hash do token), 30 dias, renovada quando usada com menos de 15 dias restantes; trocar a senha encerra as outras sessões.
-- **Importação de PDI por planilha** (`/pdi/import`, plano 013): sempre cria um ciclo novo; tudo ou nada (qualquer erro, nada é gravado, e a tela lista aba, linha e campo). Cada linha passa pelos mesmos schemas Zod dos formulários. Área e categoria das ações são identificadas pelo nome (sem diferenciar maiúsculas); categoria arquivada é recusada; ciclo `Ativo` com outro ativo também. As colunas ficam em `src/modules/pdi/import/sheets.ts`: ao mudá-las, rode `npm run pdi:template` e commite a planilha modelo e as planilhas dos e2e.
+- **Importação de PDI por planilha** (`/pdi/import`, plano 013): sempre cria um ciclo novo; tudo ou nada (qualquer erro, nada é gravado, e a tela lista aba, linha e campo). Cada linha passa pelos mesmos schemas Zod dos formulários. Área e categoria das ações são identificadas pelo nome (sem diferenciar maiúsculas); categoria arquivada é recusada; ciclo `Ativo` com outro ativo também. Antes de gravar, a tela mostra uma prévia do que será criado; o navegador guarda o arquivo e o reenvia em "Confirmar importação", que valida tudo de novo (plano 022). As colunas ficam em `src/modules/pdi/import/sheets.ts`: ao mudá-las, rode `npm run pdi:template` e commite a planilha modelo e as planilhas dos e2e.
+- **Exportação do ciclo** (`/pdi/[id]/export`, plano 022): planilha no mesmo formato da importação (áreas e ações na ordem manual), gerada por `exportCycle` com o mesmo `buildPdiWorkbook` da planilha modelo (`src/modules/pdi/export/workbook.ts`). Não leva vínculos com objetivos nem rotinas. Ciclo encerrado sai como "Encerrado", que a importação recusa.
 
 ## Workflow
 
@@ -171,4 +172,6 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 
 ## Pendências
 
-Nenhuma no momento. Melhorias deixadas fora de escopo ficam registradas na seção "Fora de escopo" de cada plano em `docs/plans/`.
+- **`npm audit` com 3 avisos altos** (visto em 2026-11-20, durante o plano 022): ReDoS no `effect` (GHSA-7589-6fvf-x4pw), que vem do `@prisma/config` do Prisma 7.10. O `npm audit fix --force` rebaixaria o Prisma para a 6, então não use. Ver se um Prisma 7.10.x corrige, ou se um `overrides` do `effect` funciona sem quebrar a CLI.
+
+Melhorias deixadas fora de escopo ficam registradas na seção "Fora de escopo" de cada plano em `docs/plans/`.
