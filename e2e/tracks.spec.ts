@@ -233,3 +233,41 @@ test("os filtros da lista mostram só as trilhas da situação (plano 024)", asy
   await expect(trackLinks(page)).toHaveCount(4);
   await expectNoAxeViolations(page);
 });
+
+test("duplicar cria a cópia com as etapas do zero e abre a cópia (plano 026)", async ({ page }) => {
+  await openTrack(page, "Inglês", {
+    steps: [
+      { title: "Gramática", status: "DONE", dueDate: "2026-10-01" },
+      { title: "Conversação", status: "IN_PROGRESS" },
+    ],
+  });
+
+  await page.getByRole("button", { name: "Duplicar trilha" }).click();
+
+  await expect(page.getByRole("heading", { level: 1, name: "Cópia de Inglês" })).toBeVisible();
+  await expect(stepHeadings(page)).toHaveText(["1.Gramática", "2.Conversação"]);
+  const steps = page.getByRole("list", { name: "Etapas" });
+  await expect(steps.getByText("Não iniciada")).toHaveCount(2);
+  await expect(steps.getByText("Prazo:")).toHaveCount(0);
+
+  await page.goto("/tracks");
+  await expect(trackLinks(page)).toHaveText(["Cópia de Inglês", "Inglês"]);
+});
+
+test("duplicar uma trilha arquivada gera uma cópia ativa (plano 026)", async ({ page }) => {
+  const { id } = await insertTrack({
+    title: "Roteiro antigo",
+    steps: [{ title: "Primeira" }],
+    archivedAt: new Date(),
+  });
+  await page.goto(`/tracks/${id}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Roteiro antigo" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Duplicar trilha" }).click();
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Cópia de Roteiro antigo" }),
+  ).toBeVisible();
+  await expect(page.getByRole("note")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Arquivar trilha" })).toBeVisible();
+});
