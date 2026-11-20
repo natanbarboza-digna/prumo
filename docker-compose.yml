@@ -23,5 +23,52 @@ services:
       timeout: 5s
       retries: 10
 
+  # The production build running next to development (plan 025), with the same
+  # image as the VPS (Dockerfile). Behind the "app" profile, so a plain
+  # `docker compose up -d` still starts only the database. Use the npm scripts:
+  # `container:up`, `container:check` and `container:down`.
+
+  # Applies pending migrations and the default categories to the development
+  # database, then exits. The app only starts after it succeeds.
+  migrate:
+    profiles: [app]
+    build:
+      context: .
+      target: tools
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    profiles: [app]
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+    ports:
+      # 3000 is `npm run dev` and 3100 the e2e server.
+      - "3200:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # The slim Node image has no curl; Node's own fetch does the request.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/login').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+
 volumes:
   pgdata:
