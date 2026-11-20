@@ -90,6 +90,20 @@ test.describe("em 320 px", () => {
     }
   });
 
+  test("a página da rotina, com o gráfico de 12 semanas, não rola para o lado (plano 029)", async ({
+    page,
+  }) => {
+    const id = await insertRoutine({ title: "Ler", startDate: "2026-01-05" });
+    await open(page, `/routines/${id}`);
+    await expect(page.getByRole("figure", { name: /Adesão por semana/ })).toBeVisible();
+
+    const { scroll, width } = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      width: document.documentElement.clientWidth,
+    }));
+    expect(scroll).toBe(width);
+  });
+
   test("o último link da navegação pode ser alcançado e clicado", async ({ page }) => {
     await open(page, "/");
 

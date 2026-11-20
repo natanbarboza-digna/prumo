@@ -122,3 +122,21 @@ test("o painel com dados passa no axe também no tema escuro", async ({ page }) 
 
   await expectNoAxeViolations(page);
 });
+
+test("o bloco Hoje mostra a adesão das rotinas ativas por semana (plano 029)", async ({ page }) => {
+  await insertRoutine({
+    title: "Ler",
+    startDate: addDays(today, -20),
+    logs: [{ date: addDays(today, -1) }],
+  });
+
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: "Prumo" })).toBeVisible();
+
+  const chart = card(page, "Hoje").getByRole("figure", {
+    name: "Adesão das rotinas ativas por semana (últimas 12)",
+  });
+  await expect(chart).toBeVisible();
+  await expect(chart.getByRole("row")).toHaveCount(13);
+  await expectNoAxeViolations(page);
+});

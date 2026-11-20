@@ -1,6 +1,13 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import { addDays, formatLongDate, todayInAppTimeZone, weekdayOf } from "../src/lib/dates";
+import {
+  addDays,
+  formatDateForDisplay,
+  formatLongDate,
+  mondayOf,
+  todayInAppTimeZone,
+  weekdayOf,
+} from "../src/lib/dates";
 import { monthTitle } from "../src/modules/routines/labels";
 import { addMonths } from "../src/modules/routines/rules";
 import { type RoutineData, insertGoal, insertRoutine } from "./factories";
@@ -269,5 +276,31 @@ test("a página da rotina mostra a sequência atual e o recorde", async ({ page 
   });
 
   await expect(page.getByText("Sequência atual: 1 dia · Recorde: 2 dias")).toBeVisible();
+  await expectNoAxeViolations(page);
+});
+
+test("a página da rotina mostra a adesão das últimas 12 semanas (plano 029)", async ({ page }) => {
+  // Every day from last Monday: 3 done last week, nothing before it.
+  const lastMonday = addDays(mondayOf(today), -7);
+  await openRoutine(page, {
+    title: "Ler",
+    startDate: lastMonday,
+    logs: [
+      { date: lastMonday },
+      { date: addDays(lastMonday, 1) },
+      { date: addDays(lastMonday, 2) },
+    ],
+  });
+
+  const table = page.getByRole("table", { name: "Adesão por semana (últimas 12 semanas)" });
+  const rows = table.getByRole("row");
+  // The header and the 12 weeks.
+  await expect(rows).toHaveCount(13);
+  const short = (date: string) => formatDateForDisplay(date).slice(0, 5);
+  await expect(
+    rows.filter({ hasText: `${short(lastMonday)} a ${short(addDays(lastMonday, 6))}` }),
+  ).toContainText("43% (3 de 7 dias)");
+  await expect(rows.nth(1)).toContainText("sem dias previstos");
+  await expect(rows.last()).toContainText("(esta semana)");
   await expectNoAxeViolations(page);
 });
