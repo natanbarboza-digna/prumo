@@ -22,7 +22,7 @@ Versões fixadas por incompatibilidade: TypeScript 6.0 (o `typescript-eslint` ai
 
 Scripts de instalação liberados no npm (`allowScripts` no `package.json`): `prisma`, `@prisma/engines` e `esbuild`. Ao atualizar um deles, o npm pede nova aprovação.
 
-`overrides` no `package.json`: o `minimatch` do `@ts-morph/common` (usado pela CLI do `shadcn`) é forçado para `^11.0.1`, que corrige uma falha de negação de serviço (plano 012). Quando o `shadcn` passar a usar o `ts-morph` 28 ou mais novo, remova o `overrides`. `npm audit` deve ficar em 0 avisos; nunca use `npm audit fix --force`.
+`overrides` no `package.json`: o `minimatch` do `@ts-morph/common` (usado pela CLI do `shadcn`) é forçado para `^11.0.1`, que corrige uma falha de negação de serviço (plano 012). Quando o `shadcn` passar a usar o `ts-morph` 28 ou mais novo, remova essa entrada. O `effect` do `@prisma/config` (CLI do Prisma) é forçado para `3.22.5`, que corrige um ReDoS (GHSA-7589-6fvf-x4pw, plano 023); quando o Prisma trouxer o `effect` 3.22.1 ou mais novo (ao subir para o Prisma 8, por exemplo), remova essa entrada. `npm audit` deve ficar em 0 avisos; nunca use `npm audit fix --force`.
 
 Use as versões estáveis atuais no momento do scaffold e consulte a documentação da versão instalada antes de usar uma API do framework: não confie na memória para Next.js, Prisma ou shadcn/ui, porque mudam com frequência.
 
@@ -172,6 +172,6 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 
 ## Pendências
 
-- **`npm audit` com 3 avisos altos** (visto em 2026-11-20, durante o plano 022): ReDoS no `effect` (GHSA-7589-6fvf-x4pw), que vem do `@prisma/config` do Prisma 7.10. O `npm audit fix --force` rebaixaria o Prisma para a 6, então não use. Ver se um Prisma 7.10.x corrige, ou se um `overrides` do `effect` funciona sem quebrar a CLI.
+Nenhuma no momento.
 
 Melhorias deixadas fora de escopo ficam registradas na seção "Fora de escopo" de cada plano em `docs/plans/`.

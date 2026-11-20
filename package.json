@@ -5,6 +5,9 @@
   "overrides": {
     "@ts-morph/common": {
       "minimatch": "^11.0.1"
+    },
+    "@prisma/config": {
+      "effect": "3.22.5"
     }
   },
   "engines": {
