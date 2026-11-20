@@ -1,0 +1,3 @@
+-- Accent-insensitive search (plan 027): unaccent(lower(column)) LIKE ...
+-- The extension ships with the official Postgres image; no table changes.
+CREATE EXTENSION IF NOT EXISTS unaccent;
