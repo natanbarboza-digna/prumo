@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { addDays } from "@/lib/dates";
 import { createCategory } from "@/modules/categories/service";
-import { getDashboard } from "@/modules/dashboard/service";
+import { getDashboard, listDeadlines } from "@/modules/dashboard/service";
 import type { GoalInput } from "@/modules/goals/schemas";
 import { createGoal } from "@/modules/goals/service";
 import type { CycleInput } from "@/modules/pdi/schemas";
@@ -304,5 +304,50 @@ describe("getDashboard", () => {
     const { pdi } = await getDashboard(today);
 
     expect(pdi).toMatchObject({ kind: "PLANNED", cycle: { title: "Próximo" } });
+  });
+});
+
+describe("listDeadlines (plan 028)", () => {
+  it("joins open steps, actions and goals with a date, by the dashboard's rules", async () => {
+    const english = await track("Inglês", [
+      { title: "Etapa distante", dueDate: addDays(today, 60) },
+      { title: "Etapa feita", dueDate: today, done: true },
+      { title: "Sem prazo" },
+    ]);
+    const archived = await track("Arquivada", [{ title: "Etapa guardada", dueDate: today }]);
+    await archiveTrack(archived.id);
+    const { cycle, addAction } = await cycleWithArea({ title: "Atual" });
+    const action = await addAction("Ação atrasada", { dueDate: addDays(today, -4) });
+    await addAction("Ação concluída", { dueDate: today, status: "DONE" });
+    const closed = await cycleWithArea({ title: "Encerrado", status: "PLANNED" });
+    await closed.addAction("Ação de ciclo encerrado", { dueDate: today });
+    await closeCycle(closed.cycle.id);
+    const goal = await createGoal(goalInput({ title: "Meta", targetDate: addDays(today, 100) }));
+    await createGoal(goalInput({ title: "Arquivada", status: "ARCHIVED", targetDate: today }));
+
+    const deadlines = await listDeadlines();
+
+    expect(deadlines.map((item) => item.title).sort()).toEqual([
+      "Ação atrasada",
+      "Etapa distante",
+      "Meta",
+    ]);
+    expect(deadlines).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "STEP",
+          href: `/tracks/${english.id}`,
+          source: "Inglês",
+          date: addDays(today, 60),
+        }),
+        expect.objectContaining({
+          kind: "ACTION",
+          id: action.id,
+          href: `/pdi/${cycle.id}/actions/${action.id}`,
+          source: "Atual",
+        }),
+        expect.objectContaining({ kind: "GOAL", id: goal.id, href: `/goals/${goal.id}` }),
+      ]),
+    );
   });
 });

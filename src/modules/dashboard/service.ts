@@ -47,34 +47,29 @@ export type Dashboard = {
   tracks: { items: TrackSummary[]; total: number };
 };
 
-export async function getDashboard(today: string): Promise<Dashboard> {
-  const [todayItems, activeRoutines, routineCount, goals, tracks, cycles, steps, actions] =
-    await Promise.all([
-      listRoutinesForDay(today),
-      listRoutines({ today, state: "active" }),
-      db.routine.count(),
-      listGoals(),
-      // All of them: archived tracks still mean this is not the first use (plan 024).
-      listTracks({ filter: "ALL" }),
-      listCycles(),
-      listOpenStepsWithDueDate(),
-      listOpenActionsWithDueDate(),
-    ]);
+type OpenStep = Awaited<ReturnType<typeof listOpenStepsWithDueDate>>[number];
+type OpenAction = Awaited<ReturnType<typeof listOpenActionsWithDueDate>>[number];
 
-  const goalsInProgress = goals
-    .filter((goal) => goal.status === "IN_PROGRESS")
-    .sort(byTargetDate)
-    .slice(0, DASHBOARD_LIST_LIMIT);
-  const tracksInProgress = tracks.filter(
-    (track) => track.archivedAt === null && deriveTrackStatus(track.counts) === "IN_PROGRESS",
-  );
-
-  const [progress, pdi] = await Promise.all([
-    getGoalsProgress(goalsInProgress.map((goal) => goal.id)),
-    summarizePdi(cycles, actions, today),
+/**
+ * Every open item with a date (plan 028): steps of active tracks, actions of
+ * cycles that are not closed and goals not started or in progress. The
+ * dashboard groups them in its card; the deadlines page by week.
+ */
+export async function listDeadlines(): Promise<Deadline[]> {
+  const [steps, actions, goals] = await Promise.all([
+    listOpenStepsWithDueDate(),
+    listOpenActionsWithDueDate(),
+    listGoals(),
   ]);
+  return toDeadlines(steps, actions, goals);
+}
 
-  const deadlines: Deadline[] = [
+function toDeadlines(
+  steps: readonly OpenStep[],
+  actions: readonly OpenAction[],
+  goals: readonly Goal[],
+): Deadline[] {
+  return [
     ...steps.map((step) => ({
       kind: "STEP" as const,
       id: step.id,
@@ -106,6 +101,36 @@ export async function getDashboard(today: string): Promise<Dashboard> {
         : [],
     ),
   ];
+}
+
+export async function getDashboard(today: string): Promise<Dashboard> {
+  const [todayItems, activeRoutines, routineCount, goals, tracks, cycles, steps, actions] =
+    await Promise.all([
+      listRoutinesForDay(today),
+      listRoutines({ today, state: "active" }),
+      db.routine.count(),
+      listGoals(),
+      // All of them: archived tracks still mean this is not the first use (plan 024).
+      listTracks({ filter: "ALL" }),
+      listCycles(),
+      listOpenStepsWithDueDate(),
+      listOpenActionsWithDueDate(),
+    ]);
+
+  const goalsInProgress = goals
+    .filter((goal) => goal.status === "IN_PROGRESS")
+    .sort(byTargetDate)
+    .slice(0, DASHBOARD_LIST_LIMIT);
+  const tracksInProgress = tracks.filter(
+    (track) => track.archivedAt === null && deriveTrackStatus(track.counts) === "IN_PROGRESS",
+  );
+
+  const [progress, pdi] = await Promise.all([
+    getGoalsProgress(goalsInProgress.map((goal) => goal.id)),
+    summarizePdi(cycles, actions, today),
+  ]);
+
+  const deadlines = toDeadlines(steps, actions, goals);
 
   return {
     firstUse:

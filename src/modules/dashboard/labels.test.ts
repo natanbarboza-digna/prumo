@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   cycleTimeText,
   daysAgoText,
+  deadlinesEmptyText,
   dueText,
   recentAdherenceText,
+  weekTitle,
 } from "@/modules/dashboard/labels";
 
 const today = "2026-11-16";
@@ -49,5 +51,21 @@ describe("recentAdherenceText", () => {
     expect(recentAdherenceText({ scheduled: 0, done: 0, skipped: 0, missed: 0, rate: 0 })).toBe(
       "Adesão em 30 dias: nenhum dia para contar ainda",
     );
+  });
+});
+
+describe("deadline page texts (plan 028)", () => {
+  const thursday = "2026-11-19";
+
+  it("names this week and the next one, and dates the others", () => {
+    expect(weekTitle("2026-11-16", "2026-11-22", thursday)).toBe("Esta semana");
+    expect(weekTitle("2026-11-23", "2026-11-29", thursday)).toBe("Próxima semana");
+    expect(weekTitle("2026-11-30", "2026-12-06", thursday)).toBe("Semana de 30/11 a 06/12");
+  });
+
+  it("says nothing is due in the chosen period", () => {
+    expect(deadlinesEmptyText("30")).toBe("Nenhum prazo atrasado nem nos próximos 30 dias.");
+    expect(deadlinesEmptyText("7")).toBe("Nenhum prazo atrasado nem nos próximos 7 dias.");
+    expect(deadlinesEmptyText("all")).toBe("Nenhum prazo em aberto.");
   });
 });

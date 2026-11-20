@@ -1,5 +1,6 @@
-import { daysBetween, formatDateForDisplay } from "@/lib/dates";
+import { addDays, daysBetween, formatDateForDisplay, mondayOf } from "@/lib/dates";
 import type { DeadlineKind } from "@/modules/dashboard/rules";
+import type { DeadlineKindFilter, DeadlinePeriod } from "@/modules/dashboard/schemas";
 import { ADHERENCE_DAYS, type Adherence } from "@/modules/routines/rules";
 
 export const deadlineKindLabels: Record<DeadlineKind, string> = {
@@ -36,4 +37,37 @@ export function recentAdherenceText(adherence: Adherence): string {
   const subject = `Adesão em ${ADHERENCE_DAYS} dias`;
   if (adherence.scheduled === 0) return `${subject}: nenhum dia para contar ainda`;
   return `${subject}: ${adherence.rate}%`;
+}
+
+// ---------------------------------------------------------------------------
+// Deadlines page (plan 028)
+// ---------------------------------------------------------------------------
+
+export const deadlinePeriodLabels: Record<DeadlinePeriod, string> = {
+  "7": "Próximos 7 dias",
+  "30": "Próximos 30 dias",
+  "90": "Próximos 90 dias",
+  all: "Todos",
+};
+
+export const deadlineKindFilterLabels: Record<DeadlineKindFilter, string> = {
+  ALL: "Todos",
+  STEP: "Etapas",
+  ACTION: "Ações de PDI",
+  GOAL: "Objetivos",
+};
+
+/** "Esta semana", "Próxima semana" or "Semana de 30/11 a 06/12". */
+export function weekTitle(monday: string, sunday: string, today: string): string {
+  const thisMonday = mondayOf(today);
+  if (monday === thisMonday) return "Esta semana";
+  if (monday === addDays(thisMonday, 7)) return "Próxima semana";
+  const short = (date: string) => formatDateForDisplay(date).slice(0, 5);
+  return `Semana de ${short(monday)} a ${short(sunday)}`;
+}
+
+/** The empty deadlines page, for the chosen period. */
+export function deadlinesEmptyText(period: DeadlinePeriod): string {
+  if (period === "all") return "Nenhum prazo em aberto.";
+  return `Nenhum prazo atrasado nem nos próximos ${period} dias.`;
 }
