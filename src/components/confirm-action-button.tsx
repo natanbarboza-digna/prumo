@@ -21,6 +21,8 @@ type ConfirmActionButtonProps = {
   action: () => Promise<void>;
   /** Visible text of the button that opens the dialog. */
   triggerLabel: string;
+  /** Accessible name when the visible text repeats on the page (one per list item). */
+  triggerAriaLabel?: string;
   title: string;
   description: string;
   confirmLabel: string;
@@ -32,6 +34,7 @@ type ConfirmActionButtonProps = {
 export function ConfirmActionButton({
   action,
   triggerLabel,
+  triggerAriaLabel,
   title,
   description,
   confirmLabel,
@@ -46,7 +49,9 @@ export function ConfirmActionButton({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant={variant}>{triggerLabel}</Button>
+        <Button variant={variant} aria-label={triggerAriaLabel}>
+          {triggerLabel}
+        </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

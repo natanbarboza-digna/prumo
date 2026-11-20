@@ -6,6 +6,7 @@ import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import type { FormState } from "@/components/forms/use-schema-form";
 import { requireSession } from "@/modules/auth/session";
 import { isValidDateOnly, todayInAppTimeZone } from "@/lib/dates";
 import { GoalNotFoundError } from "@/modules/goals/service";
@@ -17,8 +18,10 @@ import {
   PdiActionNotFoundError,
 } from "@/modules/pdi/service";
 import {
+  type LinkExistingRoutineValues,
   type RoutineFieldErrors,
   type RoutineFormValues,
+  linkExistingRoutineSchema,
   readRoutineForm,
   routineInputSchema,
   routineLinkSchema,
@@ -26,6 +29,8 @@ import {
 } from "@/modules/routines/schemas";
 import {
   FutureDateError,
+  RoutineAlreadyLinkedError,
+  RoutineEndedError,
   RoutineNotFoundError,
   RoutineNotScheduledError,
   RoutineNotStartedError,
@@ -33,7 +38,9 @@ import {
   createRoutine,
   deleteRoutine,
   endRoutine,
+  linkRoutine,
   logRoutine,
+  unlinkRoutine,
   updateRoutine,
 } from "@/modules/routines/service";
 
@@ -138,6 +145,59 @@ export async function endRoutineAction(id: string): Promise<void> {
   } catch (error) {
     // The button is hidden for these cases; a stale page just gets refreshed.
     if (!(error instanceof RoutineNotFoundError || error instanceof RoutineNotStartedError)) {
+      throw error;
+    }
+  }
+  revalidateRoutineScreens();
+  refresh();
+}
+
+// ---------------------------------------------------------------------------
+// Link to a PDI action (plan 020)
+// ---------------------------------------------------------------------------
+
+/** "Vincular rotina existente" on a PDI action page. */
+export async function linkRoutineAction(
+  actionId: string,
+  _previous: FormState<LinkExistingRoutineValues>,
+  formData: FormData,
+): Promise<FormState<LinkExistingRoutineValues>> {
+  await requireSession();
+  const values = { routineId: String(formData.get("routineId") ?? "") };
+  const parsed = linkExistingRoutineSchema.safeParse(values);
+  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
+
+  try {
+    await linkRoutine(actionId, parsed.data.routineId, todayInAppTimeZone());
+  } catch (error) {
+    const routineError = linkedRoutineError(error);
+    if (routineError) return { errors: { routineId: [routineError] }, values };
+    const formError = linkError(error);
+    if (formError) return { formError, values };
+    throw error;
+  }
+  revalidateRoutineScreens();
+  refresh();
+  return {};
+}
+
+/** Why the chosen routine cannot be linked (another tab changed it meanwhile). */
+function linkedRoutineError(error: unknown): string | null {
+  if (error instanceof RoutineNotFoundError) return "Esta rotina não existe mais.";
+  if (error instanceof RoutineAlreadyLinkedError) {
+    return "Esta rotina já está vinculada a uma ação.";
+  }
+  if (error instanceof RoutineEndedError) return "Esta rotina já foi encerrada.";
+  return null;
+}
+
+export async function unlinkRoutineAction(routineId: string): Promise<void> {
+  await requireSession();
+  try {
+    await unlinkRoutine(routineId);
+  } catch (error) {
+    // The button is hidden for these cases; a stale page just gets refreshed.
+    if (!(error instanceof RoutineNotFoundError || error instanceof CycleClosedError)) {
       throw error;
     }
   }

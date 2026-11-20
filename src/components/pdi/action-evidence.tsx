@@ -1,20 +1,24 @@
 import Link from "next/link";
 
+import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { AdherenceMeter } from "@/components/routines/adherence-meter";
 import { RoutineStateBadge } from "@/components/routines/routine-badges";
 import { formatDateForDisplay, formatLongDate } from "@/lib/dates";
 import type { ActionDetail } from "@/modules/pdi/service";
-import { logStatusLabels, scheduleText } from "@/modules/routines/labels";
+import { unlinkRoutineAction } from "@/modules/routines/actions";
+import { logStatusLabels, scheduleText, unlinkRoutineText } from "@/modules/routines/labels";
 
 type ActionEvidenceProps = {
   detail: ActionDetail;
   today: string;
   /** What to say when there is no linked routine (e.g. how to create one). */
   emptyText: string;
+  /** Whether each routine gets an "unlink" button (not in a closed cycle). */
+  canUnlink: boolean;
 };
 
 /** The linked routines with their adherence in the cycle, and their logs. */
-export function ActionEvidence({ detail, today, emptyText }: ActionEvidenceProps) {
+export function ActionEvidence({ detail, today, emptyText, canUnlink }: ActionEvidenceProps) {
   return (
     <>
       <section aria-labelledby="titulo-rotinas-vinculadas" className="space-y-4">
@@ -54,6 +58,17 @@ export function ActionEvidence({ detail, today, emptyText }: ActionEvidenceProps
                     adherence={adherence}
                     label={`Adesão da rotina ${routine.title} no ciclo`}
                     periodText={`${formatDateForDisplay(period.from)} a ${formatDateForDisplay(period.to)}`}
+                  />
+                )}
+                {canUnlink && (
+                  <ConfirmActionButton
+                    action={unlinkRoutineAction.bind(null, routine.id)}
+                    triggerLabel="Desvincular"
+                    triggerAriaLabel={`Desvincular a rotina ${routine.title}`}
+                    title="Desvincular rotina?"
+                    description={unlinkRoutineText(routine.title, detail.action.title)}
+                    confirmLabel="Desvincular"
+                    pendingLabel="Desvinculando…"
                   />
                 )}
               </li>

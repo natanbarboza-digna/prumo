@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { AdherenceMeter } from "@/components/routines/adherence-meter";
 import { EndRoutineButton } from "@/components/routines/end-routine-button";
@@ -9,8 +10,12 @@ import { RoutineStateBadge } from "@/components/routines/routine-badges";
 import { RoutineCalendar } from "@/components/routines/routine-calendar";
 import { Button } from "@/components/ui/button";
 import { formatDateForDisplay, formatLongDate, todayInAppTimeZone } from "@/lib/dates";
-import { deleteRoutineAction, endRoutineAction } from "@/modules/routines/actions";
-import { scheduleText, streakPageText } from "@/modules/routines/labels";
+import {
+  deleteRoutineAction,
+  endRoutineAction,
+  unlinkRoutineAction,
+} from "@/modules/routines/actions";
+import { scheduleText, streakPageText, unlinkRoutineText } from "@/modules/routines/labels";
 import { HISTORY_DAYS, monthRange, parseMonth, routineStateOn } from "@/modules/routines/rules";
 import {
   getAdherence,
@@ -96,6 +101,16 @@ export default async function RoutinePage({ params, searchParams }: PageProps<"/
             <EndRoutineButton
               action={endRoutineAction.bind(null, routine.id)}
               routineTitle={routine.title}
+            />
+          )}
+          {routine.pdiAction && !routine.pdiAction.cycleClosed && (
+            <ConfirmActionButton
+              action={unlinkRoutineAction.bind(null, routine.id)}
+              triggerLabel="Desvincular da ação"
+              title="Desvincular da ação de PDI?"
+              description={unlinkRoutineText(routine.title, routine.pdiAction.title)}
+              confirmLabel="Desvincular"
+              pendingLabel="Desvinculando…"
             />
           )}
           <ConfirmDeleteButton

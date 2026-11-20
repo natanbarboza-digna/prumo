@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { adherenceText, doneTodayText, scheduleText } from "@/modules/routines/labels";
+import {
+  adherenceText,
+  doneTodayText,
+  scheduleText,
+  unlinkRoutineText,
+} from "@/modules/routines/labels";
 
 describe("scheduleText", () => {
   it("lists the days Monday first, with the time", () => {
@@ -39,5 +44,13 @@ describe("doneTodayText", () => {
     [2, 4, "2 de 4 feitas"],
   ])("%i of %i → %s", (done, total, expected) => {
     expect(doneTodayText(done, total)).toBe(expected);
+  });
+});
+
+describe("unlinkRoutineText", () => {
+  it("says the logs stop counting as evidence and the routine stays", () => {
+    expect(unlinkRoutineText("Ler", "Praticar inglês")).toBe(
+      "Os registros de “Ler” deixam de contar como evidência da ação “Praticar inglês”. A rotina e os registros continuam.",
+    );
   });
 });

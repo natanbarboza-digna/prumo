@@ -3,11 +3,14 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { ActionEvidence } from "@/components/pdi/action-evidence";
+import { LinkRoutineForm } from "@/components/pdi/link-routine-form";
 import { ActionOverdueBadge, ActionStatusBadge } from "@/components/pdi/pdi-badges";
 import { Button } from "@/components/ui/button";
 import { formatDateForDisplay, todayInAppTimeZone } from "@/lib/dates";
 import { routineBlockerText } from "@/modules/pdi/labels";
 import { isActionOverdue, routineBlocker } from "@/modules/pdi/service";
+import { linkRoutineAction } from "@/modules/routines/actions";
+import { listLinkableRoutines } from "@/modules/routines/service";
 
 import { loadActionDetail } from "../../load";
 
@@ -33,6 +36,8 @@ export default async function ActionPage({ params }: PageProps<"/pdi/[id]/action
   const { action, cycle } = detail;
   const editable = cycle.status !== "CLOSED";
   const blocker = routineBlocker(action, cycle.status);
+  // Only looked up when the action takes routines: otherwise the form is hidden.
+  const linkable = blocker === null ? await listLinkableRoutines(today) : [];
 
   return (
     <article className="max-w-3xl space-y-8">
@@ -76,6 +81,12 @@ export default async function ActionPage({ params }: PageProps<"/pdi/[id]/action
             )}
           </div>
         )}
+        {linkable.length > 0 && (
+          <LinkRoutineForm
+            action={linkRoutineAction.bind(null, action.id)}
+            routines={linkable.map(({ id, title }) => ({ id, title }))}
+          />
+        )}
         <dl className="space-y-4">
           <Text label="Descrição" value={action.description} />
           <Text label="Resultado esperado" value={action.expectedResult} />
@@ -87,6 +98,7 @@ export default async function ActionPage({ params }: PageProps<"/pdi/[id]/action
       <ActionEvidence
         detail={detail}
         today={today}
+        canUnlink={editable}
         emptyText={
           blocker === null
             ? "Nenhuma rotina vinculada. Use “Criar rotina” para praticar esta ação no dia a dia."

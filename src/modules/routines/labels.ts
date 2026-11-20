@@ -153,3 +153,8 @@ export function streakPageText(streak: RoutineStreak): string {
   if (streak.current === null) return best;
   return `Sequência atual: ${streakAmount(streak.current, streak.unit)} · ${best}`;
 }
+
+/** Confirmation when unlinking a routine from its PDI action (plan 020). */
+export function unlinkRoutineText(routineTitle: string, actionTitle: string): string {
+  return `Os registros de “${routineTitle}” deixam de contar como evidência da ação “${actionTitle}”. A rotina e os registros continuam.`;
+}
