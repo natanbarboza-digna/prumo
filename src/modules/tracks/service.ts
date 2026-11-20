@@ -3,6 +3,7 @@ import type { TrackStepStatus } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { formatDateOnly, parseDateOnly } from "@/lib/dates";
 import { isUuid } from "@/lib/form-fields";
+import { closeGap } from "@/lib/positions";
 import { isRecordNotFound } from "@/lib/prisma-errors";
 import { GoalNotFoundError } from "@/modules/goals/service";
 import type { TrackInput, TrackStepInput } from "@/modules/tracks/schemas";
@@ -217,16 +218,7 @@ export async function deleteStep(id: string): Promise<void> {
     const step = await tx.trackStep.findUnique({ where: { id } });
     if (!step) throw new TrackStepNotFoundError(id);
     await tx.trackStep.delete({ where: { id } });
-
-    // Postgres checks the unique (track_id, position) index row by row, so a
-    // plain "position - 1" could collide midway. Flip the rows to negative
-    // values first, then bring them back one lower.
-    await tx.$executeRaw`
-      UPDATE track_steps SET position = -position
-      WHERE track_id = ${step.trackId}::uuid AND position > ${step.order}`;
-    await tx.$executeRaw`
-      UPDATE track_steps SET position = -position - 1
-      WHERE track_id = ${step.trackId}::uuid AND position < 0`;
+    await closeGap(tx, "track_steps", step.trackId, step.order);
   });
 }
 
