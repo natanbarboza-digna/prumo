@@ -1,6 +1,6 @@
 # 030 — Verificação das mensagens de commit e hook de pre-push
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-20**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `chore/commit-and-push-hooks`
 
 Plano do grupo Ferramentas. Retoma o que ficou fora do plano 012. O deploy automático pelo CI fica para quando existirem o repositório no GitHub e o VPS (alinhamento do grupo).
@@ -102,6 +102,25 @@ CLAUDE.md (Workflow: tipos aceitos e os dois hooks)
 - `npm run lint`, `npm run typecheck` e `npm test` passando; sem e2e (não há mudança de tela).
 - `npm run container:up` e `npm run container:check` passando (plano 025).
 - `CLAUDE.md` e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Um commit antigo passa de 72 caracteres** (`fix: clear npm audit with typescript-eslint update and minimatch override`, 73). O limite aprovado ficou em 72; como o histórico não é reescrito, esse commit é a única exceção, nomeada no teste que confere o histórico.
+- **O teste do histórico não exige um mínimo de commits:** o checkout padrão do CI traz só o último. O job `checks` passou a usar `fetch-depth: 0` para o passo das mensagens.
+- **CI:** num push de branch nova (sem commit "antes"), confere só o último commit (`<sha>^!`); os SHAs entram por variáveis de ambiente, não interpolados no comando.
+- **Ordem das checagens:** descrição vazia é avisada antes da falta de espaço depois dos dois-pontos (`feat:` sozinho diz "falta a descrição").
+- **Verificação manual:**
+  - `npm run check:commits -- main~5..main`: "Mensagens de commit no padrão.";
+  - o hook chamado direto recusou "Adiciona filtro" (com a explicação) e aceitou uma mensagem certa com corpo e comentário;
+  - um `git commit` de verdade com "Adiciona filtro" foi recusado pelo Git. Na primeira tentativa, o commit passou porque um `git stash` meu tinha guardado também os hooks novos (o arquivo do hook não existia na hora); o commit, vazio e só local, foi desfeito com `git reset --soft HEAD~1` e o teste refeito sem stash;
+  - `pre-push` com o banco parado: "o banco não está respondendo. Suba o banco: docker compose up -d"; com o banco no ar: 542 testes e `npm audit` sem avisos.
+- **Verificações:** `npm run lint`, `npm run typecheck`, `npm test` (os 542 do pre-push), Prettier em todo o projeto, `npm run container:up` e `npm run container:check`. Sem e2e (nenhuma tela mudou).
+
+## Decisões
+
+1. Os seis tipos do `CLAUDE.md` mais `ci`, `build`, `perf`, `style` e `revert`.
+2. O pre-push roda `npm test` completo e `npm audit`.
+3. O CI também confere as mensagens.
 
 ## Perguntas (cada uma com uma proposta)
 
