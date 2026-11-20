@@ -1,6 +1,6 @@
 # 026 — Duplicar trilha
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-20**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/duplicate-track`
 
 Segundo plano do grupo Listas (arquivar trilhas, duplicar trilha, busca única). Retoma o que ficou fora do plano 002.
@@ -79,6 +79,22 @@ Roda o `tracks.spec.ts`.
 - `npm run lint`, `npm run typecheck`, `npm test` e o e2e de trilhas passando.
 - `npm run container:up` e `npm run container:check` passando (plano 025).
 - `CLAUDE.md` e este plano atualizados.
+
+## Resultado
+
+- `copyTitle` e `duplicateTrack` no service, com um `create` aninhado (a trilha e as etapas numa operação só); `duplicateTrackAction` redireciona para a cópia.
+- Sem mudanças em relação ao plano.
+- **Verificações:**
+  - `npm run lint` e `npm run typecheck` passando;
+  - `npm test`: 499 testes passando. Na primeira rodada, **1 teste falhou** e não se repetiu em duas rodadas seguidas; a saída dessa rodada não foi guardada, então não sei qual foi. Fica o registro: se voltar a acontecer, vale guardar a saída e investigar;
+  - e2e: `tracks.spec.ts` (13 testes, 2 novos);
+  - `npm run container:up` e `npm run container:check` passando.
+
+## Decisões
+
+1. A cópia mantém o objetivo vinculado.
+2. Os prazos das etapas ficam vazios.
+3. Trilha arquivada pode ser duplicada, e a cópia nasce ativa.
 
 ## Perguntas (cada uma com uma proposta)
 
