@@ -1,6 +1,6 @@
 # 024 — Arquivar trilhas, com filtro na lista
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-20**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/archive-tracks`
 
 Primeiro plano do grupo Listas (arquivar trilhas, duplicar trilha, busca única). Retoma o que ficou fora do plano 002.
@@ -103,6 +103,25 @@ Rodam o `tracks.spec.ts` e, porque o painel e a página do objetivo mudam, o `ho
 - `npm run lint`, `npm run typecheck`, `npm test` e os e2e da área passando.
 - Migration incluída e `npx prisma generate` rodado.
 - `CLAUDE.md` e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Coluna `archived_at` como `TIMESTAMP(3)`**, sem fuso, como todas as datas com hora do projeto (`created_at`, `expires_at`): o Prisma grava em UTC. O plano falava em `timestamptz`; segui a convenção. A data mostrada é a do fuso do app (`todayInAppTimeZone(archivedAt)`), e um teste da factory confere a virada do dia (01:30 UTC do dia 21 ainda é dia 20 em Fortaleza).
+- **Painel:** passou a pedir `listTracks({ filter: "ALL" })` e a deixar as arquivadas de fora de "Trilhas em andamento" na própria conta. Com só o filtro padrão, quem tivesse apenas trilhas arquivadas voltaria a ver as boas-vindas de primeiro uso.
+- **Páginas de edição** (trilha, nova etapa, editar etapa) mostram `ArchivedTrackNotice` no lugar do formulário, como o PDI faz com o ciclo encerrado (`ClosedCycleNotice`). As actions também devolvem uma mensagem se a trilha foi arquivada com o formulário aberto em outra aba, e os botões de etapa só atualizam a página nesse caso.
+- **`revalidateTrackScreens`** passou a revalidar `/tracks` e `/goals` como layout (antes, só a lista de trilhas), porque o selo "Arquivada" aparece na página do objetivo e na página da trilha.
+- **Selo "Arquivada"** no `TrackList`, que serve à lista de trilhas e à página do objetivo.
+- **Interrupção:** no meio da implementação, o trabalho foi guardado num `git stash` para fazer o plano 025 (contêiner local) e depois retomado, com a branch levada para cima da `main` nova. Por isso este plano já fecha com a diretriz do contêiner.
+- **Verificações:**
+  - `npm run lint`, `npm run typecheck` e `npm test` (493 testes);
+  - e2e: `tracks.spec.ts`, `home.spec.ts` e `goals.spec.ts` (24 testes);
+  - `npm run container:up` (o `migrate` achou 9 migrations, nenhuma pendente: a nova já tinha sido aplicada no banco de desenvolvimento durante a implementação) e `npm run container:check` passando.
+
+## Decisões
+
+1. Trilha arquivada é somente leitura; excluir e desarquivar continuam possíveis.
+2. Na página do objetivo, a trilha arquivada fica, com o selo, e conta no progresso.
+3. Filtro padrão "Ativas".
 
 ## Perguntas (cada uma com uma proposta)
 
