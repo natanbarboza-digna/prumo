@@ -8,23 +8,32 @@ import { redirect } from "next/navigation";
 
 import { requireSession } from "@/modules/auth/session";
 import type { ImportIssue } from "@/modules/pdi/import/sheets";
-import { importPdi } from "@/modules/pdi/import/service";
+import { type ImportPreview, importPdi, previewPdiImport } from "@/modules/pdi/import/service";
 
 export type ImportFormState = {
   /** A problem with the file field itself (missing, too large, wrong type). */
   fileError?: string;
   /** Problems inside the spreadsheet: nothing was imported. */
   issues?: ImportIssue[];
+  /** What "Confirmar importação" will create (plan 022). */
+  preview?: ImportPreview;
 };
 
 // A "use server" file may only export async functions, so this stays private.
 const MAX_IMPORT_BYTES = 1024 * 1024;
 
+/**
+ * Two steps on the same file (plan 022): `intent=preview` only reads it and
+ * answers with the preview; `intent=confirm` reads it again from scratch and
+ * creates the cycle. The browser sends the file both times, so nothing waits
+ * on the server between the steps.
+ */
 export async function importPdiAction(
   _previous: ImportFormState,
   formData: FormData,
 ): Promise<ImportFormState> {
   await requireSession();
+  const confirm = formData.get("intent") === "confirm";
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     return { fileError: "Escolha a planilha (.xlsx) para importar." };
@@ -36,7 +45,13 @@ export async function importPdiAction(
     return { fileError: "Envie um arquivo .xlsx (a planilha modelo salva no Excel ou no Sheets)." };
   }
 
-  const result = await importPdi(Buffer.from(await file.arrayBuffer()));
+  const content = Buffer.from(await file.arrayBuffer());
+  if (!confirm) {
+    const preview = await previewPdiImport(content);
+    return preview.ok ? { preview: preview.preview } : { issues: preview.issues };
+  }
+
+  const result = await importPdi(content);
   if (!result.ok) return { issues: result.issues };
 
   revalidatePath("/pdi", "layout");

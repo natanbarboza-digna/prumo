@@ -2,10 +2,25 @@ import { describe, expect, it } from "vitest";
 
 import {
   actionProgressText,
+  importSummaryText,
   itemProgressText,
   routineBlockerText,
   routineEvidenceText,
 } from "@/modules/pdi/labels";
+
+describe("importSummaryText", () => {
+  it("counts what the import will create, in singular and plural", () => {
+    expect(importSummaryText({ areas: 3, actions: 8, checkIns: 2 })).toBe(
+      "Serão criados 1 ciclo, 3 áreas, 8 ações e 2 check-ins.",
+    );
+    expect(importSummaryText({ areas: 1, actions: 1, checkIns: 1 })).toBe(
+      "Serão criados 1 ciclo, 1 área, 1 ação e 1 check-in.",
+    );
+    expect(importSummaryText({ areas: 1, actions: 0, checkIns: 0 })).toBe(
+      "Serão criados 1 ciclo, 1 área, nenhuma ação e nenhum check-in.",
+    );
+  });
+});
 
 describe("actionProgressText", () => {
   it.each([

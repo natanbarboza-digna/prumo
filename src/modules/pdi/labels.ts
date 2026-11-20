@@ -33,6 +33,16 @@ export function itemProgressText(done: number, total: number): string {
   return `${done} de ${total} ${total === 1 ? "item concluído" : "itens concluídos"}`;
 }
 
+/** "Serão criados 1 ciclo, 3 áreas, 8 ações e 2 check-ins.", on the import preview (plan 022). */
+export function importSummaryText(counts: { areas: number; actions: number; checkIns: number }) {
+  const count = (n: number, one: string, many: string, none: string) =>
+    n === 0 ? none : `${n} ${n === 1 ? one : many}`;
+  const areas = count(counts.areas, "área", "áreas", "nenhuma área");
+  const actions = count(counts.actions, "ação", "ações", "nenhuma ação");
+  const checkIns = count(counts.checkIns, "check-in", "check-ins", "nenhum check-in");
+  return `Serão criados 1 ciclo, ${areas}, ${actions} e ${checkIns}.`;
+}
+
 /** Why an action cannot get a new routine (see routineBlocker in the service). */
 export const routineBlockerText: Record<"CYCLE_CLOSED" | "ACTION_FINISHED" | "CATEGORY", string> = {
   CYCLE_CLOSED: "O ciclo desta ação está encerrado.",
