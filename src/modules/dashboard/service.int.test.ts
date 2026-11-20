@@ -351,3 +351,23 @@ describe("listDeadlines (plan 028)", () => {
     );
   });
 });
+
+describe("weekly adherence on the dashboard (plan 029)", () => {
+  it("sums the active routines week by week, leaving ended ones out", async () => {
+    const reading = await createRoutine(routineInput({ title: "Ler" }));
+    await logRoutine(reading.id, addDays(today, -7), done, today);
+    const ended = await createRoutine(
+      routineInput({ title: "Encerrada", endDate: addDays(today, -2) }),
+    );
+    await logRoutine(ended.id, addDays(today, -7), done, today);
+
+    const { today: block } = await getDashboard(today);
+
+    expect(block.weekly).toHaveLength(12);
+    // Last week (Monday the 9th): only "Ler" counts, 1 done of 7 days.
+    expect(block.weekly[10]).toMatchObject({
+      monday: addDays(today, -7),
+      adherence: { scheduled: 7, done: 1 },
+    });
+  });
+});

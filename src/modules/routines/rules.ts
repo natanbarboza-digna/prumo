@@ -348,3 +348,64 @@ export function routineStreak(
   }
   return { unit: "DAYS", current: ended ? null : run, best };
 }
+
+// ---------------------------------------------------------------------------
+// Weekly adherence chart (plan 029)
+// ---------------------------------------------------------------------------
+
+/** How many weeks the chart shows, the current one included. */
+export const CHART_WEEKS = 12;
+
+/**
+ * One week of the chart. `adherence` is null when the routine has no scheduled
+ * day in the whole week (before it starts, after it ends): no bar, not 0%.
+ */
+export type WeekAdherence = {
+  monday: string;
+  sunday: string;
+  /** The week of today: it only counts up to today. */
+  current: boolean;
+  adherence: Adherence | null;
+};
+
+/** The weeks of the chart, oldest first, ending with the current week. */
+function chartWeeks(today: string, weeks: number) {
+  const currentMonday = mondayOf(today);
+  return Array.from({ length: weeks }, (_, index) => {
+    const monday = addDays(currentMonday, -7 * (weeks - 1 - index));
+    return { monday, sunday: addDays(monday, 6), current: monday === currentMonday };
+  });
+}
+
+/** Adherence of each of the last weeks, with the same rules as computeAdherence. */
+export function weeklyAdherence(
+  routine: Schedule,
+  logs: readonly { date: string; status: RoutineLogStatus }[],
+  today: string,
+  weeks: number = CHART_WEEKS,
+): WeekAdherence[] {
+  return chartWeeks(today, weeks).map((week) => {
+    const hasDays = eachDay(week.monday, week.sunday).some((date) => isScheduledOn(routine, date));
+    return {
+      ...week,
+      adherence: hasDays
+        ? computeAdherence(routine, logs, { from: week.monday, to: week.sunday }, today)
+        : null,
+    };
+  });
+}
+
+/** Several routines summed week by week (the dashboard); null where all of them were null. */
+export function combineWeeklyAdherence(
+  lists: readonly (readonly WeekAdherence[])[],
+  today: string,
+  weeks: number = CHART_WEEKS,
+): WeekAdherence[] {
+  return chartWeeks(today, weeks).map((week, index) => {
+    const items = lists.flatMap((list) => {
+      const adherence = list[index]?.adherence;
+      return adherence ? [adherence] : [];
+    });
+    return { ...week, adherence: items.length === 0 ? null : combineAdherence(items) };
+  });
+}

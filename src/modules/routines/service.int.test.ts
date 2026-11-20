@@ -30,6 +30,7 @@ import {
   getRoutineHistory,
   getRoutineMonth,
   getRoutineStreak,
+  getWeeklyAdherence,
   linkRoutine,
   listLinkableRoutines,
   listRoutines,
@@ -624,5 +625,29 @@ describe("routine streaks (plan 019)", () => {
     const [summary] = await listRoutines({ today });
     expect(summary?.streak).toEqual(streak);
     await expect(getRoutineStreak(routine.id, today)).resolves.toEqual(streak);
+  });
+});
+
+describe("weekly adherence (plan 029)", () => {
+  const done = { status: "DONE" as const, note: null };
+
+  it("comes with the routine page and the routine list, read from the logs", async () => {
+    // Today, 2026-11-16, is a Monday: last week went from the 9th to the 15th.
+    const routine = await createRoutine(routineInput({ title: "Ler" }));
+    for (const date of ["2026-11-09", "2026-11-10", "2026-11-11"]) {
+      await logRoutine(routine.id, date, done, today);
+    }
+
+    const weeks = await getWeeklyAdherence(routine.id, today);
+
+    expect(weeks).toHaveLength(12);
+    expect(weeks[10]).toMatchObject({
+      monday: "2026-11-09",
+      adherence: { scheduled: 7, done: 3, rate: 43 },
+    });
+    // The routine started on the 1st: the weeks before it have no bar.
+    expect(weeks[0]?.adherence).toBeNull();
+    const [summary] = await listRoutines({ today });
+    expect(summary?.weekly).toEqual(weeks);
   });
 });

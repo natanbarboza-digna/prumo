@@ -158,3 +158,11 @@ export function streakPageText(streak: RoutineStreak): string {
 export function unlinkRoutineText(routineTitle: string, actionTitle: string): string {
   return `Os registros de “${routineTitle}” deixam de contar como evidência da ação “${actionTitle}”. A rotina e os registros continuam.`;
 }
+
+/** One week of the adherence chart (plan 029), as read in its table. */
+export function weekAdherenceText(adherence: Adherence | null): string {
+  if (adherence === null) return "sem dias previstos";
+  if (adherence.scheduled === 0) return "nada para contar ainda";
+  const days = adherence.scheduled === 1 ? "dia" : "dias";
+  return `${adherence.rate}% (${adherence.done} de ${adherence.scheduled} ${days})`;
+}

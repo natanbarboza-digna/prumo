@@ -15,7 +15,12 @@ import {
   listCycles,
   listOpenActionsWithDueDate,
 } from "@/modules/pdi/service";
-import { type Adherence, combineAdherence } from "@/modules/routines/rules";
+import {
+  type Adherence,
+  type WeekAdherence,
+  combineAdherence,
+  combineWeeklyAdherence,
+} from "@/modules/routines/rules";
 import { type RoutineDay, listRoutines, listRoutinesForDay } from "@/modules/routines/service";
 import {
   type TrackSummary,
@@ -40,7 +45,13 @@ export type DashboardPdi =
 export type Dashboard = {
   /** Nothing created yet: the page shows a welcome instead of the cards. */
   firstUse: boolean;
-  today: { items: RoutineDay[]; done: number; adherence: Adherence };
+  today: {
+    items: RoutineDay[];
+    done: number;
+    adherence: Adherence;
+    /** The active routines summed week by week (plan 029). */
+    weekly: WeekAdherence[];
+  };
   deadlines: DeadlineGroups;
   pdi: DashboardPdi;
   goals: { items: { goal: Goal; progress: GoalProgress }[]; total: number };
@@ -139,6 +150,10 @@ export async function getDashboard(today: string): Promise<Dashboard> {
       items: todayItems,
       done: todayItems.filter((item) => item.log?.status === "DONE").length,
       adherence: combineAdherence(activeRoutines.map((routine) => routine.adherence)),
+      weekly: combineWeeklyAdherence(
+        activeRoutines.map((routine) => routine.weekly),
+        today,
+      ),
     },
     deadlines: groupDeadlines(deadlines, today),
     pdi,

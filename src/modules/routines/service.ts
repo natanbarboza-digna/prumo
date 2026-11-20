@@ -18,6 +18,7 @@ import {
   HISTORY_DAYS,
   type MonthCalendar,
   type RoutineStreak,
+  type WeekAdherence,
   type WeekProgress,
   computeAdherence,
   isScheduledOn,
@@ -25,6 +26,7 @@ import {
   routineStateOn,
   routineStreak,
   weekProgress,
+  weeklyAdherence,
 } from "@/modules/routines/rules";
 import type { RoutineInput, RoutineLogInput } from "@/modules/routines/schemas";
 
@@ -54,8 +56,12 @@ export type Routine = {
 
 export type RoutineLog = { date: string; status: RoutineLogStatus; note: string | null };
 
-/** With the 30-day adherence and the streak (plan 019). */
-export type RoutineSummary = Routine & { adherence: Adherence; streak: RoutineStreak };
+/** With the 30-day adherence, the streak (plan 019) and the last 12 weeks (plan 029). */
+export type RoutineSummary = Routine & {
+  adherence: Adherence;
+  streak: RoutineStreak;
+  weekly: WeekAdherence[];
+};
 
 /**
  * A day on the "Today" screen, with its log if any. `week`: the progress of a
@@ -173,6 +179,7 @@ export async function listRoutines(filter: {
       ...routine,
       adherence: computeAdherence(routine, logs, period, today),
       streak: routineStreak(routine, logs, today),
+      weekly: weeklyAdherence(routine, logs, today),
     };
   });
 }
@@ -382,6 +389,16 @@ export async function getRoutineStreak(routineId: string, today: string): Promis
   const routine = await getRoutine(routineId);
   const logs = await logsBetween(routineId, routine.startDate, today);
   return routineStreak(routine, logs, today);
+}
+
+/** The last 12 weeks of the routine, for its chart (plan 029). */
+export async function getWeeklyAdherence(
+  routineId: string,
+  today: string,
+): Promise<WeekAdherence[]> {
+  const routine = await getRoutine(routineId);
+  const logs = await logsBetween(routineId, routine.startDate, today);
+  return weeklyAdherence(routine, logs, today);
 }
 
 export async function getAdherence(
