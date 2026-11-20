@@ -1,6 +1,6 @@
 # 028 — Tela de prazos
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-20**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/deadlines-page`
 
 Primeiro plano do grupo Painel e interface (tela de prazos, gráfico de adesão semanal; personalização do painel descartada no alinhamento). Retoma o que ficou fora do plano 006.
@@ -95,6 +95,25 @@ Rodam o `deadlines.spec.ts`, o `home.spec.ts` e o `mobile.spec.ts`.
 - `npm run lint`, `npm run typecheck`, `npm test` e os e2e da área passando.
 - `npm run container:up` e `npm run container:check` passando (plano 025).
 - `CLAUDE.md` e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **`mondayOf` foi para `src/lib/dates.ts`** (era privada em `src/modules/routines/rules.ts`), com teste próprio; as regras de rotina e a tela de prazos usam a mesma função.
+- **`listDeadlines()` não recebe `today`:** as três consultas não dependem da data; quem corta por período é o `groupDeadlinesByWeek`. O `getDashboard` usa o mesmo `toDeadlines`, sem consulta a mais.
+- **O texto de cada prazo é o `dueText` do painel** ("Vence hoje", "Vence em 20/11/2026", "Venceu em 10/11/2026"), não "Atrasado há 3 dias" como o plano descrevia: o plano mandava reaproveitar o `dueText`, e mantive o texto dele.
+- **Página fora do layout de lista:** sem `error.tsx` próprio (o de `src/app/(app)/` cobre) e com um link "← Painel" no topo, já que a tela não está no menu.
+- **Ids dos títulos dos grupos com `useId`**, pelo motivo de sempre (cópias escondidas das páginas visitadas).
+- **E2E:** o localizador dos itens pegava também os links dos filtros (que também são listas); passou a olhar só dentro das seções de prazos.
+- **Verificações:**
+  - `npm run lint`, `npm run typecheck` e `npm test` (522 testes);
+  - e2e: `deadlines.spec.ts` (3 testes), `home.spec.ts` (5) e `mobile.spec.ts` (5);
+  - `npm run container:up` e `npm run container:check` passando.
+
+## Decisões
+
+1. A tela não entra no menu; o acesso é pelo link do bloco Prazos.
+2. Próximos 30 dias por padrão; atrasados aparecem sempre.
+3. Agrupamento por semana, de segunda a domingo.
 
 ## Perguntas (cada uma com uma proposta)
 
