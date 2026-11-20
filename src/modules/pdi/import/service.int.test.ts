@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { ensureDefaultCategories } from "@/modules/categories/defaults";
 import { setCategoryArchived } from "@/modules/categories/service";
-import { importPdi } from "@/modules/pdi/import/service";
+import { importPdi, previewPdiImport } from "@/modules/pdi/import/service";
 import { createCycle, getCycle } from "@/modules/pdi/service";
 import {
   type WorkbookContent,
@@ -73,6 +73,57 @@ async function expectNothingCreated() {
   await expect(db.pdiArea.count()).resolves.toBe(0);
   await expect(db.pdiAction.count()).resolves.toBe(0);
 }
+
+describe("previewPdiImport (plan 022)", () => {
+  it("shows what would be created, in the sheet's order, without writing anything", async () => {
+    await ensureDefaultCategories(db);
+
+    const result = await previewPdiImport(await buildPdiWorkbook(content()));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.preview.cycle).toMatchObject({
+      title: "PDI 2027/1",
+      startDate: "2027-01-01",
+      endDate: "2027-06-30",
+      status: "PLANNED",
+      managerName: "Mariana Souza",
+    });
+    expect(result.preview.areas).toMatchObject([
+      {
+        name: "Comunicação",
+        actions: [
+          {
+            title: "Praticar apresentações",
+            category: { name: "Prática" },
+            dueDate: "2027-03-15",
+            status: "IN_PROGRESS",
+          },
+        ],
+      },
+      {
+        name: "Liderança técnica",
+        // The registered name, not the spelling in the sheet (" liderança TÉCNICA ", "curso").
+        actions: [{ title: "Curso de arquitetura", category: { name: "Curso" } }],
+      },
+    ]);
+    expect(result.preview.checkIns).toMatchObject([
+      { date: "2027-02-15", summary: "Início do ciclo" },
+    ]);
+    await expectNothingCreated();
+  });
+
+  it("reports the same problems as the import", async () => {
+    await ensureDefaultCategories(db);
+    const workbook = content({ areas: [] });
+
+    const preview = await previewPdiImport(await buildPdiWorkbook(workbook));
+    const imported = await run(workbook);
+
+    expect(preview).toEqual(imported);
+    expect(preview.ok).toBe(false);
+  });
+});
 
 describe("importPdi", () => {
   it("creates the cycle with its areas, actions and check-ins", async () => {

@@ -21,6 +21,9 @@ import {
 import { type Cell, cellText, parseDateCell, parseLabel } from "@/modules/pdi/import/values";
 import { actionStatusLabels, cycleStatusLabels } from "@/modules/pdi/labels";
 import {
+  type AreaInput,
+  type CheckInInput,
+  type CycleInput,
   actionInputSchema,
   areaInputSchema,
   checkInInputSchema,
@@ -29,6 +32,19 @@ import {
 import { toCheckInData, toCycleData } from "@/modules/pdi/service";
 
 export type ImportResult = { ok: true; cycleId: string } | { ok: false; issues: ImportIssue[] };
+
+type ActionFields = z.output<typeof actionFieldsSchema>;
+type PreviewCategory = { id: string; name: string };
+
+/** What the import would create (plan 022): validated, with categories resolved. */
+export type ImportPreview = {
+  cycle: CycleInput;
+  areas: (AreaInput & { actions: (ActionFields & { category: PreviewCategory })[] })[];
+  checkIns: CheckInInput[];
+};
+
+export type PreviewResult =
+  { ok: true; preview: ImportPreview } | { ok: false; issues: ImportIssue[] };
 
 /** The action fields that come straight from the sheet (area and category are names, resolved below). */
 const actionFieldsSchema = actionInputSchema.pick({
@@ -44,7 +60,44 @@ const actionFieldsSchema = actionInputSchema.pick({
 /** Names match regardless of case and surrounding spaces, but accents count. */
 const key = (name: string) => name.trim().toLocaleLowerCase("pt-BR");
 
+/** Imports the spreadsheet: the preview below, then one write. */
 export async function importPdi(file: Buffer): Promise<ImportResult> {
+  const result = await previewPdiImport(file);
+  if (!result.ok) return result;
+  const { cycle, areas, checkIns } = result.preview;
+
+  // One nested create: Prisma writes the cycle and everything under it in a
+  // single transaction, so a failure leaves nothing behind.
+  const created = await db.pdiCycle.create({
+    data: {
+      ...toCycleData(cycle),
+      areas: {
+        // Areas and actions keep the order of the rows (plan 021).
+        create: areas.map(({ actions, ...area }, areaIndex) => ({
+          ...area,
+          order: areaIndex + 1,
+          actions: {
+            create: actions.map(({ category, dueDate, ...action }, actionIndex) => ({
+              ...action,
+              order: actionIndex + 1,
+              categoryId: category.id,
+              dueDate: dueDate === null ? null : parseDateOnly(dueDate),
+            })),
+          },
+        })),
+      },
+      checkIns: { create: checkIns.map(toCheckInData) },
+    },
+    select: { id: true },
+  });
+  return { ok: true, cycleId: created.id };
+}
+
+/**
+ * Reads and validates the spreadsheet without writing anything (plan 022):
+ * either the problems, or exactly what importPdi would create.
+ */
+export async function previewPdiImport(file: Buffer): Promise<PreviewResult> {
   let raw: { sheet: string; data: Cell[][] }[];
   try {
     // read-excel-file's cell type declares dates as `typeof Date`; at runtime they are Date objects.
@@ -120,8 +173,7 @@ export async function importPdi(file: Buffer): Promise<ImportResult> {
     .filter((category) => !category.archived)
     .map((category) => category.name)
     .join(", ");
-  const actions: { area: string; categoryId: string; data: z.output<typeof actionFieldsSchema> }[] =
-    [];
+  const actions: { area: string; category: PreviewCategory; data: ActionFields }[] = [];
   for (const row of actionRows) {
     const fields = validate("actions", row, actionFieldsSchema, issues);
     const areaName = cellText(row.cells.area ?? null).trim();
@@ -137,7 +189,7 @@ export async function importPdi(file: Buffer): Promise<ImportResult> {
     }
 
     const category = categories.find((item) => key(item.name) === key(categoryName));
-    let categoryId: string | null = null;
+    let resolved: PreviewCategory | null = null;
     if (categoryName === "") {
       issues.push(rowIssue("actions", row, "Categoria", "Informe a categoria."));
     } else if (!category) {
@@ -159,11 +211,11 @@ export async function importPdi(file: Buffer): Promise<ImportResult> {
         ),
       );
     } else {
-      categoryId = category.id;
+      resolved = { id: category.id, name: category.name };
     }
 
-    if (fields && areaOk && categoryId !== null) {
-      actions.push({ area: areaName, categoryId, data: fields });
+    if (fields && areaOk && resolved !== null) {
+      actions.push({ area: areaName, category: resolved, data: fields });
     }
   }
 
@@ -175,33 +227,20 @@ export async function importPdi(file: Buffer): Promise<ImportResult> {
 
   if (issues.length > 0 || !cycle) return { ok: false, issues };
 
-  // One nested create: Prisma writes the cycle and everything under it in a
-  // single transaction, so a failure leaves nothing behind.
-  const created = await db.pdiCycle.create({
-    data: {
-      ...toCycleData(cycle),
-      areas: {
-        // Areas and actions keep the order of the rows (plan 021).
-        create: areas.map((area, areaIndex) => ({
-          ...area.data,
-          order: areaIndex + 1,
-          actions: {
-            create: actions
-              .filter((action) => key(action.area) === key(area.name))
-              .map((action, actionIndex) => ({
-                ...action.data,
-                order: actionIndex + 1,
-                categoryId: action.categoryId,
-                dueDate: action.data.dueDate === null ? null : parseDateOnly(action.data.dueDate),
-              })),
-          },
-        })),
-      },
-      checkIns: { create: checkIns.map(toCheckInData) },
+  return {
+    ok: true,
+    preview: {
+      cycle,
+      // Areas in the order of their rows, each with its actions in row order.
+      areas: areas.map((area) => ({
+        ...area.data,
+        actions: actions
+          .filter((action) => key(action.area) === key(area.name))
+          .map((action) => ({ ...action.data, category: action.category })),
+      })),
+      checkIns,
     },
-    select: { id: true },
-  });
-  return { ok: true, cycleId: created.id };
+  };
 }
 
 /** True when the row of the Áreas sheet has this name (used when that row itself had errors). */
@@ -263,6 +302,6 @@ function sheetIssue(sheet: SheetKey, message: string): ImportIssue {
   return { sheet: SHEETS[sheet].name, line: null, field: null, message };
 }
 
-function fileIssue(message: string): ImportResult {
+function fileIssue(message: string): { ok: false; issues: ImportIssue[] } {
   return { ok: false, issues: [{ sheet: "Arquivo", line: null, field: null, message }] };
 }
