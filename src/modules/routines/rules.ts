@@ -2,7 +2,7 @@
 // services can import them without importing each other.
 
 import type { RoutineLogStatus, Weekday } from "@/generated/prisma/enums";
-import { addDays, eachDay, weekdayOf } from "@/lib/dates";
+import { addDays, eachDay, mondayOf, weekdayOf } from "@/lib/dates";
 
 export type Schedule = {
   weekdays: Weekday[];
@@ -216,11 +216,6 @@ export function monthCalendar(
 // ---------------------------------------------------------------------------
 // Weekly goal (plan 017)
 // ---------------------------------------------------------------------------
-
-/** The Monday of the week of a date (weeks go from Monday to Sunday). */
-function mondayOf(date: string): string {
-  return addDays(date, -WEEK_ORDER.indexOf(weekdayOf(date)));
-}
 
 /** Days of [from, to] inside the routine's own period. */
 function activeDays(routine: Schedule, from: string, to: string): string[] {

@@ -59,6 +59,12 @@ export function weekdayOf(value: string): Weekday {
   return WEEKDAYS_FROM_SUNDAY[parseDateOnly(value).getUTCDay()]!;
 }
 
+/** The Monday of the week of a date (weeks go from Monday to Sunday). */
+export function mondayOf(value: string): string {
+  // getUTCDay: Sunday is 0, so Monday-based it is (day + 6) % 7.
+  return addDays(value, -((parseDateOnly(value).getUTCDay() + 6) % 7));
+}
+
 /** "2026-12-31" + 1 → "2027-01-01". Negative values go back in time. */
 export function addDays(value: string, days: number): string {
   return formatDateOnly(new Date(parseDateOnly(value).getTime() + days * DAY_IN_MS));

@@ -5,9 +5,10 @@ import {
   daysBetween,
   eachDay,
   formatDateForDisplay,
-  formatLongDate,
   formatDateOnly,
+  formatLongDate,
   isValidDateOnly,
+  mondayOf,
   parseDateOnly,
   todayInAppTimeZone,
   weekdayOf,
@@ -115,5 +116,14 @@ describe("daysBetween", () => {
 
   it("is negative when the second date comes first", () => {
     expect(daysBetween("2026-11-16", "2026-11-02")).toBe(-14);
+  });
+});
+
+describe("mondayOf", () => {
+  it("gives the Monday of the week, weeks going from Monday to Sunday", () => {
+    expect(mondayOf("2026-11-19")).toBe("2026-11-16"); // Thursday
+    expect(mondayOf("2026-11-16")).toBe("2026-11-16"); // Monday
+    expect(mondayOf("2026-11-22")).toBe("2026-11-16"); // Sunday
+    expect(mondayOf("2027-01-01")).toBe("2026-12-28"); // across the year
   });
 });
