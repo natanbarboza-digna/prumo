@@ -1,0 +1,24 @@
+#!/bin/sh
+# Runs before every `git push` (plan 030): what pre-commit leaves out because it
+# is slow or needs the database. The e2e tests stay with CI, and the container
+# build is part of each feature's "done" (plan 025).
+
+run() {
+  label="$1"
+  shift
+  echo "pre-push: $label"
+  if ! "$@"; then
+    echo ""
+    echo "pre-push: \"$label\" falhou. Corrija antes de enviar."
+    exit 1
+  fi
+}
+
+# The integration tests need the test database: say so plainly when it is down.
+if ! docker compose exec -T db pg_isready -q >/dev/null 2>&1; then
+  echo "pre-push: o banco não está respondendo. Suba o banco: docker compose up -d"
+  exit 1
+fi
+
+run "testes de unidade e integração (Vitest)" npm test --silent
+run "dependências (npm audit)" npm audit --audit-level=moderate

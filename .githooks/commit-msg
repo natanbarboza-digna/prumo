@@ -1,0 +1,4 @@
+#!/bin/sh
+# Checks the commit message (plan 030): Conventional Commits, as in CLAUDE.md.
+# Git passes the path of the file with the message as $1.
+exec npx --no-install tsx scripts/check-commit-message.ts "$1"
