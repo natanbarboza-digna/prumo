@@ -1,6 +1,6 @@
 # 029 — Gráfico de adesão semanal
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-20**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/weekly-adherence-chart`
 
 Último plano do grupo Painel e interface (tela de prazos, gráfico de adesão semanal; personalização descartada). Retoma os "gráficos" que ficaram fora do plano 006.
@@ -86,6 +86,27 @@ Rodam o `routines.spec.ts`, o `home.spec.ts` e o `mobile.spec.ts` (o gráfico pr
 - `npm run lint`, `npm run typecheck`, `npm test` e os e2e da área passando.
 - `npm run container:up` e `npm run container:check` passando (plano 025).
 - `CLAUDE.md` e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Meta semanal na semana incompleta:** o plano falava em meta "proporcional", mas a regra do plano 017 (já no código) é a meta limitada aos dias disponíveis (`min(meta, dias)`). O gráfico usa o `computeAdherence` de sempre, então segue essa regra; um teste meu partia da regra errada e foi corrigido.
+- **Três estados por semana:** `null` (nenhum dia previsto na semana inteira: "sem dias previstos", sem barra), adesão com 0 dias contados (a semana atual antes do primeiro registro: "nada para contar ainda", sem barra) e adesão normal.
+- **`RoutineSummary` ganhou `weekly`:** a lista de rotinas já carrega todos os registros (plano 019), então o painel soma as semanas sem consulta nova.
+- **No painel**, o gráfico aparece quando alguma semana tem dados (não só quando há rotina hoje).
+- **Celular:** a captura em 320 px mostrou barras desalinhadas e datas sobrepostas. As datas escondidas passaram de `hidden` para `invisible` (mantêm a altura das colunas) e aparecem uma a cada três semanas, a partir da mais antiga, para a da última coluna não passar da borda.
+- **`sr-only` numa tabela não funciona:** a `<table>` ignora a largura e o `overflow` da classe e alargava a página em 320 px (358 px). A classe foi para uma `div` em volta. Registrado no `CLAUDE.md`.
+- **Teste novo no `mobile.spec.ts`:** a página de uma rotina com o gráfico em 320 px sem rolagem lateral (foi ele que achou o problema da tabela).
+- **Verificação visual:** capturas do gráfico em 800 px (claro e escuro) e em 320 px, por um teste temporário que foi apagado.
+- **Verificações:**
+  - `npm run lint`, `npm run typecheck` e `npm test` (533 testes);
+  - e2e: `routines.spec.ts` (17), `home.spec.ts` (6) e `mobile.spec.ts` (6);
+  - `npm run container:up` e `npm run container:check` passando.
+
+## Decisões
+
+1. Gráfico completo na página da rotina e compacto no bloco Hoje do painel, somando as rotinas ativas.
+2. Semana sem dia previsto fica sem barra, com "sem dias previstos".
+3. Doze semanas.
 
 ## Perguntas (cada uma com uma proposta)
 
