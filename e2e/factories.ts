@@ -84,12 +84,17 @@ export function insertTrack(track: {
   title: string;
   goalId?: string | null;
   steps?: StepData[];
+  /** When it was archived (plan 024); omitted, the track is active. */
+  archivedAt?: Date | null;
 }): Promise<{ id: string; stepIds: string[] }> {
   return run(async (client) => {
     const id = await insert(client, "tracks", {
       title: track.title,
       description: null,
       goal_id: track.goalId ?? null,
+      // The column has no time zone and Prisma keeps it in UTC: send the UTC
+      // ISO string, whose "Z" Postgres ignores for such columns.
+      archived_at: track.archivedAt ? track.archivedAt.toISOString() : null,
     });
     const stepIds: string[] = [];
     for (const [index, step] of (track.steps ?? []).entries()) {

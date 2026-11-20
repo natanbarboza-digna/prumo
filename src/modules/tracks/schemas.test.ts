@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { trackInputSchema, trackStepInputSchema } from "@/modules/tracks/schemas";
+import {
+  trackFilterSchema,
+  trackInputSchema,
+  trackStepInputSchema,
+} from "@/modules/tracks/schemas";
 
 function errorsOf(schema: z.ZodType, input: unknown) {
   const result = schema.safeParse(input);
@@ -115,5 +119,15 @@ describe("trackStepInputSchema", () => {
     expect(errors.dueDate).toEqual(["Informe uma data válida."]);
     expect(errors.status).toEqual(["Escolha um status válido."]);
     expect(errors.notes).toEqual(["Use no máximo 5000 caracteres."]);
+  });
+});
+
+describe("trackFilterSchema (plan 024)", () => {
+  it("reads the filter from the URL, falling back to the active tracks", () => {
+    expect(trackFilterSchema.parse("ARCHIVED")).toBe("ARCHIVED");
+    expect(trackFilterSchema.parse("IN_PROGRESS")).toBe("IN_PROGRESS");
+    expect(trackFilterSchema.parse(undefined)).toBe("ACTIVE");
+    expect(trackFilterSchema.parse("qualquer")).toBe("ACTIVE");
+    expect(trackFilterSchema.parse(["DONE", "ALL"])).toBe("ACTIVE");
   });
 });

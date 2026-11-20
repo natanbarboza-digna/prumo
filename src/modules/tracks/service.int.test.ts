@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import { db } from "@/lib/db";
-import { GoalNotFoundError, createGoal, deleteGoal } from "@/modules/goals/service";
-import type { TrackInput, TrackStepInput } from "@/modules/tracks/schemas";
+import { todayInAppTimeZone } from "@/lib/dates";
 import {
+  GoalNotFoundError,
+  createGoal,
+  deleteGoal,
+  getGoalProgress,
+} from "@/modules/goals/service";
+import type { TrackFilter, TrackInput, TrackStepInput } from "@/modules/tracks/schemas";
+import {
+  TrackArchivedError,
   TrackNotFoundError,
   TrackStepNotFoundError,
+  archiveTrack,
   createStep,
   createTrack,
   deleteStep,
@@ -15,6 +23,7 @@ import {
   listTracks,
   moveStep,
   setStepStatus,
+  unarchiveTrack,
   updateStep,
   updateTrack,
 } from "@/modules/tracks/service";
@@ -250,5 +259,92 @@ describe("listOpenStepsWithDueDate", () => {
         },
       ]),
     );
+  });
+});
+
+describe("archived tracks (plan 024)", () => {
+  async function setStatuses(...statuses: ("NOT_STARTED" | "IN_PROGRESS" | "DONE")[]) {
+    const { track, steps } = await trackWithSteps(...statuses.map((_, i) => `Etapa ${i + 1}`));
+    for (const [index, status] of statuses.entries()) {
+      await setStepStatus(steps[index]!.id, status);
+    }
+    return track;
+  }
+
+  it("archives with today's date and unarchives; repeating changes nothing", async () => {
+    const { track } = await trackWithSteps("Etapa");
+
+    const archived = await archiveTrack(track.id);
+    expect(archived.archivedAt).toBe(todayInAppTimeZone());
+    expect((await archiveTrack(track.id)).archivedAt).toBe(archived.archivedAt);
+
+    expect((await unarchiveTrack(track.id)).archivedAt).toBeNull();
+    expect((await unarchiveTrack(track.id)).archivedAt).toBeNull();
+  });
+
+  it("makes the track and its steps read-only, but lets it be deleted", async () => {
+    const { track, steps } = await trackWithSteps("Primeira", "Segunda");
+    const step = steps[0]!;
+    await archiveTrack(track.id);
+
+    for (const change of [
+      () => updateTrack(track.id, trackInput({ title: "Outro" })),
+      () => createStep(track.id, stepInput()),
+      () => updateStep(step.id, stepInput({ title: "Outra" })),
+      () => setStepStatus(step.id, "DONE"),
+      () => moveStep(step.id, "down"),
+      () => deleteStep(step.id),
+    ]) {
+      await expect(change()).rejects.toBeInstanceOf(TrackArchivedError);
+    }
+    expect(await stepTitlesInOrder(track.id)).toEqual(["1:Primeira", "2:Segunda"]);
+
+    await deleteTrack(track.id);
+    await expect(getTrack(track.id)).rejects.toBeInstanceOf(TrackNotFoundError);
+  });
+
+  it("filters the list by situation, leaving archived tracks out unless asked", async () => {
+    const notStarted = await setStatuses("NOT_STARTED");
+    const inProgress = await setStatuses("DONE", "NOT_STARTED");
+    const done = await setStatuses("DONE");
+    const archived = await setStatuses("IN_PROGRESS");
+    await archiveTrack(archived.id);
+    const ids = async (filter: TrackFilter) =>
+      (await listTracks({ filter })).map((track) => track.id).sort();
+    const sorted = (...tracks: { id: string }[]) => tracks.map((track) => track.id).sort();
+
+    expect(await ids("ACTIVE")).toEqual(sorted(notStarted, inProgress, done));
+    expect(await ids("NOT_STARTED")).toEqual(sorted(notStarted));
+    expect(await ids("IN_PROGRESS")).toEqual(sorted(inProgress));
+    expect(await ids("DONE")).toEqual(sorted(done));
+    expect(await ids("ARCHIVED")).toEqual(sorted(archived));
+    expect(await ids("ALL")).toEqual(sorted(notStarted, inProgress, done, archived));
+    // Without a filter: the default list.
+    expect((await listTracks()).map((track) => track.id).sort()).toEqual(await ids("ACTIVE"));
+  });
+
+  it("keeps archived tracks on their goal, still counting toward its progress", async () => {
+    const owner = await goal();
+    const track = await createTrack(trackInput({ goalId: owner.id }));
+    await createStep(track.id, stepInput({ status: "DONE" }));
+    await archiveTrack(track.id);
+
+    expect((await listTracks({ goalId: owner.id })).map((item) => item.id)).toEqual([track.id]);
+    expect(await getGoalProgress(owner.id)).toMatchObject({ steps: { done: 1, total: 1 } });
+  });
+
+  it("leaves the steps of archived tracks out of the upcoming deadlines", async () => {
+    const { track } = await trackWithSteps();
+    await createStep(track.id, stepInput({ title: "Com prazo", dueDate: "2026-12-01" }));
+    expect(await listOpenStepsWithDueDate()).toHaveLength(1);
+
+    await archiveTrack(track.id);
+
+    expect(await listOpenStepsWithDueDate()).toEqual([]);
+  });
+
+  it("rejects a track that does not exist", async () => {
+    await expect(archiveTrack(MISSING_ID)).rejects.toBeInstanceOf(TrackNotFoundError);
+    await expect(unarchiveTrack(MISSING_ID)).rejects.toBeInstanceOf(TrackNotFoundError);
   });
 });

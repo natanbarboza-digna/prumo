@@ -32,3 +32,18 @@ export type TrackFieldErrors = Partial<Record<keyof TrackFormValues, string[]>>;
 export type TrackStepFormValues = z.input<typeof trackStepInputSchema>;
 export type TrackStepInput = z.output<typeof trackStepInputSchema>;
 export type TrackStepFieldErrors = Partial<Record<keyof TrackStepFormValues, string[]>>;
+
+/** The track list's filter (plan 024): situation of the active tracks, archived, or all. */
+export const TRACK_FILTERS = [
+  "ACTIVE",
+  "NOT_STARTED",
+  "IN_PROGRESS",
+  "DONE",
+  "ARCHIVED",
+  "ALL",
+] as const;
+
+export type TrackFilter = (typeof TRACK_FILTERS)[number];
+
+/** `?situacao=` from the URL; anything missing or unknown is the default list. */
+export const trackFilterSchema = z.enum(TRACK_FILTERS).catch("ACTIVE");

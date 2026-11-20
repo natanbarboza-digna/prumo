@@ -15,7 +15,7 @@ import {
 } from "@/modules/pdi/service";
 import type { RoutineInput } from "@/modules/routines/schemas";
 import { createRoutine, logRoutine } from "@/modules/routines/service";
-import { createStep, createTrack, setStepStatus } from "@/modules/tracks/service";
+import { archiveTrack, createStep, createTrack, setStepStatus } from "@/modules/tracks/service";
 
 // 2026-11-16 is a Monday.
 const today = "2026-11-16";
@@ -230,6 +230,21 @@ describe("getDashboard", () => {
 
     expect(tracks.total).toBe(1);
     expect(tracks.items.map((item) => item.title)).toEqual(["Começada"]);
+  });
+
+  it("leaves archived tracks out, without counting them as a first use (plan 024)", async () => {
+    const archived = await track("Arquivada", [
+      { title: "Feita", done: true },
+      { title: "Com prazo", dueDate: addDays(today, 3) },
+    ]);
+    await archiveTrack(archived.id);
+
+    const dashboard = await getDashboard(today);
+
+    expect(dashboard.tracks.total).toBe(0);
+    expect(dashboard.deadlines.overdue.items).toEqual([]);
+    expect(dashboard.deadlines.upcoming.items).toEqual([]);
+    expect(dashboard.firstUse).toBe(false);
   });
 
   it("summarizes the active cycle", async () => {

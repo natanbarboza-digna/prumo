@@ -1,12 +1,12 @@
 import type { Prisma, TrackStep as TrackStepRow } from "@/generated/prisma/client";
 import type { TrackStepStatus } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
-import { formatDateOnly, parseDateOnly } from "@/lib/dates";
+import { formatDateOnly, parseDateOnly, todayInAppTimeZone } from "@/lib/dates";
 import { isUuid } from "@/lib/form-fields";
 import { closeGap } from "@/lib/positions";
 import { isRecordNotFound } from "@/lib/prisma-errors";
 import { GoalNotFoundError } from "@/modules/goals/service";
-import type { TrackInput, TrackStepInput } from "@/modules/tracks/schemas";
+import type { TrackFilter, TrackInput, TrackStepInput } from "@/modules/tracks/schemas";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,6 +36,8 @@ export type TrackSummary = {
   description: string | null;
   goal: { id: string; title: string } | null;
   counts: StepCounts;
+  /** The day it was archived (plan 024), in the app's time zone; null while active. */
+  archivedAt: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -54,6 +56,14 @@ export class TrackNotFoundError extends Error {
   constructor(id: string) {
     super(`Track not found: ${id}`);
     this.name = "TrackNotFoundError";
+  }
+}
+
+/** An archived track is read-only until it is unarchived (plan 024). */
+export class TrackArchivedError extends Error {
+  constructor(id: string) {
+    super(`Track is archived: ${id}`);
+    this.name = "TrackArchivedError";
   }
 }
 
@@ -96,13 +106,26 @@ const summaryInclude = {
 
 type TrackSummaryRow = Prisma.TrackGetPayload<{ include: typeof summaryInclude }>;
 
-export async function listTracks(filter: { goalId?: string } = {}): Promise<TrackSummary[]> {
+/**
+ * Tracks, newest first. `filter` (plan 024) defaults to the active ones; a
+ * goal's tracks default to all of them, archived included.
+ */
+export async function listTracks(
+  options: { goalId?: string; filter?: TrackFilter } = {},
+): Promise<TrackSummary[]> {
+  const filter = options.filter ?? (options.goalId ? "ALL" : "ACTIVE");
+  const archived =
+    filter === "ALL" ? {} : { archivedAt: filter === "ARCHIVED" ? { not: null } : null };
   const rows = await db.track.findMany({
-    where: filter.goalId ? { goalId: filter.goalId } : {},
+    where: { ...(options.goalId && { goalId: options.goalId }), ...archived },
     include: summaryInclude,
     orderBy: { createdAt: "desc" },
   });
-  return rows.map(toSummary);
+  const tracks = rows.map(toSummary);
+  // The situation is derived from the steps, so it is filtered here, not in SQL.
+  return filter === "NOT_STARTED" || filter === "IN_PROGRESS" || filter === "DONE"
+    ? tracks.filter((track) => deriveTrackStatus(track.counts) === filter)
+    : tracks;
 }
 
 export async function getTrack(id: string): Promise<TrackDetail> {
@@ -122,7 +145,7 @@ export async function createTrack(input: TrackInput): Promise<TrackSummary> {
 }
 
 export async function updateTrack(id: string, input: TrackInput): Promise<TrackSummary> {
-  if (!isUuid(id)) throw new TrackNotFoundError(id);
+  await assertTrackOpen(id);
   await assertGoalExists(input.goalId);
   try {
     const row = await db.track.update({ where: { id }, data: input, include: summaryInclude });
@@ -144,6 +167,54 @@ export async function deleteTrack(id: string): Promise<void> {
   }
 }
 
+/** Archives the track today; an archived track keeps its original date. */
+export async function archiveTrack(id: string): Promise<TrackSummary> {
+  const track = await findTrack(id);
+  if (track.archivedAt !== null) return getSummary(id);
+  return toSummary(
+    await db.track.update({
+      where: { id },
+      data: { archivedAt: new Date() },
+      include: summaryInclude,
+    }),
+  );
+}
+
+export async function unarchiveTrack(id: string): Promise<TrackSummary> {
+  await findTrack(id);
+  return toSummary(
+    await db.track.update({ where: { id }, data: { archivedAt: null }, include: summaryInclude }),
+  );
+}
+
+async function getSummary(id: string): Promise<TrackSummary> {
+  return toSummary(await db.track.findUniqueOrThrow({ where: { id }, include: summaryInclude }));
+}
+
+async function findTrack(id: string) {
+  if (!isUuid(id)) throw new TrackNotFoundError(id);
+  const row = await db.track.findUnique({ where: { id }, select: { id: true, archivedAt: true } });
+  if (!row) throw new TrackNotFoundError(id);
+  return row;
+}
+
+/** Refuses changes to an archived track or to its steps (plan 024). */
+async function assertTrackOpen(id: string): Promise<void> {
+  const track = await findTrack(id);
+  if (track.archivedAt !== null) throw new TrackArchivedError(id);
+}
+
+/** The step's track must not be archived. Throws TrackStepNotFoundError for a missing step. */
+async function assertStepOpen(stepId: string): Promise<void> {
+  if (!isUuid(stepId)) throw new TrackStepNotFoundError(stepId);
+  const step = await db.trackStep.findUnique({
+    where: { id: stepId },
+    select: { track: { select: { id: true, archivedAt: true } } },
+  });
+  if (!step) throw new TrackStepNotFoundError(stepId);
+  if (step.track.archivedAt !== null) throw new TrackArchivedError(step.track.id);
+}
+
 async function assertGoalExists(goalId: string | null): Promise<void> {
   if (goalId === null) return;
   const count = await db.goal.count({ where: { id: goalId } });
@@ -163,7 +234,7 @@ export async function getStep(id: string): Promise<TrackStep> {
 
 /** Adds the step after the last one of the track. */
 export async function createStep(trackId: string, input: TrackStepInput): Promise<TrackStep> {
-  if (!isUuid(trackId)) throw new TrackNotFoundError(trackId);
+  await assertTrackOpen(trackId);
   // A transaction runs these queries as one unit: either all apply or none do.
   return db.$transaction(async (tx) => {
     const track = await tx.track.findUnique({ where: { id: trackId }, select: { id: true } });
@@ -177,12 +248,14 @@ export async function createStep(trackId: string, input: TrackStepInput): Promis
 }
 
 export async function updateStep(id: string, input: TrackStepInput): Promise<TrackStep> {
+  await assertStepOpen(id);
   return withStepNotFound(id, async () =>
     toStep(await db.trackStep.update({ where: { id }, data: toStepData(input) })),
   );
 }
 
 export async function setStepStatus(id: string, status: TrackStepStatus): Promise<TrackStep> {
+  await assertStepOpen(id);
   return withStepNotFound(id, async () =>
     toStep(await db.trackStep.update({ where: { id }, data: { status } })),
   );
@@ -190,7 +263,7 @@ export async function setStepStatus(id: string, status: TrackStepStatus): Promis
 
 /** Swaps the step with its neighbour. At either end of the track it does nothing. */
 export async function moveStep(id: string, direction: "up" | "down"): Promise<void> {
-  if (!isUuid(id)) throw new TrackStepNotFoundError(id);
+  await assertStepOpen(id);
   await db.$transaction(async (tx) => {
     const step = await tx.trackStep.findUnique({ where: { id } });
     if (!step) throw new TrackStepNotFoundError(id);
@@ -213,7 +286,7 @@ export async function moveStep(id: string, direction: "up" | "down"): Promise<vo
 
 /** Deletes the step and shifts the following ones back, so positions stay 1, 2, 3… */
 export async function deleteStep(id: string): Promise<void> {
-  if (!isUuid(id)) throw new TrackStepNotFoundError(id);
+  await assertStepOpen(id);
   await db.$transaction(async (tx) => {
     const step = await tx.trackStep.findUnique({ where: { id } });
     if (!step) throw new TrackStepNotFoundError(id);
@@ -224,7 +297,8 @@ export async function deleteStep(id: string): Promise<void> {
 
 export async function listOpenStepsWithDueDate(): Promise<OpenStep[]> {
   const rows = await db.trackStep.findMany({
-    where: { status: { not: "DONE" }, dueDate: { not: null } },
+    // Steps of archived tracks are out of the way (plan 024).
+    where: { status: { not: "DONE" }, dueDate: { not: null }, track: { archivedAt: null } },
     select: { id: true, title: true, dueDate: true, track: { select: { id: true, title: true } } },
   });
   return rows.flatMap((row) =>
@@ -255,6 +329,7 @@ function toSummary(row: TrackSummaryRow): TrackSummary {
     description: row.description,
     goal: row.goal,
     counts: countSteps(row.steps),
+    archivedAt: row.archivedAt === null ? null : todayInAppTimeZone(row.archivedAt),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

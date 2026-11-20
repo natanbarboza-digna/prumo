@@ -46,7 +46,7 @@ describe("e2e factories", () => {
     });
 
     const track = await getTrack(id);
-    expect(track).toMatchObject({ title: "Inglês", goal: { id: goal } });
+    expect(track).toMatchObject({ title: "Inglês", goal: { id: goal }, archivedAt: null });
     expect(track.steps).toMatchObject([
       { id: stepIds[0], title: "Gramática", status: "DONE", order: 1 },
       {
@@ -58,6 +58,16 @@ describe("e2e factories", () => {
         order: 2,
       },
     ]);
+  });
+
+  it("write an archived track, dated in the app's time zone (plan 024)", async () => {
+    // 01:30 UTC on the 21st is still the 20th in Fortaleza (UTC−3).
+    const { id } = await insertTrack({
+      title: "Antiga",
+      archivedAt: new Date("2026-11-21T01:30:00Z"),
+    });
+
+    await expect(getTrack(id)).resolves.toMatchObject({ archivedAt: "2026-11-20" });
   });
 
   it("write fixed-days and weekly-goal routines with their logs", async () => {

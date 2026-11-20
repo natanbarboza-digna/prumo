@@ -54,6 +54,8 @@ model Track {
   // Deleting a goal keeps its tracks and only clears the link.
   goal        Goal?       @relation(fields: [goalId], references: [id], onDelete: SetNull)
   steps       TrackStep[]
+  /// When the track was archived (plan 024); null while it is active.
+  archivedAt  DateTime?   @map("archived_at")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 

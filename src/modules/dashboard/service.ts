@@ -54,7 +54,8 @@ export async function getDashboard(today: string): Promise<Dashboard> {
       listRoutines({ today, state: "active" }),
       db.routine.count(),
       listGoals(),
-      listTracks(),
+      // All of them: archived tracks still mean this is not the first use (plan 024).
+      listTracks({ filter: "ALL" }),
       listCycles(),
       listOpenStepsWithDueDate(),
       listOpenActionsWithDueDate(),
@@ -65,7 +66,7 @@ export async function getDashboard(today: string): Promise<Dashboard> {
     .sort(byTargetDate)
     .slice(0, DASHBOARD_LIST_LIMIT);
   const tracksInProgress = tracks.filter(
-    (track) => deriveTrackStatus(track.counts) === "IN_PROGRESS",
+    (track) => track.archivedAt === null && deriveTrackStatus(track.counts) === "IN_PROGRESS",
   );
 
   const [progress, pdi] = await Promise.all([
