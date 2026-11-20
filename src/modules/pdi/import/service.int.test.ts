@@ -5,7 +5,11 @@ import { ensureDefaultCategories } from "@/modules/categories/defaults";
 import { setCategoryArchived } from "@/modules/categories/service";
 import { importPdi } from "@/modules/pdi/import/service";
 import { createCycle, getCycle } from "@/modules/pdi/service";
-import { type WorkbookContent, type WorkbookRow, buildPdiWorkbook } from "@/test/pdi-workbook";
+import {
+  type WorkbookContent,
+  type WorkbookRow,
+  buildPdiWorkbook,
+} from "@/modules/pdi/export/workbook";
 
 const utc = (year: number, month: number, day: number) => new Date(Date.UTC(year, month - 1, day));
 

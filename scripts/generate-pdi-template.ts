@@ -4,7 +4,7 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 
-import { buildPdiWorkbook } from "../src/test/pdi-workbook";
+import { buildPdiWorkbook } from "../src/modules/pdi/export/workbook";
 
 const date = (year: number, month: number, day: number) => new Date(Date.UTC(year, month - 1, day));
 

@@ -1,6 +1,6 @@
-// Builds PDI spreadsheets in the model's format (plan 013). Development only:
-// write-excel-file is a devDependency, so app code never imports this file.
-// Used by the import tests and by scripts/generate-pdi-template.ts.
+// Builds PDI spreadsheets in the model's format (plan 013): the cycle export
+// (plan 022), scripts/generate-pdi-template.ts and the import tests. Server
+// only: write-excel-file writes the file with Node's APIs.
 
 import writeExcelFile, { type Sheet } from "write-excel-file/node";
 
