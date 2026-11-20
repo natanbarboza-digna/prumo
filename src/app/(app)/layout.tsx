@@ -1,4 +1,4 @@
-import { UserRound } from "lucide-react";
+import { Search, UserRound } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, Suspense } from "react";
 
@@ -38,6 +38,11 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
           </Link>
           <MainNav />
           <div className="ml-auto flex items-center gap-1">
+            <Button asChild variant="ghost" size="icon">
+              <Link href="/search" aria-label="Buscar">
+                <Search aria-hidden="true" />
+              </Link>
+            </Button>
             <ThemeToggle />
             <Button asChild variant="ghost" size="icon">
               <Link href="/settings/account" aria-label="Minha conta">
