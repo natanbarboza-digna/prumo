@@ -1,5 +1,6 @@
 import { type Page, expect, test } from "@playwright/test";
 
+import { insertCycle } from "./factories";
 import { expectNoAxeViolations, resetDatabase } from "./helpers";
 
 test.beforeEach(resetDatabase);
@@ -14,11 +15,16 @@ async function openImport(page: Page) {
   await expect(page.getByRole("heading", { level: 1, name: "Importar PDI" })).toBeVisible();
 }
 
+/** Chooses the file and asks for the preview ("Conferir planilha", plan 022). */
 async function upload(page: Page, path: string) {
   // The file input has a label, but getByLabel is avoided in this project (it
   // also finds the hidden copies Next keeps of visited pages).
   await page.locator('input[type="file"][name="file"]:visible').setInputFiles(path);
-  await page.getByRole("button", { name: "Importar" }).click();
+  await page.getByRole("button", { name: "Conferir planilha" }).click();
+}
+
+function previewHeading(page: Page) {
+  return page.getByRole("heading", { level: 2, name: "Confira antes de importar" });
 }
 
 test("a tela de importação oferece a planilha modelo e passa no axe", async ({ page }) => {
@@ -30,10 +36,25 @@ test("a tela de importação oferece a planilha modelo e passa no axe", async ({
   await expectNoAxeViolations(page);
 });
 
-test("importar a planilha válida cria o ciclo com áreas, ações e check-ins", async ({ page }) => {
+test("a prévia mostra o que será criado, e confirmar cria o ciclo", async ({ page }) => {
   await openImport(page);
 
   await upload(page, VALID);
+
+  await expect(previewHeading(page)).toBeFocused();
+  await expect(
+    page.getByText("Serão criados 1 ciclo, 2 áreas, 2 ações e 1 check-in."),
+  ).toBeVisible();
+  const areas = page.getByRole("list", { name: "Áreas da planilha" });
+  await expect(areas.getByRole("heading", { level: 3 })).toHaveText([
+    "Comunicação",
+    "Liderança técnica",
+  ]);
+  await expect(areas).toContainText("Apresentar na reunião semanal");
+  await expect(areas).toContainText("Prática · Em andamento · Prazo: 31/03/2030");
+  await expectNoAxeViolations(page);
+
+  await page.getByRole("button", { name: "Confirmar importação" }).click();
 
   await expect(page.getByRole("heading", { level: 1, name: "PDI importado" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Comunicação" })).toBeVisible();
@@ -45,6 +66,21 @@ test("importar a planilha válida cria o ciclo com áreas, ações e check-ins",
     page.getByRole("link", { name: "Mentoria com o tech lead", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Alinhamento inicial.")).toBeVisible();
+});
+
+test("escolher outro arquivo volta ao formulário sem criar nada", async ({ page }) => {
+  await openImport(page);
+  await upload(page, VALID);
+  await expect(previewHeading(page)).toBeVisible();
+
+  await page.getByRole("button", { name: "Escolher outro arquivo" }).click();
+
+  await expect(previewHeading(page)).toHaveCount(0);
+  await expect(page.locator('input[type="file"][name="file"]:visible')).toBeFocused();
+  await expect(page.getByRole("button", { name: "Conferir planilha" })).toBeVisible();
+
+  await page.goto("/pdi");
+  await expect(page.getByText("Nenhum ciclo de PDI cadastrado.")).toBeVisible();
 });
 
 test("uma planilha com erro mostra aba, linha e campo e não cria nada", async ({ page }) => {
@@ -59,4 +95,46 @@ test("uma planilha com erro mostra aba, linha e campo e não cria nada", async (
 
   await page.goto("/pdi");
   await expect(page.getByText("Nenhum ciclo de PDI cadastrado.")).toBeVisible();
+});
+
+test("baixar a planilha do ciclo e enviá-la de volta mostra o mesmo ciclo", async ({
+  page,
+}, testInfo) => {
+  const cycle = await insertCycle({
+    title: "PDI 2026/2",
+    startDate: "2026-07-01",
+    endDate: "2026-12-31",
+    areas: [
+      { name: "Liderança", actions: [{ title: "Mentoria semanal", category: "Mentoria" }] },
+      {
+        name: "Comunicação",
+        actions: [
+          { title: "Apresentar", category: "Prática", dueDate: "2026-09-15" },
+          { title: "Curso de oratória", category: "Curso" },
+        ],
+      },
+    ],
+  });
+  await page.goto(`/pdi/${cycle.id}`);
+  await expect(page.getByRole("heading", { level: 1, name: "PDI 2026/2" })).toBeVisible();
+
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Baixar planilha" }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toBe("pdi-pdi-2026-2.xlsx");
+  const saved = testInfo.outputPath(download.suggestedFilename());
+  await download.saveAs(saved);
+
+  await openImport(page);
+  await upload(page, saved);
+
+  await expect(previewHeading(page)).toBeVisible();
+  await expect(
+    page.getByText("Serão criados 1 ciclo, 2 áreas, 3 ações e nenhum check-in."),
+  ).toBeVisible();
+  const areas = page.getByRole("list", { name: "Áreas da planilha" });
+  await expect(areas.getByRole("heading", { level: 3 })).toHaveText(["Liderança", "Comunicação"]);
+  await expect(areas.getByRole("list", { name: "Ações de Comunicação" })).toContainText(
+    "Prática · Não iniciada · Prazo: 15/09/2026",
+  );
 });
