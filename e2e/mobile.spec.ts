@@ -17,6 +17,7 @@ const PAGES = [
   "/pdi/import",
   "/settings/categories",
   "/search?q=prumo",
+  "/deadlines",
 ];
 
 function nav(page: Page) {
