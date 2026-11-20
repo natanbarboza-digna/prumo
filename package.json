@@ -33,7 +33,8 @@
     "auth:create-user": "tsx scripts/create-user.ts",
     "container:up": "docker compose --profile app up -d --build",
     "container:check": "tsx scripts/check-container.ts",
-    "container:down": "docker compose --profile app rm --stop --force migrate app"
+    "container:down": "docker compose --profile app rm --stop --force migrate app",
+    "check:commits": "tsx scripts/check-commit-message.ts --range"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
