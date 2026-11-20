@@ -1,6 +1,6 @@
 # 023 — Aviso do `npm audit` no `effect` (Prisma)
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-20**, aprovado sem e2e (ver "Decisão")
 Branch: `chore/effect-audit`
 
 Pendência registrada no `CLAUDE.md` durante o plano 022.
@@ -59,6 +59,17 @@ CLAUDE.md (seção de overrides; sai a pendência)
 
 - `npm audit` em 0, os comandos da CLI acima funcionando e lint, typecheck e `npm test` passando.
 - `CLAUDE.md` atualizado, sem a pendência.
+
+## Resultado
+
+- `npm ls effect`: `effect@3.22.5 overridden` sob o `@prisma/config`; `npm audit`: 0 avisos.
+- `prisma validate`, `generate`, `migrate status` (banco de desenvolvimento) e `db seed` sem erro; `migrate deploy` no banco de teste, pelo `global-setup` do `npm test`.
+- `npm run lint`, `npm run typecheck` e `npm test` (484 testes) passando.
+- Sem mudanças em relação ao plano.
+
+## Decisão
+
+1. Sem e2e: a mudança não chega à aplicação.
 
 ## Pergunta (com proposta)
 
