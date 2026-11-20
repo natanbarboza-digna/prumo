@@ -1,6 +1,6 @@
 # 021 — Reordenar áreas e ações do PDI
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-20**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/pdi-reorder`
 
 Segundo plano do grupo PDI (vincular rotina existente, reordenar áreas e ações, prévia e exportação da planilha). Retoma o que ficou fora do plano 004.
@@ -78,7 +78,7 @@ CLAUDE.md (regra da ordem)
 - Ciclo encerrado: `moveArea` e `moveAction` lançam `CycleClosedError`.
 - `getCycle` devolve áreas e ações na ordem manual, mesmo com prazos fora de ordem; `listActionsForGoal` e as ações com prazo continuam por prazo.
 - Importação: áreas e ações ficam na ordem das linhas da planilha.
-- Migration: um teste que confira o preenchimento não vale o custo (roda uma vez); confiro à mão no banco de desenvolvimento e registro no plano.
+- Migration: um teste que confira o preenchimento não vale o custo (roda uma vez); confiro à mão no banco de desenvolvimento e registro no plano (ver "Mudanças durante a implementação").
 
 ### E2E (`pdi.spec.ts`, dados pelas factories)
 
@@ -92,6 +92,22 @@ Rodam o `pdi.spec.ts` e, porque a importação muda, o `pdi-import.spec.ts`.
 - `npm run lint`, `npm run typecheck`, `npm test` e os e2e da área passando.
 - Migration incluída e `npx prisma generate` rodado.
 - `CLAUDE.md` e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Migration `20261120190000_add_pdi_order`**, escrita à mão (o `migrate dev` não roda fora de um terminal interativo). Os índices únicos `(cycle_id, position)` e `(area_id, position)` substituem os índices simples de `cycle_id` e `area_id`, que começam pela mesma coluna. Conferida no banco de desenvolvimento: as 7 ações dos 2 ciclos ficaram na mesma ordem de antes, e `prisma migrate diff` contra o schema dá migration vazia.
+- **`closeGap` (`src/lib/positions.ts`):** o "fechar o buraco" com índice único virou um helper usado pelas etapas de trilha (`deleteStep`) e por áreas e ações. A troca com o vizinho continua repetida em cada função (`moveStep`, `moveArea`, `moveAction`), porque generalizá-la pediria acessar o modelo do Prisma por nome, sem tipos.
+- **`MoveButtons` (`src/components/move-buttons.tsx`):** as setas de área e de ação. A lista de etapas continua com as suas, iguais, para não mexer nas trilhas além do necessário.
+- **`ActionList` ganhou `reorderable`**, ligado só na página do ciclo; a lista de ações do objetivo não tem setas.
+- **Excluir área ou ação** passou a usar `deleteMany` na transação: se outra aba já excluiu, nada acontece (antes, `ignoreGone`).
+- **Testes que criam áreas e ações direto pelo Prisma** (objetivos e categorias) passaram a informar a posição.
+- **E2E:** rodaram o `pdi.spec.ts` e o `pdi-import.spec.ts` (12 testes) e, por causa do `closeGap`, o `tracks.spec.ts` (8). Na primeira rodada do `tracks.spec.ts`, "cria uma trilha vinculada a um objetivo" falhou esperando o título da trilha criada pelo formulário, que não passa pelo código mudado; na segunda, os 8 passaram.
+
+## Decisões
+
+1. A ordem manual substitui a ordem por prazo na página do ciclo; a migration começou com a ordem anterior.
+2. As outras listas (objetivo, painel) continuam por prazo.
+3. Setas iguais às das etapas, com o nome do item no rótulo acessível.
 
 ## Perguntas (cada uma com uma proposta)
 
