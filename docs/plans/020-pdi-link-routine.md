@@ -1,6 +1,6 @@
 # 020 — Vincular uma rotina existente a uma ação de PDI
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-20**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/pdi-link-routine`
 
 Primeiro plano do grupo PDI (vincular rotina existente, reordenar áreas e ações, prévia e exportação da planilha). Retoma o que ficou fora do plano 005.
@@ -94,8 +94,16 @@ Rodam só o `pdi-routines.spec.ts` e o `routines.spec.ts` (a página da rotina m
 - `npm run lint`, `npm run typecheck`, `npm test` e os e2e da área passando.
 - `CLAUDE.md` e este plano atualizados.
 
-## Perguntas (cada uma com uma proposta)
+## Mudanças durante a implementação
 
-1. **Quais rotinas podem ser vinculadas?** Proposta: só as sem vínculo e não encerradas. Trocar de ação exige desvincular antes.
-2. **Onde desvincular?** Proposta: na página da rotina e na lista de rotinas da ação.
-3. **Ciclo encerrado permite desvincular?** Proposta: não, o ciclo é somente leitura.
+- **Tudo no módulo de rotinas:** `listLinkableRoutines`, `linkRoutine` e `unlinkRoutine` ficaram em `src/modules/routines/service.ts` (ao lado de `assertActionTakesRoutine`, sem importação circular com o PDI), e `linkRoutineAction`/`unlinkRoutineAction` em `src/modules/routines/actions.ts`, que já revalida as telas de rotina, de PDI e `/`. O schema do formulário é o `linkExistingRoutineSchema` (`routines/schemas.ts`), e o texto da confirmação, `unlinkRoutineText` (`routines/labels.ts`). Nada mudou em `pdi/`.
+- **`Routine.pdiAction.cycleClosed`:** a rotina passou a saber se o ciclo da ação está encerrado, para a página da rotina esconder "Desvincular da ação".
+- **Página da rotina:** "Desvincular da ação" fica na fila de botões (Editar, Encerrar, Excluir), não ao lado do link da ação.
+- **`ConfirmActionButton` ganhou `triggerAriaLabel`:** na ação, cada rotina tem um "Desvincular" com nome acessível próprio ("Desvincular a rotina Manhã").
+- **E2E:** com o diálogo de confirmação aberto, o resto da página sai da árvore de acessibilidade, então os testes esperam o diálogo fechar antes de conferir que o vínculo sumiu. Rodaram o `pdi-routines.spec.ts` (9 testes) e, porque as páginas da ação e da rotina mudaram, o `routines.spec.ts` e o `pdi.spec.ts` (22 testes).
+
+## Decisões
+
+1. Só rotinas sem vínculo e não encerradas podem ser vinculadas; trocar de ação exige desvincular antes.
+2. Desvincular na página da rotina e na lista de rotinas da ação.
+3. Ciclo encerrado não deixa desvincular.
