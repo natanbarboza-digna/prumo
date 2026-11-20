@@ -14,15 +14,32 @@ env:
 
 jobs:
   checks:
-    name: Formatação, lint, tipos, unidade e audit
+    name: Mensagens de commit, formatação, lint, tipos, unidade e audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The whole history, so the commit range of the push can be read.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Plan 030: the same rule as the commit-msg hook, for commits made without it.
+      # The SHAs come in through env, never interpolated into the command.
+      - name: Mensagens de commit
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ "$EVENT" = "push" ] && [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            # A new branch has no "before": check its last commit.
+            npm run check:commits -- "$HEAD^!"
+          else
+            npm run check:commits -- "$BASE..$HEAD"
+          fi
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
