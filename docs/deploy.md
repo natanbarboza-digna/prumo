@@ -2,6 +2,8 @@
 
 Guia para colocar o Prumo no ar num servidor seu, com Docker e HTTPS automático (plano 014). Tudo roda em contêineres: o Postgres, o app e o Caddy, que recebe as conexões da internet e cuida do certificado.
 
+A mesma imagem roda no computador de desenvolvimento, sem o Caddy: `npm run container:up` e `npm run container:check` (plano 025). Se ela sobe ali, sobe no servidor.
+
 ## O que você precisa
 
 - Um **VPS** com Linux (Ubuntu 24.04 ou Debian 12, por exemplo), 1 GB de RAM ou mais e 10 GB de disco. Qualquer provedor serve (Hetzner, DigitalOcean, Oracle Cloud etc.).

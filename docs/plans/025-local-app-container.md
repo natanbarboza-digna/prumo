@@ -1,6 +1,6 @@
 # 025 — Aplicação em contêiner local, construída a cada feature
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-20**, aprovado com a porta 3200
 Branch: `chore/local-app-container`
 
 Diretriz nova pedida pelo dono do projeto em 2026-11-20: a aplicação roda num contêiner, e toda funcionalidade nova atualiza e constrói esse contêiner. Alinhado antes do plano:
@@ -82,6 +82,24 @@ O plano 024 (arquivar trilhas), guardado num `git stash` na branch `feat/archive
 
 - Os passos da verificação passando e registrados neste plano.
 - `CLAUDE.md` atualizado com a diretriz.
+
+## Resultado
+
+1. `docker compose config --services` sem perfil: só `db`; com `--profile app`: `db`, `migrate` e `app`. Depois do `container:down`, `docker compose up -d` subiu só o banco.
+2. `npm run container:up`: as duas imagens construídas sem erro; o `migrate` saiu com código 0 ("8 migrations found", nada pendente) e o `app` ficou `healthy`.
+3. `npm run container:check`: "/login responde com a página de login" e "/ sem sessão redireciona para /login".
+4. A página de login, servida pelo contêiner em `http://localhost:3200`, aberta no navegador do app. **Não fiz o login:** a conta do banco de desenvolvimento usa a senha do dono do projeto, que não é digitada por mim; a conta dos e2e só existe no banco de teste. O login fica para o dono conferir.
+5. `npm run container:down` removeu o `app` e o `migrate`, e o banco continuou no ar. O app foi subido de novo (`docker compose --profile app up -d`) e ficou rodando.
+6. `npm run lint`, `npm run typecheck` e `npm test` (484 testes) passando.
+
+## Mudanças durante a implementação
+
+- O passo 4 virou "abrir a página de login", pelo motivo acima.
+- O `migrate` imprime o aviso do Prisma sobre a versão 8 disponível; é só informativo (a versão 7.10 é fixada de propósito, plano 011).
+
+## Decisão
+
+1. Porta 3200.
 
 ## Pergunta (com proposta)
 

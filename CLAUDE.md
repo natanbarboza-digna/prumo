@@ -7,7 +7,7 @@ O dono do projeto vem de Python/Django e está aprendendo Next.js e TypeScript. 
 ## Stack
 
 - Next.js (App Router) + TypeScript em modo `strict`
-- PostgreSQL em Docker Compose (só o banco no contêiner; a aplicação roda no host)
+- PostgreSQL em Docker Compose. A aplicação roda no host para desenvolver e testar, e também num contêiner local com o build de produção (mesma imagem do VPS), em `localhost:3200`, atrás do perfil `app` do Compose (plano 025)
 - Prisma como ORM, com migrations versionadas
 - Tailwind CSS + shadcn/ui
 - Zod para validação, com o mesmo schema no formulário e no servidor
@@ -48,6 +48,9 @@ Estes scripts devem existir no `package.json` desde o scaffold:
 | `npm run check:versions`   | Diz se as versões fixadas (ver "Stack") já podem subir                         |
 | `npm run pdi:template`     | Gera a planilha modelo de PDI e as planilhas dos e2e                           |
 | `npm run auth:create-user` | Cria a conta única (ou troca a senha com `-- --reset-password`)                |
+| `npm run container:up`     | Constrói a imagem de produção, aplica as migrations e sobe o app em `:3200`    |
+| `npm run container:check`  | Confere se o app do contêiner responde (`/login` e o redirecionamento)         |
+| `npm run container:down`   | Para o app do contêiner (o banco continua no ar)                               |
 
 ## Estrutura de pastas
 
@@ -130,7 +133,7 @@ Os campos de `PdiCycle`, `PdiArea`, `PdiAction` e `PdiCheckIn` foram validados p
 2. **TDD.** Escreva o teste, veja-o falhar, implemente o mínimo para passar, refatore. Regras de negócio são testadas no service contra um banco de teste separado (`.env.test`); fluxos de ponta a ponta, no Playwright.
 3. **Branches.** Uma branch por feature a partir da `main` (`feat/goals-crud`, `fix/routine-log-date`). Nunca commite direto na `main`. Não faça merge nem push sem ser pedido.
 4. **Commits.** Conventional Commits em inglês (`feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `chore:`), pequenos e atômicos.
-5. **Pronto significa:** `npm run lint`, `npm run typecheck` e `npm test` passando, migration incluída quando o schema mudou e plano atualizado se o escopo mudou durante a implementação. **E2E:** rode só os arquivos e2e da área mexida (`npm run test:e2e:dev -- e2e/<área>.spec.ts`), inclusive antes do merge. **Não rode a bateria completa** (`npm run test:e2e`): ela fica para o CI, quando houver remoto, ou para o dono do projeto rodar quando quiser.
+5. **Pronto significa:** `npm run lint`, `npm run typecheck` e `npm test` passando, migration incluída quando o schema mudou e plano atualizado se o escopo mudou durante a implementação. **E2E:** rode só os arquivos e2e da área mexida (`npm run test:e2e:dev -- e2e/<área>.spec.ts`), inclusive antes do merge. **Não rode a bateria completa** (`npm run test:e2e`): ela fica para o CI, quando houver remoto, ou para o dono do projeto rodar quando quiser. **Contêiner:** toda feature termina com `npm run container:up` e `npm run container:check` passando, com o resultado registrado no plano (plano 025). O build não roda no hook de pre-commit, porque leva minutos.
 6. **Hook de pre-commit e CI.** Todo commit passa pelo `.githooks/pre-commit` (Prettier, lint, typecheck e testes de unidade), ligado pelo `npm install` (script `prepare`). Não pule o hook com `--no-verify`. O CI (`.github/workflows/ci.yml`) roda tudo, inclusive integração, e2e e `npm audit`, quando o projeto estiver no GitHub; se o `prisma.config.ts` passar a exigir outra variável de ambiente, ela precisa entrar no `env` do workflow.
 
 Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um problema fora do escopo, anote em "Pendências" abaixo e siga.
