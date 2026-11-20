@@ -12,6 +12,7 @@ import { formatDateForDisplay, todayInAppTimeZone } from "@/lib/dates";
 import {
   archiveTrackAction,
   deleteTrackAction,
+  duplicateTrackAction,
   unarchiveTrackAction,
 } from "@/modules/tracks/actions";
 import { deriveTrackStatus } from "@/modules/tracks/service";
@@ -81,6 +82,12 @@ export default async function TrackPage({ params }: PageProps<"/tracks/[id]">) {
               />
             </>
           )}
+          {/* Also on archived tracks: reusing an old one is the typical case (plan 026). */}
+          <form action={duplicateTrackAction.bind(null, track.id)}>
+            <SubmitButton variant="outline" pendingContent="Duplicando…">
+              Duplicar trilha
+            </SubmitButton>
+          </form>
           <ConfirmDeleteButton
             action={deleteTrackAction.bind(null, track.id)}
             title="Excluir trilha?"

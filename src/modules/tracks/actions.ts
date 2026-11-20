@@ -26,6 +26,7 @@ import {
   createTrack,
   deleteStep,
   deleteTrack,
+  duplicateTrack,
   getStep,
   moveStep,
   setStepStatus,
@@ -145,6 +146,24 @@ export async function unarchiveTrackAction(id: string): Promise<void> {
   await ignoreMissingTrack(() => unarchiveTrack(id));
   revalidateTrackScreens();
   refresh();
+}
+
+/** "Duplicar trilha" (plan 026): creates the copy and opens it. */
+export async function duplicateTrackAction(id: string): Promise<void> {
+  await requireSession();
+  let copyId: string;
+  try {
+    copyId = (await duplicateTrack(id)).id;
+  } catch (error) {
+    // Deleted in another tab: refreshing shows the not-found page.
+    if (error instanceof TrackNotFoundError) {
+      refresh();
+      return;
+    }
+    throw error;
+  }
+  revalidateTrackScreens();
+  redirect(`/tracks/${copyId}`);
 }
 
 /** Deleted in another tab: refreshing shows the not-found page. */
