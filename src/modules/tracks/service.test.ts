@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveTrackStatus, isStepOverdue, progressPercent } from "@/modules/tracks/service";
+import {
+  copyTitle,
+  deriveTrackStatus,
+  isStepOverdue,
+  progressPercent,
+} from "@/modules/tracks/service";
 
 const today = "2026-11-16";
 
@@ -55,5 +60,18 @@ describe("progressPercent", () => {
     [3, 3, 100],
   ])("%i of %i is %i%%", (done, total, expected) => {
     expect(progressPercent(done, total)).toBe(expected);
+  });
+});
+
+describe("copyTitle (plan 026)", () => {
+  it("prefixes the title with Cópia de", () => {
+    expect(copyTitle("Inglês")).toBe("Cópia de Inglês");
+  });
+
+  it("cuts the copy to fit the 120-character title limit", () => {
+    const copy = copyTitle("a".repeat(120));
+
+    expect(copy).toHaveLength(120);
+    expect(copy.startsWith("Cópia de a")).toBe(true);
   });
 });

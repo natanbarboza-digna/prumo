@@ -93,6 +93,14 @@ export function progressPercent(done: number, total: number): number {
   return total === 0 ? 0 : Math.round((done / total) * 100);
 }
 
+/** The same limit as the track form's title (trackInputSchema). */
+const TRACK_TITLE_MAX = 120;
+
+/** "Cópia de Inglês", cut to fit the title limit (plan 026). */
+export function copyTitle(title: string): string {
+  return `Cópia de ${title}`.slice(0, TRACK_TITLE_MAX);
+}
+
 // ---------------------------------------------------------------------------
 // Tracks
 // ---------------------------------------------------------------------------
@@ -154,6 +162,39 @@ export async function updateTrack(id: string, input: TrackInput): Promise<TrackS
     if (isRecordNotFound(error)) throw new TrackNotFoundError(id);
     throw error;
   }
+}
+
+/**
+ * A new active track with the same description, goal and steps (plan 026): the
+ * steps keep their order, title, link and notes, and start over (not started,
+ * no due date). Archived tracks can be copied too. One nested create, so either
+ * the whole copy exists or nothing does.
+ */
+export async function duplicateTrack(id: string): Promise<TrackSummary> {
+  if (!isUuid(id)) throw new TrackNotFoundError(id);
+  const original = await db.track.findUnique({
+    where: { id },
+    include: { steps: { orderBy: { order: "asc" } } },
+  });
+  if (!original) throw new TrackNotFoundError(id);
+
+  const row = await db.track.create({
+    data: {
+      title: copyTitle(original.title),
+      description: original.description,
+      goalId: original.goalId,
+      steps: {
+        create: original.steps.map((step) => ({
+          title: step.title,
+          order: step.order,
+          resourceUrl: step.resourceUrl,
+          notes: step.notes,
+        })),
+      },
+    },
+    include: summaryInclude,
+  });
+  return toSummary(row);
 }
 
 /** Deletes the track; its steps go with it (ON DELETE CASCADE). */

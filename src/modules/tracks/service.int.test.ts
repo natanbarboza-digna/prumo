@@ -17,6 +17,7 @@ import {
   createStep,
   createTrack,
   deleteStep,
+  duplicateTrack,
   deleteTrack,
   getTrack,
   listOpenStepsWithDueDate,
@@ -346,5 +347,103 @@ describe("archived tracks (plan 024)", () => {
   it("rejects a track that does not exist", async () => {
     await expect(archiveTrack(MISSING_ID)).rejects.toBeInstanceOf(TrackNotFoundError);
     await expect(unarchiveTrack(MISSING_ID)).rejects.toBeInstanceOf(TrackNotFoundError);
+  });
+});
+
+describe("duplicating a track (plan 026)", () => {
+  it("copies the track and its steps in order, not started and without due dates", async () => {
+    const owner = await goal();
+    const original = await createTrack(
+      trackInput({ title: "Inglês", description: "Do básico ao avançado", goalId: owner.id }),
+    );
+    await createStep(
+      original.id,
+      stepInput({
+        title: "Gramática",
+        status: "DONE",
+        dueDate: "2026-10-01",
+        resourceUrl: "https://exemplo.com/gramatica",
+        notes: "Livro azul",
+      }),
+    );
+    await createStep(original.id, stepInput({ title: "Conversação", status: "IN_PROGRESS" }));
+    await createStep(original.id, stepInput({ title: "Prova", dueDate: "2026-12-15" }));
+
+    const copy = await duplicateTrack(original.id);
+
+    expect(copy.id).not.toBe(original.id);
+    const detail = await getTrack(copy.id);
+    expect(detail).toMatchObject({
+      title: "Cópia de Inglês",
+      description: "Do básico ao avançado",
+      goal: { id: owner.id },
+      archivedAt: null,
+    });
+    expect(
+      detail.steps.map(({ order, title, status, dueDate, resourceUrl, notes }) => ({
+        order,
+        title,
+        status,
+        dueDate,
+        resourceUrl,
+        notes,
+      })),
+    ).toEqual([
+      {
+        order: 1,
+        title: "Gramática",
+        status: "NOT_STARTED",
+        dueDate: null,
+        resourceUrl: "https://exemplo.com/gramatica",
+        notes: "Livro azul",
+      },
+      {
+        order: 2,
+        title: "Conversação",
+        status: "NOT_STARTED",
+        dueDate: null,
+        resourceUrl: null,
+        notes: null,
+      },
+      {
+        order: 3,
+        title: "Prova",
+        status: "NOT_STARTED",
+        dueDate: null,
+        resourceUrl: null,
+        notes: null,
+      },
+    ]);
+
+    // The original is untouched.
+    const unchanged = await getTrack(original.id);
+    expect(unchanged.title).toBe("Inglês");
+    expect(unchanged.steps.map((step) => [step.status, step.dueDate])).toEqual([
+      ["DONE", "2026-10-01"],
+      ["IN_PROGRESS", null],
+      ["NOT_STARTED", "2026-12-15"],
+    ]);
+  });
+
+  it("makes an active copy of an archived track", async () => {
+    const { track } = await trackWithSteps("Etapa");
+    await archiveTrack(track.id);
+
+    const copy = await duplicateTrack(track.id);
+
+    expect(copy.archivedAt).toBeNull();
+    expect((await getTrack(track.id)).archivedAt).not.toBeNull();
+  });
+
+  it("copies a track without steps", async () => {
+    const { track } = await trackWithSteps();
+
+    const copy = await duplicateTrack(track.id);
+
+    expect(copy.counts.total).toBe(0);
+  });
+
+  it("rejects a track that does not exist", async () => {
+    await expect(duplicateTrack(MISSING_ID)).rejects.toBeInstanceOf(TrackNotFoundError);
   });
 });
