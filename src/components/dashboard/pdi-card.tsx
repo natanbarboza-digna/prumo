@@ -1,11 +1,13 @@
 import Link from "next/link";
 
 import { DashboardCard, EmptyCardText } from "@/components/dashboard/dashboard-card";
-import { ActionProgressBar } from "@/components/pdi/action-progress";
-import { AdherenceMeter } from "@/components/routines/adherence-meter";
+import { ProgressRing } from "@/components/dashboard/progress-ring";
 import { formatDateForDisplay } from "@/lib/dates";
 import { cycleTimeText, daysAgoText } from "@/modules/dashboard/labels";
 import type { DashboardPdi } from "@/modules/dashboard/service";
+import { actionProgressText } from "@/modules/pdi/labels";
+import { adherenceText } from "@/modules/routines/labels";
+import { progressPercent } from "@/modules/tracks/service";
 
 /** The active cycle at a glance, or the next planned one. */
 export function PdiCard({ pdi, today }: { pdi: DashboardPdi; today: string }) {
@@ -38,28 +40,7 @@ export function PdiCard({ pdi, today }: { pdi: DashboardPdi; today: string }) {
               {formatDateForDisplay(pdi.cycle.endDate)} · {cycleTimeText(pdi.cycle.endDate, today)}
             </p>
           </div>
-          <ActionProgressBar
-            done={pdi.cycle.progress.done}
-            total={pdi.cycle.progress.total}
-            label={`Progresso do ciclo ${pdi.cycle.title}`}
-          />
-          {pdi.overdueActions > 0 && (
-            <p className="text-destructive text-sm">
-              {pdi.overdueActions === 1
-                ? "1 ação atrasada"
-                : `${pdi.overdueActions} ações atrasadas`}
-            </p>
-          )}
-          {pdi.routineAdherence && (
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Rotinas vinculadas</p>
-              <AdherenceMeter
-                adherence={pdi.routineAdherence}
-                label={`Adesão das rotinas do ciclo ${pdi.cycle.title}`}
-                periodText="no ciclo, até hoje"
-              />
-            </div>
-          )}
+          <CycleProgress pdi={pdi} />
           <p className="text-sm">
             {pdi.lastCheckIn === null
               ? "Nenhum check-in ainda."
@@ -74,5 +55,33 @@ export function PdiCard({ pdi, today }: { pdi: DashboardPdi; today: string }) {
         </div>
       )}
     </DashboardCard>
+  );
+}
+
+/** The ring of done actions (cancelled ones left out) and the facts beside it (plan 034). */
+function CycleProgress({ pdi }: { pdi: Extract<DashboardPdi, { kind: "ACTIVE" }> }) {
+  const { done, total } = pdi.cycle.progress;
+  const percent = progressPercent(done, total);
+  const adherence = pdi.routineAdherence;
+  return (
+    <div className="flex items-center gap-4">
+      <ProgressRing percent={percent} label={`${percent}% das ações do ciclo concluídas`} />
+      <ul className="min-w-0 space-y-1 text-sm">
+        <li className="font-medium">{actionProgressText(done, total)}</li>
+        {pdi.overdueActions > 0 && (
+          <li className="text-destructive">
+            {pdi.overdueActions === 1 ? "1 ação atrasada" : `${pdi.overdueActions} ações atrasadas`}
+          </li>
+        )}
+        {adherence && (
+          <li className="text-muted-foreground">
+            Rotinas vinculadas:{" "}
+            {adherence.scheduled === 0
+              ? adherenceText(adherence).toLowerCase()
+              : `${adherence.rate}% de adesão`}
+          </li>
+        )}
+      </ul>
+    </div>
   );
 }
