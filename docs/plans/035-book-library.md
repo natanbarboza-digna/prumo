@@ -1,6 +1,6 @@
 # 035 — Biblioteca de livros: cadastro, situações e lista
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-24**, aprovado com as propostas das quatro perguntas (ver "Decisões")
 Branch: `feat/book-library`
 
 Primeiro dos três planos da biblioteca, alinhada com o dono do projeto em 2026-11-24 (todas as propostas da discussão aceitas):
@@ -189,6 +189,26 @@ Também rodam `search.spec.ts`, `deadlines.spec.ts` e `mobile.spec.ts` (com `/bo
 - `npm run lint`, `npm run typecheck`, `npm test` e os e2e da área passando, com a migration incluída e `npx prisma generate` rodado.
 - `npm run container:up` e `npm run container:check` passando (plano 025).
 - `CLAUDE.md` e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Datas no futuro** são conferidas no service (`BookDateInFutureError`, com o campo), porque o schema não sabe que dia é hoje; a action mostra o erro no campo ("A data não pode estar no futuro.").
+- **Datas por situação:** ao salvar, o service guarda só as datas que a situação permite (`datesForStatus`): nenhuma na fila, só o início lendo. O formulário mostra só esses campos.
+- **Busca:** cada item ganhou `storedText`, o selo próprio do item, porque um livro guardado pode ser "Lido" ou "Abandonado" (os outros grupos continuam com o selo do grupo).
+- **Demonstração:** cinco livros, um em cada situação; o livro de PDI tem prazo daqui a 40 dias, fora dos 14 do painel, para não mudar os prazos da demonstração.
+- **TDD:** os testes de rótulos (`labels.test.ts`) e o `books.spec.ts` foram escritos junto com o código, sem vê-los falhar antes. Os de regras, schemas, service, objetivo, busca e prazos falharam primeiro.
+- **Verificações:**
+  - `npm run lint`, `npm run typecheck`, Prettier e `npm test` (647 testes);
+  - e2e: `books.spec.ts` (5), `search.spec.ts`, `deadlines.spec.ts`, `mobile.spec.ts`, `goals.spec.ts`, `home.spec.ts`, `navigation.spec.ts`, `tracks.spec.ts` e `pdi.spec.ts`, todos passando;
+  - capturas da lista (1280 e 375 px), da página do livro e da edição, conferidas;
+  - `npm run container:up` (12 migrations, nenhuma pendente) e `npm run container:check` passando.
+
+## Decisões
+
+1. Livros contam no progresso do objetivo: lido é concluído, abandonado fica fora.
+2. Prazo de livro já entra nos Prazos do painel e em `/deadlines`.
+3. Filtro padrão "Na estante" (lendo, preciso e quero ler).
+4. Gênero em texto livre.
 
 ## Perguntas (cada uma com uma proposta)
 
