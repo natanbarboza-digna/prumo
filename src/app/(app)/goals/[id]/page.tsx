@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { BookList } from "@/components/books/book-list";
 import { DeleteGoalButton } from "@/components/goals/delete-goal-button";
 import { GoalProgressSummary } from "@/components/goals/goal-progress";
 import { GoalStatusBadge, OverdueBadge } from "@/components/goals/goal-status-badge";
@@ -9,6 +10,7 @@ import { RoutineList } from "@/components/routines/routine-list";
 import { TrackList } from "@/components/tracks/track-list";
 import { Button } from "@/components/ui/button";
 import { formatDateForDisplay, todayInAppTimeZone } from "@/lib/dates";
+import { listBooks } from "@/modules/books/service";
 import { getGoalProgress, isGoalOverdue } from "@/modules/goals/service";
 import { listActionsForGoal } from "@/modules/pdi/service";
 import { listRoutines } from "@/modules/routines/service";
@@ -21,11 +23,12 @@ export const metadata: Metadata = { title: "Objetivo" };
 export default async function GoalPage({ params }: PageProps<"/goals/[id]">) {
   const goal = await loadGoal((await params).id);
   const today = todayInAppTimeZone();
-  const [tracks, progress, routines, actions] = await Promise.all([
+  const [tracks, progress, routines, actions, books] = await Promise.all([
     listTracks({ goalId: goal.id }),
     getGoalProgress(goal.id),
     listRoutines({ goalId: goal.id, today }),
     listActionsForGoal(goal.id),
+    listBooks({ goalId: goal.id }),
   ]);
 
   return (
@@ -99,6 +102,20 @@ export default async function GoalPage({ params }: PageProps<"/goals/[id]">) {
               </p>
             )}
           />
+        )}
+      </section>
+
+      {/* Read books count as done in the progress above; abandoned ones leave it (plan 035). */}
+      <section aria-labelledby="titulo-livros" className="space-y-4">
+        <h2 id="titulo-livros" className="text-xl font-semibold tracking-tight">
+          Livros
+        </h2>
+        {books.length === 0 ? (
+          <p className="text-muted-foreground">
+            Nenhum livro vinculado. Vincule pelo formulário do livro, em Leituras.
+          </p>
+        ) : (
+          <BookList books={books} label="Livros do objetivo" today={today} showGoal={false} />
         )}
       </section>
 

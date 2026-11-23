@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/today", label: "Hoje", sections: ["/today"] },
   { href: "/goals", label: "Objetivos", sections: ["/goals"] },
-  // Tracks and PDI share one item (plan 015); the tabs on their lists switch between them.
-  { href: "/tracks", label: "Desenvolvimento", sections: ["/tracks", "/pdi"] },
+  // Tracks, PDI and books share one item (plans 015 and 035); the tabs on their lists switch between them.
+  { href: "/tracks", label: "Desenvolvimento", sections: ["/tracks", "/pdi", "/books"] },
   { href: "/routines", label: "Rotinas", sections: ["/routines"] },
   { href: "/time", label: "Tempo", sections: ["/time"] },
 ];

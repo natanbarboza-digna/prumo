@@ -5,11 +5,12 @@ import { cn } from "@/lib/utils";
 const tabs = [
   { href: "/tracks", label: "Trilhas" },
   { href: "/pdi", label: "PDI" },
+  { href: "/books", label: "Leituras" },
 ] as const;
 
 /**
- * Trilhas | PDI at the top of the two lists of the "Desenvolvimento" menu item
- * (plan 015). They are links, not a tablist: each tab is its own page with its
+ * Trilhas | PDI | Leituras at the top of the lists of the "Desenvolvimento" menu
+ * item (plans 015 and 035). They are links, not a tablist: each tab is its own page with its
  * own URL. A Server Component: each page says which tab it is, so no URL needs
  * to be read in the browser.
  */
