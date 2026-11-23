@@ -1,5 +1,6 @@
 import type { BookFormat, BookReason, BookStatus } from "@/generated/prisma/enums";
 import { formatDateForDisplay } from "@/lib/dates";
+import type { ReadingGoalProgress } from "@/modules/books/analytics";
 import { durationText } from "@/modules/time/labels";
 import {
   type BookAction,
@@ -144,3 +145,43 @@ export function paceText(unit: ProgressUnit, pace: number): string {
   }
   return `Ritmo: ${hours(Math.round(pace))} por dia`;
 }
+
+// ---------------------------------------------------------------------------
+// Annual goal and analytics (plan 037)
+// ---------------------------------------------------------------------------
+
+/** "9 de 12 livros". */
+export function goalCountText(goal: ReadingGoalProgress): string {
+  return `${goal.read} de ${goal.target} ${goal.target === 1 ? "livro" : "livros"}`;
+}
+
+/** "1 livro atrás do ritmo", "2 livros à frente do ritmo", "No ritmo da meta" or, for a past year, the result. */
+export function goalPaceText(goal: ReadingGoalProgress): string {
+  if (goal.ahead === null) return goal.met ? "Meta cumprida" : "Meta não cumprida";
+  if (goal.ahead === 0) return "No ritmo da meta";
+  const books = Math.abs(goal.ahead);
+  const noun = books === 1 ? "livro" : "livros";
+  return `${books} ${noun} ${goal.ahead > 0 ? "à frente do" : "atrás do"} ritmo`;
+}
+
+/** "1 dia por livro", "5,5 dias por livro". */
+export function averageDaysText(days: number): string {
+  const number = days.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  return `${number} ${days === 1 ? "dia" : "dias"} por livro`;
+}
+
+/** Short month names for the "lidos por mês" chart. */
+export const MONTH_SHORT = [
+  "jan",
+  "fev",
+  "mar",
+  "abr",
+  "mai",
+  "jun",
+  "jul",
+  "ago",
+  "set",
+  "out",
+  "nov",
+  "dez",
+] as const;

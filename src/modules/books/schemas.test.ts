@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import {
+  analyticsYear,
   bookFilterSchema,
   bookInputSchema,
   bookLogSchema,
   bookQuoteSchema,
   bookRatingSchema,
+  readingGoalSchema,
 } from "@/modules/books/schemas";
 
 function fieldErrors(input: unknown) {
@@ -124,5 +126,24 @@ describe("bookRatingSchema and bookQuoteSchema", () => {
     });
     expect(bookQuoteSchema.safeParse({ text: "" }).success).toBe(false);
     expect(bookQuoteSchema.safeParse({ text: "a", location: "x".repeat(21) }).success).toBe(false);
+  });
+});
+
+describe("readingGoalSchema and analyticsYear (plan 037)", () => {
+  it("takes a goal of 1 to 365 books for a year", () => {
+    expect(readingGoalSchema.parse({ year: "2026", books: "12" })).toEqual({
+      year: 2026,
+      books: 12,
+    });
+    expect(readingGoalSchema.safeParse({ year: "2026", books: "0" }).success).toBe(false);
+    expect(readingGoalSchema.safeParse({ year: "2026", books: "366" }).success).toBe(false);
+    expect(readingGoalSchema.safeParse({ year: "1999", books: "5" }).success).toBe(false);
+  });
+
+  it("reads ?ano= and falls back to the current year", () => {
+    expect(analyticsYear("2025", "2026-11-24")).toBe(2025);
+    expect(analyticsYear(undefined, "2026-11-24")).toBe(2026);
+    expect(analyticsYear("abc", "2026-11-24")).toBe(2026);
+    expect(analyticsYear("1800", "2026-11-24")).toBe(2026);
   });
 });

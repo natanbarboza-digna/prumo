@@ -16,11 +16,13 @@ import {
   type BookLogFormValues,
   type BookQuoteFormValues,
   type BookRatingFormValues,
+  type ReadingGoalFormValues,
   bookActionSchema,
   bookInputSchema,
   bookLogSchema,
   bookQuoteSchema,
   bookRatingSchema,
+  readingGoalSchema,
 } from "@/modules/books/schemas";
 import {
   BookDateInFutureError,
@@ -43,6 +45,7 @@ import {
   getBook,
   logReading,
   rateBook,
+  setReadingGoal,
   updateBook,
   updateQuote,
 } from "@/modules/books/service";
@@ -343,4 +346,28 @@ export async function deleteQuoteAction(id: string): Promise<void> {
   }
   revalidateBookScreens();
   refresh();
+}
+
+// ---------------------------------------------------------------------------
+// Annual goal (plan 037)
+// ---------------------------------------------------------------------------
+
+export type ReadingGoalFormState = {
+  errors?: Partial<Record<keyof ReadingGoalFormValues, string[]>>;
+  formError?: string;
+  values?: ReadingGoalFormValues;
+};
+
+export async function setReadingGoalAction(
+  _previous: ReadingGoalFormState,
+  formData: FormData,
+): Promise<ReadingGoalFormState> {
+  await requireSession();
+  const values = { year: readText(formData, "year"), books: readText(formData, "books") };
+  const parsed = readingGoalSchema.safeParse(values);
+  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
+  await setReadingGoal(parsed.data);
+  revalidateBookScreens();
+  refresh();
+  return {};
 }

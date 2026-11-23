@@ -1,7 +1,14 @@
 // The home dashboard only reads: it composes the other modules' services.
 
 import { db } from "@/lib/db";
-import { type OpenBook, listOpenBooksWithDueDate } from "@/modules/books/service";
+import { type ReadingGoalProgress, goalProgress } from "@/modules/books/analytics";
+import {
+  type OpenBook,
+  countReadInYear,
+  getReadingGoal,
+  listBooks,
+  listOpenBooksWithDueDate,
+} from "@/modules/books/service";
 import { mondayOf } from "@/lib/dates";
 import { minutesNowInAppTimeZone } from "@/lib/time-of-day";
 import {
@@ -63,11 +70,24 @@ export type DashboardTimeWeek = {
   days: number;
 };
 
+/** "Leitura do ano" (plan 037): the year's goal and the books being read. */
+export type DashboardReading = {
+  /** Shown once there is a book or a goal. */
+  visible: boolean;
+  goal: ReadingGoalProgress | null;
+  /** Up to 3, most recently started first. */
+  books: { id: string; title: string; percent: number | null }[];
+};
+
+/** How many books being read the dashboard lists. */
+export const DASHBOARD_READING_LIMIT = 3;
+
 export type Dashboard = {
   /** Nothing created yet: the page shows a welcome instead of the cards. */
   firstUse: boolean;
   kpis: DashboardKpis;
   timeWeek: DashboardTimeWeek;
+  reading: DashboardReading;
   today: {
     items: RoutineDay[];
     done: number;
@@ -165,6 +185,9 @@ export async function getDashboard(
     timeDays,
     timeDayCount,
     books,
+    allBooks,
+    readingGoal,
+    readThisYear,
   ] = await Promise.all([
     listRoutinesForDay(today),
     listRoutines({ today, state: "active" }),
@@ -178,6 +201,9 @@ export async function getDashboard(
     listTimeDays(mondayOf(today), today),
     db.timeDay.count(),
     listOpenBooksWithDueDate(),
+    listBooks(),
+    getReadingGoal(Number(today.slice(0, 4))),
+    countReadInYear(Number(today.slice(0, 4))),
   ]);
 
   const goalsInProgress = goals
@@ -221,6 +247,21 @@ export async function getDashboard(
               percent: progressPercent(pdi.cycle.progress.done, pdi.cycle.progress.total),
             }
           : null,
+    },
+    reading: {
+      visible: allBooks.length > 0 || readingGoal !== null,
+      goal:
+        readingGoal === null
+          ? null
+          : goalProgress(
+              { target: readingGoal.books, read: readThisYear, year: readingGoal.year },
+              today,
+            ),
+      books: allBooks
+        .filter((book) => book.status === "READING")
+        .sort((a, b) => (b.startedOn ?? "").localeCompare(a.startedOn ?? ""))
+        .slice(0, DASHBOARD_READING_LIMIT)
+        .map((book) => ({ id: book.id, title: book.title, percent: book.progress.percent })),
     },
     timeWeek: {
       bars: weekTimeBars(time.perDay, today),

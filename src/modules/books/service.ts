@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { formatDateOnly, parseDateOnly, todayInAppTimeZone } from "@/lib/dates";
 import { isUuid } from "@/lib/form-fields";
 import { isRecordNotFound } from "@/lib/prisma-errors";
+import type { AnalyticsBook, AnalyticsLog } from "@/modules/books/analytics";
 import {
   type BookAction,
   type BookProgress,
@@ -24,6 +25,7 @@ import type {
   BookLogInput,
   BookQuoteInput,
   BookRatingInput,
+  ReadingGoalInput,
 } from "@/modules/books/schemas";
 import { GoalNotFoundError } from "@/modules/goals/service";
 
@@ -430,4 +432,84 @@ export async function deleteQuote(id: string): Promise<void> {
     if (isRecordNotFound(error)) throw new BookQuoteNotFoundError(id);
     throw error;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Annual goal and analytics (plan 037)
+// ---------------------------------------------------------------------------
+
+export type ReadingGoal = { year: number; books: number };
+
+export async function getReadingGoal(year: number): Promise<ReadingGoal | null> {
+  return db.readingGoal.findUnique({ where: { year }, select: { year: true, books: true } });
+}
+
+/** Creates or changes the goal of a year. */
+export async function setReadingGoal(input: ReadingGoalInput): Promise<ReadingGoal> {
+  return db.readingGoal.upsert({
+    where: { year: input.year },
+    create: input,
+    update: { books: input.books },
+    select: { year: true, books: true },
+  });
+}
+
+/** Years with a finished book, a reading log or a goal, plus the current one; newest first. */
+export async function readingYears(today: string = todayInAppTimeZone()): Promise<number[]> {
+  const [finished, logs, goals] = await Promise.all([
+    db.book.findMany({ where: { finishedOn: { not: null } }, select: { finishedOn: true } }),
+    db.bookLog.findMany({ select: { date: true } }),
+    db.readingGoal.findMany({ select: { year: true } }),
+  ]);
+  const years = new Set<number>([Number(today.slice(0, 4))]);
+  for (const { finishedOn } of finished) if (finishedOn) years.add(finishedOn.getUTCFullYear());
+  for (const { date } of logs) years.add(date.getUTCFullYear());
+  for (const { year } of goals) years.add(year);
+  return [...years].sort((a, b) => b - a);
+}
+
+/**
+ * Every book and log, for the analytics: a log's amount depends on the log
+ * before it, which may be in an earlier year, so nothing is cut here.
+ */
+export async function getReadingYear(): Promise<{ books: AnalyticsBook[]; logs: AnalyticsLog[] }> {
+  const [books, logs] = await Promise.all([
+    db.book.findMany({
+      select: {
+        id: true,
+        title: true,
+        authors: true,
+        genre: true,
+        format: true,
+        pages: true,
+        status: true,
+        startedOn: true,
+        finishedOn: true,
+        rating: true,
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    db.bookLog.findMany({
+      select: { bookId: true, date: true, position: true },
+      orderBy: { date: "asc" },
+    }),
+  ]);
+  return {
+    books: books.map((book) => ({
+      ...book,
+      startedOn: fromDate(book.startedOn),
+      finishedOn: fromDate(book.finishedOn),
+    })),
+    logs: logs.map((log) => ({ ...log, date: formatDateOnly(log.date) })),
+  };
+}
+
+/** Read books whose end is in `year`, for the goal. */
+export async function countReadInYear(year: number): Promise<number> {
+  return db.book.count({
+    where: {
+      status: "READ",
+      finishedOn: { gte: parseDateOnly(`${year}-01-01`), lte: parseDateOnly(`${year}-12-31`) },
+    },
+  });
 }

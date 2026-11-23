@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   amountText,
+  averageDaysText,
+  goalCountText,
+  goalPaceText,
   bookDatesText,
   bookStateLabel,
   paceText,
@@ -72,5 +75,29 @@ describe("progress texts (plan 036)", () => {
     expect(positionText("PERCENT", 45)).toBe("45%");
     expect(positionText("MINUTE", 200)).toBe("3h20");
     expect(positionInputValue("MINUTE", 200)).toBe("03:20");
+  });
+});
+
+describe("goal and analytics texts (plan 037)", () => {
+  const goal = { target: 12, read: 9, expected: 10.8, ahead: -1, met: false };
+
+  it("says how many books and how far from the pace", () => {
+    expect(goalCountText(goal)).toBe("9 de 12 livros");
+    expect(goalCountText({ ...goal, target: 1, read: 1 })).toBe("1 de 1 livro");
+    expect(goalPaceText(goal)).toBe("1 livro atrás do ritmo");
+    expect(goalPaceText({ ...goal, ahead: 2 })).toBe("2 livros à frente do ritmo");
+    expect(goalPaceText({ ...goal, ahead: 0 })).toBe("No ritmo da meta");
+  });
+
+  it("tells a past year's result", () => {
+    expect(goalPaceText({ ...goal, read: 13, expected: null, ahead: null, met: true })).toBe(
+      "Meta cumprida",
+    );
+    expect(goalPaceText({ ...goal, expected: null, ahead: null })).toBe("Meta não cumprida");
+  });
+
+  it("averages the days per book", () => {
+    expect(averageDaysText(1)).toBe("1 dia por livro");
+    expect(averageDaysText(5.5)).toBe("5,5 dias por livro");
   });
 });

@@ -126,3 +126,34 @@ export const bookQuoteSchema = z.object({
 
 export type BookQuoteFormValues = z.input<typeof bookQuoteSchema>;
 export type BookQuoteInput = z.output<typeof bookQuoteSchema>;
+
+// ---------------------------------------------------------------------------
+// Annual goal and analytics (plan 037)
+// ---------------------------------------------------------------------------
+
+const MIN_YEAR = 2000;
+const MAX_YEAR = 2100;
+
+/** A whole number from a form field, between `min` and `max`. */
+function wholeNumber(min: number, max: number, message: string) {
+  return z
+    .string({ error: message })
+    .trim()
+    .refine((value) => /^\d+$/.test(value), { error: message })
+    .transform(Number)
+    .refine((value) => value >= min && value <= max, { error: message });
+}
+
+export const readingGoalSchema = z.object({
+  year: wholeNumber(MIN_YEAR, MAX_YEAR, "Informe um ano válido."),
+  books: wholeNumber(1, 365, "Informe de 1 a 365 livros."),
+});
+
+export type ReadingGoalFormValues = z.input<typeof readingGoalSchema>;
+export type ReadingGoalInput = z.output<typeof readingGoalSchema>;
+
+/** `?ano=` of the analytics page; anything missing or invalid is the current year. */
+export function analyticsYear(value: unknown, today: string): number {
+  const year = typeof value === "string" && /^\d{4}$/.test(value) ? Number(value) : NaN;
+  return year >= MIN_YEAR && year <= MAX_YEAR ? year : Number(today.slice(0, 4));
+}
