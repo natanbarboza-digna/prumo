@@ -207,4 +207,27 @@ describe("e2e factories", () => {
       goal: { id: goal, title: "Ler mais" },
     });
   });
+
+  it("write a book's logs, quotes and rating (plan 036)", async () => {
+    const id = await insertBook({
+      title: "Ouvido",
+      format: "AUDIOBOOK",
+      durationMinutes: 600,
+      status: "READ",
+      startedOn: "2026-11-01",
+      finishedOn: "2026-11-10",
+      rating: 5,
+      review: "Ótimo.",
+      logs: [{ date: "2026-11-05", position: 300 }],
+      quotes: [{ text: "Um trecho", location: "2:10" }],
+    });
+
+    await expect(getBook(id)).resolves.toMatchObject({
+      durationMinutes: 600,
+      rating: 5,
+      review: "Ótimo.",
+      logs: [{ date: "2026-11-05", position: 300 }],
+      quotes: [{ text: "Um trecho", location: "2:10" }],
+    });
+  });
 });

@@ -1,7 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { todayInAppTimeZone } from "../src/lib/dates";
-import { insertRoutine, insertTimeDay } from "./factories";
+import { insertBook, insertRoutine, insertTimeDay } from "./factories";
 import { expectNoAxeViolations, resetDatabase } from "./helpers";
 
 test.beforeEach(resetDatabase);
@@ -120,6 +120,33 @@ test.describe("em 320 px", () => {
     });
     await open(page, "/");
     await expect(page.getByRole("figure", { name: "Horas trabalhadas por dia" })).toBeVisible();
+
+    const { scroll, width } = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      width: document.documentElement.clientWidth,
+    }));
+    expect(scroll).toBe(width);
+  });
+
+  test("a página do livro, com progresso e trechos, não rola para o lado (plano 036)", async ({
+    page,
+  }) => {
+    const today = todayInAppTimeZone();
+    const id = await insertBook({
+      title: "Um livro de título bem comprido para ocupar a largura",
+      pages: 300,
+      status: "READING",
+      startedOn: today,
+      logs: [{ date: today, position: 40 }],
+      quotes: [
+        {
+          text: "Um trecho comprido o bastante para quebrar a linha no celular.",
+          location: "p. 3",
+        },
+      ],
+    });
+    await open(page, `/books/${id}`);
+    await expect(page.getByRole("region", { name: "Progresso" })).toBeVisible();
 
     const { scroll, width } = await page.evaluate(() => ({
       scroll: document.documentElement.scrollWidth,

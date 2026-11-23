@@ -317,12 +317,19 @@ export type BookData = {
   startedOn?: string | null;
   finishedOn?: string | null;
   goalId?: string | null;
+  /** Audiobook length in minutes (plan 036). */
+  durationMinutes?: number | null;
+  rating?: number | null;
+  review?: string | null;
+  /** Reading logs: where the reading stopped on each day (plan 036). */
+  logs?: { date: string; position: number }[];
+  quotes?: { text: string; location?: string | null }[];
 };
 
-/** A book of the library (plan 035). */
+/** A book of the library (plan 035), with its logs and quotes (plan 036). */
 export function insertBook(book: BookData): Promise<string> {
-  return run((client) =>
-    insert(client, "books", {
+  return run(async (client) => {
+    const id = await insert(client, "books", {
       title: book.title,
       authors: book.authors ?? "Autor",
       format: book.format ?? "PHYSICAL",
@@ -333,6 +340,20 @@ export function insertBook(book: BookData): Promise<string> {
       started_on: book.startedOn ?? null,
       finished_on: book.finishedOn ?? null,
       goal_id: book.goalId ?? null,
-    }),
-  );
+      duration_minutes: book.durationMinutes ?? null,
+      rating: book.rating ?? null,
+      review: book.review ?? null,
+    });
+    for (const log of book.logs ?? []) {
+      await insert(client, "book_logs", { book_id: id, date: log.date, position: log.position });
+    }
+    for (const quote of book.quotes ?? []) {
+      await insert(client, "book_quotes", {
+        book_id: id,
+        text: quote.text,
+        location: quote.location ?? null,
+      });
+    }
+    return id;
+  });
 }
