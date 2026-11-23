@@ -1,6 +1,6 @@
 # 034 — Redesenho do painel inicial
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-24**, aprovado com as propostas das quatro perguntas (ver "Decisões")
 Branch: `feat/dashboard-redesign`
 
 Pedido do dono do projeto em 2026-11-24: o painel mostra os dados "crus"; quer mais gráficos e uma distribuição melhor. A proposta visual (indicadores no topo, gráficos de adesão, de tempo e do PDI, e a grade abaixo) foi aprovada antes deste plano.
@@ -112,6 +112,29 @@ Rodam o `home.spec.ts` e o `mobile.spec.ts`.
 - Capturas do painel em 1280, 768 e 375 px, nos temas claro e escuro, conferidas.
 - `npm run container:up` e `npm run container:check` passando (plano 025).
 - `CLAUDE.md` e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Paleta:** os cinco primeiros tons da paleta de referência, sem o verde-água (parecido demais com o verde de "concluído"): azul, laranja, violeta, amarelo e magenta, com um passo próprio para o tema escuro. Conferidos com o validador de paleta (separação para daltonismo e visão normal) contra a superfície do bloco nos dois temas. No claro, amarelo e magenta ficam abaixo de 3:1 contra o fundo, por isso a legenda sempre mostra nome, porcentagem e horas em texto. "Outras" usa o cinza do texto secundário.
+- **"Trabalhado"** segue a regra do plano 031 (presença menos pausas; o dia de hoje em aberto conta até agora), a mesma dos analíticos. A barra por categoria soma só os blocos de trabalho. Por isso `getDashboard` recebe o minuto atual (`nowMinute`), lido pela página junto com "hoje".
+- **Primeiro uso:** um dia de tempo registrado também tira o painel das boas-vindas. Sem isso, quem só usasse a gestão de tempo nunca veria o bloco novo.
+- **`percentages`** (`src/modules/time/analytics.ts`) passou a ser exportada e é usada por `categoryShares`, para as porcentagens somarem 100 do mesmo jeito dos analíticos.
+- **Nome dos links dos indicadores:** vem do próprio texto ("Prazos atrasados 2"). Um `aria-label` com dois-pontos foi recusado pelo axe (`label-content-name-mismatch`), e um ":" escondido ganha espaços em volta no nome acessível.
+- **Grade:** `grid-cols-1` no celular. Sem isso, a coluna da grade cresce até a largura mínima do conteúdo (os gráficos) e a página rolava para o lado (509 px em 375).
+- **Bloco Hoje:** o gráfico das 12 semanas aparece em tamanho completo (sem `compact`), e a linha "Adesão em 30 dias" saiu (virou indicador).
+- **Objetivos e trilhas:** objetivo sem nenhum em andamento leva a "Criar objetivo"; cada coluna tem o seu link "Ver objetivos" e "Ver trilhas".
+- **Verificações:**
+  - `npm run lint`, `npm run typecheck`, Prettier e `npm test` (618 testes);
+  - e2e: `home.spec.ts` (8) e `mobile.spec.ts` (7);
+  - capturas em 1280, 768 e 375 px nos temas claro e escuro, conferidas (nenhuma rolagem lateral, legenda legível);
+  - `npm run container:up` e `npm run container:check` passando.
+
+## Decisões
+
+1. Sem biblioteca de gráficos: barras em CSS e anel em SVG.
+2. Paleta nos tokens `--chart-1` a `--chart-5`; verde e vermelho só para concluído e atrasado.
+3. "Trabalhado na semana" vai de segunda até hoje.
+4. Prazos no painel: 5 por grupo, com "Ver todos".
 
 ## Perguntas (cada uma com uma proposta)
 
