@@ -40,6 +40,7 @@ const FIELD_ORDER = [
   "recommendedBy",
   "startedOn",
   "finishedOn",
+  "durationMinutes",
   "goalId",
   "notes",
 ] as const;
@@ -61,6 +62,8 @@ export function BookForm({
   const { errors, values, fieldProps, id, errorId } = form;
   // Controlled only to show or hide the due date: an unrendered field is not sent.
   const [reason, setReason] = useState<BookReason>(values.reason ?? "PERSONAL");
+  // The same for the audiobook length (plan 036).
+  const [format, setFormat] = useState<BookFormat>(values.format ?? "PHYSICAL");
   const showStart = status !== null && status !== "TO_READ";
   const showEnd = status === "READ" || status === "ABANDONED";
 
@@ -90,7 +93,8 @@ export function BookForm({
             <FieldLabel htmlFor={id("format")}>Formato</FieldLabel>
             <NativeSelect
               {...fieldProps("format")}
-              defaultValue={values.format ?? "PHYSICAL"}
+              value={format}
+              onChange={(event) => setFormat(event.target.value as BookFormat)}
               className="w-full"
             >
               {Object.values(BookFormat).map((format) => (
@@ -102,18 +106,30 @@ export function BookForm({
             <FieldError id={errorId("format")}>{errors.format?.[0]}</FieldError>
           </Field>
 
-          <Field data-invalid={!!errors.pages}>
-            <FieldLabel htmlFor={id("pages")}>Páginas (opcional)</FieldLabel>
-            <Input
-              {...fieldProps("pages")}
-              defaultValue={values.pages ?? ""}
-              inputMode="numeric"
-              type="number"
-              min={1}
-              max={MAX_BOOK_PAGES}
-            />
-            <FieldError id={errorId("pages")}>{errors.pages?.[0]}</FieldError>
-          </Field>
+          {format === "AUDIOBOOK" ? (
+            <Field data-invalid={!!errors.durationMinutes}>
+              <FieldLabel htmlFor={id("durationMinutes")}>Duração (HH:MM, opcional)</FieldLabel>
+              <Input
+                {...fieldProps("durationMinutes")}
+                defaultValue={values.durationMinutes ?? ""}
+                placeholder="10:30"
+              />
+              <FieldError id={errorId("durationMinutes")}>{errors.durationMinutes?.[0]}</FieldError>
+            </Field>
+          ) : (
+            <Field data-invalid={!!errors.pages}>
+              <FieldLabel htmlFor={id("pages")}>Páginas (opcional)</FieldLabel>
+              <Input
+                {...fieldProps("pages")}
+                defaultValue={values.pages ?? ""}
+                inputMode="numeric"
+                type="number"
+                min={1}
+                max={MAX_BOOK_PAGES}
+              />
+              <FieldError id={errorId("pages")}>{errors.pages?.[0]}</FieldError>
+            </Field>
+          )}
         </div>
 
         <Field data-invalid={!!errors.genre}>

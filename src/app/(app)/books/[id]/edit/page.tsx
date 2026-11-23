@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { BookForm } from "@/components/books/book-form";
 import { updateBookAction } from "@/modules/books/actions";
+import { positionInputValue } from "@/modules/books/labels";
 import { goalOptions } from "@/modules/goals/options";
 
 import { loadBook } from "../load-book";
@@ -32,6 +33,8 @@ export default async function EditBookPage({ params }: PageProps<"/books/[id]/ed
           goalId: book.goal?.id ?? "",
           startedOn: book.startedOn ?? "",
           finishedOn: book.finishedOn ?? "",
+          durationMinutes:
+            book.durationMinutes === null ? "" : positionInputValue("MINUTE", book.durationMinutes),
         }}
         submitLabel="Salvar alterações"
         cancelHref={`/books/${book.id}`}

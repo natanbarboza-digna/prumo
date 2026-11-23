@@ -41,6 +41,17 @@ export function BookList({
                 </Link>
               </Heading>
               <BookStateBadge book={book} />
+              {book.status === "READING" && book.progress.percent !== null && (
+                <span className="text-muted-foreground text-sm tabular-nums">
+                  {book.progress.percent}%
+                </span>
+              )}
+              {book.status === "READ" && book.rating !== null && (
+                <span className="text-sm">
+                  ★ {book.rating}
+                  <span className="sr-only"> de 5</span>
+                </span>
+              )}
             </div>
             <p className="text-muted-foreground text-sm break-words">{book.authors}</p>
             <p className="text-muted-foreground flex flex-wrap gap-x-3 text-sm">

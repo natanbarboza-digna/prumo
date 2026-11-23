@@ -2,13 +2,26 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { BookStateBadge } from "@/components/books/book-badges";
+import { QuoteForm } from "@/components/books/quote-form";
+import { QuoteList } from "@/components/books/quote-list";
+import { RatingForm } from "@/components/books/rating-form";
+import { ReadingLogForm } from "@/components/books/reading-log-form";
+import { ReadingLogList } from "@/components/books/reading-log-list";
+import { ReadingProgress } from "@/components/books/reading-progress";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
 import { formatDateForDisplay, todayInAppTimeZone } from "@/lib/dates";
-import { changeBookStatusAction, deleteBookAction } from "@/modules/books/actions";
+import {
+  changeBookStatusAction,
+  createQuoteAction,
+  deleteBookAction,
+  logReadingAction,
+  rateBookAction,
+} from "@/modules/books/actions";
 import { bookActionLabels, bookFormatLabels, bookReasonLabels } from "@/modules/books/labels";
-import { bookActions } from "@/modules/books/rules";
+import { durationText } from "@/modules/time/labels";
+import { bookActions, currentLogs, finishForecast, readingPace } from "@/modules/books/rules";
 
 import { loadBook } from "./load-book";
 
@@ -22,6 +35,16 @@ export default async function BookPage({ params }: PageProps<"/books/[id]">) {
   const open = book.status === "TO_READ" || book.status === "READING";
   // "YYYY-MM-DD" strings compare in calendar order.
   const overdue = open && book.dueDate !== null && book.dueDate < today;
+  const reading = book.status === "READING";
+  const logs = currentLogs(book.logs, book.startedOn);
+  const pace = reading ? readingPace(logs, book.startedOn, today) : null;
+  const forecast =
+    pace === null
+      ? null
+      : finishForecast(
+          { position: book.progress.position, total: book.progress.total, pace },
+          today,
+        );
 
   return (
     <article className="max-w-2xl space-y-6">
@@ -47,11 +70,60 @@ export default async function BookPage({ params }: PageProps<"/books/[id]">) {
         ))}
       </div>
 
+      {/* Progress (plan 036): logs only while reading; what is left stays visible after. */}
+      {book.status !== "TO_READ" && (
+        <section aria-labelledby="titulo-progresso" className="space-y-4">
+          <h2 id="titulo-progresso" className="text-xl font-semibold tracking-tight">
+            Progresso
+          </h2>
+          <ReadingProgress
+            progress={book.progress}
+            title={book.title}
+            pace={pace}
+            forecast={forecast}
+            dueDate={book.dueDate}
+          />
+          {reading && (
+            <ReadingLogForm
+              action={logReadingAction.bind(null, book.id)}
+              unit={book.progress.unit}
+              today={today}
+            />
+          )}
+          <ReadingLogList logs={logs} unit={book.progress.unit} />
+        </section>
+      )}
+
+      {(book.status === "READ" || book.status === "ABANDONED") && (
+        <section aria-labelledby="titulo-avaliacao" className="space-y-4">
+          <h2 id="titulo-avaliacao" className="text-xl font-semibold tracking-tight">
+            {book.status === "READ" ? "Avaliação" : "Por que parei"}
+          </h2>
+          <RatingForm
+            action={rateBookAction.bind(null, book.id)}
+            withRating={book.status === "READ"}
+            defaultValues={{
+              rating: book.rating === null ? "" : String(book.rating),
+              review: book.review ?? "",
+            }}
+          />
+        </section>
+      )}
+
       <dl className="grid gap-4 sm:grid-cols-[10rem_1fr]">
         <dt className="text-muted-foreground text-sm">Formato</dt>
         <dd>{bookFormatLabels[book.format]}</dd>
-        <dt className="text-muted-foreground text-sm">Páginas</dt>
-        <dd>{book.pages ?? empty}</dd>
+        {book.format === "AUDIOBOOK" ? (
+          <>
+            <dt className="text-muted-foreground text-sm">Duração</dt>
+            <dd>{book.durationMinutes ? durationText(book.durationMinutes) : empty}</dd>
+          </>
+        ) : (
+          <>
+            <dt className="text-muted-foreground text-sm">Páginas</dt>
+            <dd>{book.pages ?? empty}</dd>
+          </>
+        )}
         <dt className="text-muted-foreground text-sm">Gênero</dt>
         <dd className="break-words">{book.genre ?? empty}</dd>
         <dt className="text-muted-foreground text-sm">Motivo</dt>
@@ -86,6 +158,14 @@ export default async function BookPage({ params }: PageProps<"/books/[id]">) {
           {book.notes ?? <span className="text-muted-foreground">Sem notas.</span>}
         </dd>
       </dl>
+
+      <section id="trechos" aria-labelledby="titulo-trechos" className="space-y-4">
+        <h2 id="titulo-trechos" className="text-xl font-semibold tracking-tight">
+          Trechos
+        </h2>
+        <QuoteForm action={createQuoteAction.bind(null, book.id)} />
+        <QuoteList bookId={book.id} quotes={book.quotes} />
+      </section>
 
       <div className="flex flex-wrap gap-3">
         <Button asChild variant="outline">
