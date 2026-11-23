@@ -50,6 +50,9 @@ export default async function TimePage({ searchParams }: PageProps<"/time">) {
           <p className="text-muted-foreground first-letter:uppercase">{formatLongDate(date)}</p>
         </div>
         <nav aria-label="Dias" className="flex flex-wrap gap-2">
+          <Button asChild variant="secondary" size="sm">
+            <Link href="/time/analytics">Analíticos</Link>
+          </Button>
           <Button asChild variant="outline" size="sm">
             <Link href={`/time?dia=${addDays(date, -1)}`}>← Dia anterior</Link>
           </Button>
