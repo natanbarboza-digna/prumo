@@ -45,6 +45,9 @@ describe("seedDemo", () => {
       { status: "READ", _count: 1 },
       { status: "ABANDONED", _count: 1 },
     ]);
+    await expect(db.bookLog.count()).resolves.toBe(7);
+    await expect(db.bookQuote.count()).resolves.toBe(1);
+    await expect(db.book.count({ where: { rating: { not: null } } })).resolves.toBe(1);
   });
 
   it("fills every dashboard card", async () => {

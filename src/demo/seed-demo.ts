@@ -8,7 +8,13 @@ import { db } from "@/lib/db";
 import { addDays, eachDay } from "@/lib/dates";
 import { APP_TABLES_QUERY, truncateStatement } from "@/lib/truncate";
 import { bookInputSchema } from "@/modules/books/schemas";
-import { changeBookStatus, createBook } from "@/modules/books/service";
+import {
+  changeBookStatus,
+  createBook,
+  createQuote,
+  logReading,
+  rateBook,
+} from "@/modules/books/service";
 import { ensureDefaultCategories } from "@/modules/categories/defaults";
 import { ensureDefaultTimeCategories } from "@/modules/time/defaults";
 import { listCategories } from "@/modules/categories/service";
@@ -367,8 +373,9 @@ export async function seedDemo(today: string): Promise<DemoSummary> {
     summary.books++;
     const created = await createBook(bookInputSchema.parse(fields), today);
     for (const { action, on } of actions) await changeBookStatus(created.id, action, on);
+    return created;
   };
-  await book(
+  const refactoring = await book(
     {
       title: "Refatoração",
       authors: "Martin Fowler",
@@ -378,6 +385,22 @@ export async function seedDemo(today: string): Promise<DemoSummary> {
     },
     [{ action: "START", on: day(-10) }],
   );
+  // Reading logs (plan 036): about 15 pages a day, with a few days off.
+  for (const [offset, position] of [
+    [-10, 18],
+    [-9, 35],
+    [-7, 60],
+    [-5, 82],
+    [-4, 101],
+    [-2, 130],
+    [-1, 146],
+  ] as const) {
+    await logReading(refactoring.id, { date: day(offset), position }, today);
+  }
+  await createQuote(refactoring.id, {
+    text: "Quando você precisa adicionar uma funcionalidade a um programa e o código não está estruturado de forma conveniente, primeiro refatore.",
+    location: "p. 50",
+  });
   await book({
     title: "Comunicação Não-Violenta",
     authors: "Marshall Rosenberg",
@@ -393,10 +416,14 @@ export async function seedDemo(today: string): Promise<DemoSummary> {
     recommendedBy: "Ana",
     genre: "Fantasia",
   });
-  await book({ title: "Hábitos Atômicos", authors: "James Clear", pages: "320" }, [
+  const habits = await book({ title: "Hábitos Atômicos", authors: "James Clear", pages: "320" }, [
     { action: "START", on: day(-60) },
     { action: "FINISH", on: day(-30) },
   ]);
+  await rateBook(habits.id, {
+    rating: 4,
+    review: "Prático; o capítulo sobre ambiente mudou como organizo a mesa.",
+  });
   await book({ title: "Guerra e Paz", authors: "Liev Tolstói", format: "AUDIOBOOK" }, [
     { action: "START", on: day(-90) },
     { action: "ABANDON", on: day(-70) },
