@@ -15,6 +15,7 @@ const links = [
   // Tracks and PDI share one item (plan 015); the tabs on their lists switch between them.
   { href: "/tracks", label: "Desenvolvimento", sections: ["/tracks", "/pdi"] },
   { href: "/routines", label: "Rotinas", sections: ["/routines"] },
+  { href: "/time", label: "Tempo", sections: ["/time"] },
 ];
 
 export function MainNav() {
