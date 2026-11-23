@@ -14,6 +14,7 @@ import {
   createQuote,
   logReading,
   rateBook,
+  setReadingGoal,
 } from "@/modules/books/service";
 import { ensureDefaultCategories } from "@/modules/categories/defaults";
 import { ensureDefaultTimeCategories } from "@/modules/time/defaults";
@@ -424,6 +425,8 @@ export async function seedDemo(today: string): Promise<DemoSummary> {
     rating: 4,
     review: "Prático; o capítulo sobre ambiente mudou como organizo a mesa.",
   });
+  // The year's reading goal (plan 037).
+  await setReadingGoal({ year: Number(today.slice(0, 4)), books: 12 });
   await book({ title: "Guerra e Paz", authors: "Liev Tolstói", format: "AUDIOBOOK" }, [
     { action: "START", on: day(-90) },
     { action: "ABANDON", on: day(-70) },
