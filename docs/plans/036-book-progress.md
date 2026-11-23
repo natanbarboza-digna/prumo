@@ -1,6 +1,6 @@
 # 036 — Biblioteca: progresso de leitura, avaliação e trechos
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-24**, aprovado com as propostas das cinco perguntas (ver "Decisões")
 Branch: `feat/book-progress`
 
 Segundo dos três planos da biblioteca (o primeiro, cadastro e situações, é o 035; o terceiro, meta anual e analíticos, vem depois). Segue o ponto 3 da discussão, aceito pelo dono do projeto: progresso por **registros de leitura por dia**, com minutos no audiolivro e porcentagem no e-book; e o ponto 4: ao terminar, **avaliação de 1 a 5**, **resenha** e **trechos**.
@@ -159,6 +159,29 @@ CLAUDE.md (modelo, regras, reaproveitamento; plano 2 da biblioteca feito nas Pen
 - `npm run lint`, `npm run typecheck`, `npm test` e os e2e da área passando, com a migration e `npx prisma generate`.
 - `npm run container:up` e `npm run container:check` passando (plano 025).
 - `CLAUDE.md` e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Registro do mesmo dia:** como ele substitui o do dia, os limites da posição ignoram o registro daquele dia (`positionBounds`); o e2e de recusa usa uma página anterior ao registro de outro dia.
+- **Edição de trecho** numa rota própria (`/books/[id]/quotes/[quoteId]/edit`), como a edição de etapa; volta para `#trechos` da página do livro.
+- **Mensagens de recusa** da posição no formato do campo ("Informe de 20 a 400.", "Informe de 00:40 a 10:00."), e a data mostra o início da leitura.
+- **Formulário do livro:** a duração (HH:MM) aparece no lugar das páginas quando o formato é Audiolivro; o formato passou a ser um campo controlado para isso.
+- **Nota na lista:** "★ 4" com " de 5" só para leitor de tela, sem `aria-label` num `span` (o axe recusa e o `CLAUDE.md` proíbe `getByLabel` nos e2e).
+- **Botão do registro** abaixo dos campos: alinhar ao lado pedia um valor arbitrário de margem, que o `CLAUDE.md` proíbe.
+- **Demonstração:** sete registros no livro que está sendo lido, um trecho e a nota 4 no livro lido.
+- **Verificações:**
+  - `npm run lint`, `npm run typecheck`, Prettier e `npm test` (675 testes);
+  - e2e: `books.spec.ts` (10), `mobile.spec.ts` (com a página do livro em 320 px), `goals.spec.ts`, `search.spec.ts`, `deadlines.spec.ts` e `home.spec.ts`, todos passando;
+  - capturas da página do livro lendo (1280 e 375 px) e lido, conferidas;
+  - `npm run container:up` (13 migrations, nenhuma pendente) e `npm run container:check` passando.
+
+## Decisões
+
+1. Unidade por formato: página, porcentagem e tempo ouvido contra a duração.
+2. O registro guarda onde parei; a quantidade do dia é calculada.
+3. Ritmo dos últimos 14 dias para a previsão.
+4. Nota só para lido; resenha para lido e abandonado; trechos em qualquer situação.
+5. Trocar o formato de um livro com registros é recusado.
 
 ## Perguntas (cada uma com uma proposta)
 
