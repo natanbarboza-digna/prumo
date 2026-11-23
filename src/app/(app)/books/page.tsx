@@ -25,9 +25,14 @@ export default async function BooksPage({ searchParams }: PageProps<"/books">) {
       <DevelopmentTabs current="/books" />
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl font-semibold tracking-tight">Leituras</h1>
-        <Button asChild>
-          <Link href="/books/new">Novo livro</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href="/books/analytics">Ver analíticos</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/books/new">Novo livro</Link>
+          </Button>
+        </div>
       </div>
       <BookFilter current={filter} />
       {groups.length === 0 && filter !== "SHELF" ? (
