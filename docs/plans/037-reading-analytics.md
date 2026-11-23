@@ -1,6 +1,6 @@
 # 037 — Biblioteca: meta anual e analíticos de leitura
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-24**, aprovado com as propostas das cinco perguntas (ver "Decisões")
 Branch: `feat/reading-analytics`
 
 Último dos três planos da biblioteca (035: cadastro e situações; 036: progresso, avaliação e trechos). Segue o ponto 5 da discussão, aceito pelo dono do projeto: **meta anual** ("ler 12 livros em 2027") com o progresso, e **analíticos**: livros lidos por mês, páginas por semana, tempo médio por livro, autores e gêneros mais lidos.
@@ -116,6 +116,28 @@ CLAUDE.md (modelo, regras, reaproveitamento; a biblioteca sai das Pendências, f
 - Capturas da tela de analíticos e do painel em 1280 e 375 px, conferidas.
 - `npm run container:up` e `npm run container:check` passando (plano 025).
 - `CLAUDE.md` e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Nome do tipo:** o progresso da meta é `ReadingGoalProgress`, porque `GoalProgress` já existe no módulo de objetivos.
+- **"No ritmo":** a diferença é a parte inteira de lidos menos esperados (9 contra 10,8 = 1 atrás; 10 contra 10,8 = no ritmo). Ano futuro espera 0.
+- **Gráfico de barras reaproveitável** (`ColumnBars`), usado nos dois gráficos da tela, com rótulos de um em N no celular (`labelEvery`) e a partir do `sm` (`labelEveryWide`), porque as 12 semanas na meia largura não cabiam.
+- **Grade da tela:** `grid-cols-1` no celular nas duas grades de duas colunas. Sem isso, a página rolava para o lado em 375 px (mesmo caso do plano 034); o `mobile.spec.ts` ganhou a tela com dados, porque a lista de páginas abre a tela vazia.
+- **Factory:** `insertBook` passou a gravar o gênero (faltava desde o plano 035), além de `insertReadingGoal`.
+- **Demonstração:** meta de 12 livros no ano atual.
+- **Verificações:**
+  - `npm run lint`, `npm run typecheck`, Prettier e `npm test` (696 testes);
+  - e2e: `books-analytics.spec.ts` (4), `books.spec.ts`, `home.spec.ts` e `mobile.spec.ts`, todos passando;
+  - capturas da tela de analíticos e do painel em 1280 e 375 px, conferidas (depois da correção da grade);
+  - `npm run container:up` (14 migrations, nenhuma pendente) e `npm run container:check` passando.
+
+## Decisões
+
+1. Meta em número de livros por ano, contando os lidos com término no ano.
+2. Bloco "Leitura do ano" no painel, ao lado de "Objetivos e trilhas".
+3. Páginas pelos registros de leitura; e-book convertido pelas páginas; audiolivro em horas à parte.
+4. Tempo médio = dias entre início e término dos lidos no ano.
+5. Analíticos só por ano (`?ano=`).
 
 ## Perguntas (cada uma com uma proposta)
 
