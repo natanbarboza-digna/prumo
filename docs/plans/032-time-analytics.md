@@ -1,6 +1,6 @@
 # 032 — Gestão de tempo: analíticos
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-24**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/time-analytics`
 
 Segundo dos três planos da gestão de tempo (registro do dia no plano 031; importação do `.md` no plano 033).
@@ -100,6 +100,28 @@ Rodam o `time.spec.ts` (ou o novo `time-analytics.spec.ts`) e o `mobile.spec.ts`
 - `npm run lint`, `npm run typecheck`, `npm test` e os e2e da área passando.
 - `npm run container:up` e `npm run container:check` passando (plano 025).
 - `CLAUDE.md` (regra; atualizar a pendência) e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Período num módulo próprio:** `periodRange` e `analyticsQuery` ficaram em `src/modules/time/period.ts` (puro), e não em `schemas.ts`: a URL é lida por uma função que cai no padrão, sem schema Zod.
+- **TDD:** os testes do período foram escritos junto com a implementação, sem rodar antes para vê-los falhar. As contas (`analytics.ts`) e o `listTimeDays` seguiram o ciclo completo (falharam antes de existir).
+- **Filtros num formulário só** (GET, botão "Aplicar"), em vez de links por filtro: período, datas do personalizado, categoria e projeto vão juntos para a URL, então sempre se combinam e funcionam sem JavaScript.
+- **Porcentagens por maior resto:** somam sempre 100 (66,7 / 33,3 viram 67 / 33).
+- **Texto de cada atividade:** a grafia do registro mais recente do grupo.
+- **Tabela "Por dia"** com rolagem lateral própria em telas estreitas (a página não rola).
+- **Verificação visual:** capturas com dados em 900 e 320 px, por um teste temporário que foi apagado.
+- **Docker:** o Docker Desktop fechou no meio da verificação; o contêiner foi reconstruído de novo depois de reabri-lo, e o check desta branch passou.
+- **Verificações:**
+  - `npm run lint`, `npm run typecheck`, Prettier e `npm test` (591 testes);
+  - e2e: `time-analytics.spec.ts` (3), `time.spec.ts` (5) e `mobile.spec.ts` (6);
+  - `npm run container:up` (11 migrations, nenhuma pendente) e `npm run container:check` passando.
+
+## Decisões
+
+1. Períodos: esta semana (padrão), semana passada, este mês, mês passado, últimos 30 dias e personalizado.
+2. Troca de assunto: texto normalizado ou projeto diferente entre blocos de trabalho seguidos; pausas e vazios não contam.
+3. Horas extras sobre uma jornada esperada: para depois.
+4. Comparação com o período anterior: para depois.
 
 ## Perguntas (cada uma com uma proposta)
 
