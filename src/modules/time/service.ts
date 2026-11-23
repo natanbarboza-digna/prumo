@@ -154,6 +154,16 @@ export async function getTimeDay(date: string): Promise<TimeDayView | null> {
   return row ? toDay(row) : null;
 }
 
+/** The days from `from` to `to` (both included), oldest first, with their entries (plan 032). */
+export async function listTimeDays(from: string, to: string): Promise<TimeDayView[]> {
+  const rows = await db.timeDay.findMany({
+    where: { date: { gte: parseDateOnly(from), lte: parseDateOnly(to) } },
+    include: dayInclude,
+    orderBy: { date: "asc" },
+  });
+  return rows.map(toDay);
+}
+
 /** The grid's clock: "now" only for today while the day is still open. */
 export function clockFor(day: Pick<TimeDayView, "date" | "endMinute">, now: Date): Clock {
   const open = day.endMinute === null && day.date === todayInAppTimeZone(now);

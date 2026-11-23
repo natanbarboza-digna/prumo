@@ -21,6 +21,7 @@ import {
   joinSlot,
   listDescriptions,
   listTimeCategories,
+  listTimeDays,
   listTimeProjects,
   repeatPrevious,
   saveEntry,
@@ -227,5 +228,28 @@ describe("time categories and projects", () => {
     await expect(deleteTimeCategory(await categoryId())).rejects.toBeInstanceOf(
       TimeCategoryInUseError,
     );
+  });
+});
+
+describe("listTimeDays (plan 032)", () => {
+  it("brings the days of the range, oldest first, with their entries", async () => {
+    const id = await categoryId();
+    for (const date of ["2026-11-15", "2026-11-17", "2026-11-20"]) {
+      await startDay(date, { startTime: "09:00", slotMinutes: 30, endTime: "10:00" }, now);
+    }
+    await saveEntry(
+      "2026-11-17",
+      "09:00",
+      null,
+      { kind: "WORK", description: "Relatórios", categoryId: id, projectName: "Digna" },
+      now,
+    );
+
+    const days = await listTimeDays("2026-11-16", "2026-11-20");
+
+    expect(days.map((day) => day.date)).toEqual(["2026-11-17", "2026-11-20"]);
+    expect(days[0]?.entries).toMatchObject([
+      { startTime: "09:00", category: { id }, project: { name: "Digna" } },
+    ]);
   });
 });
