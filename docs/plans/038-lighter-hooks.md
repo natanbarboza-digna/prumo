@@ -1,6 +1,6 @@
 # 038 — Hooks e CI mais leves para `docs` e `chore`
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-24**, aprovado com as propostas das cinco perguntas (ver "Decisões")
 Branch: `chore/lighter-hooks`
 
 Pedido do dono do projeto: a suíte de testes roda sempre, até no push de um README (o `pre-push` rodou os 696 testes). Commits de `docs` e `chore` não devem rodar a suíte inteira, nem nos hooks nem no CI (ajuste pedido na revisão do plano).
@@ -100,6 +100,28 @@ CLAUDE.md
 - `npm run lint`, `npm run typecheck` e `npm test` passando; os testes manuais acima registrados.
 - `npm run container:up` e `npm run container:check` passando (plano 025), mesmo sem mudança no app, como pede a regra.
 - `CLAUDE.md` (itens 5 e 6 do Workflow: o que cada hook e o CI rodam e quando pulam) e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Branch nova no CI:** sem `before`, o intervalo é `origin/main..HEAD` (o que a branch acrescenta à `main`). O passo de mensagens continua conferindo só o último commit, como antes. Intervalo vazio ou que o Git não lê roda tudo.
+- **Saída do script:** 0 (rodar tudo) ou 10 (pular). No CI, o passo aceita os dois (`|| [ $? -eq 10 ]`) e a decisão segue por `GITHUB_OUTPUT`; qualquer erro escreve `full=true`.
+- **Verificações manuais** (todas como planejado):
+  - `commit-msg` com "docs: …" e nada de código preparado: só a mensagem, "lint, tipos e testes pulados";
+  - `commit-msg` com "feat: …": lint, tipos e unidade (442 testes);
+  - `pre-push` com o intervalo do README (só `docs`): testes pulados, `npm audit` com 0 vulnerabilidades;
+  - `pre-push` com um intervalo que tem um commit `test`: `npm test` completo (718 testes) e `npm audit`;
+  - `pre-push` de branch nova só com commits `docs`: pula (saída 10);
+  - `--range` como o CI chama: `full=false` para o README, `full=true` com o commit `test` e `full=true` para um intervalo inexistente.
+- **Verificações:** `npm run lint`, `npm run typecheck`, Prettier, `npm test` (718 testes), `npm run container:up` e `npm run container:check` passando.
+- **Pendente:** conferir o CI no GitHub no primeiro push de `docs` ou `chore` depois do merge (o push é do dono do projeto).
+
+## Decisões
+
+1. Lint, typecheck e unidade passam para o `commit-msg`; o Prettier fica no `pre-commit`.
+2. No push, pula o `npm test` só se todos os commits forem `docs` ou `chore`; o `npm audit` roda sempre.
+3. Exceção: dependências, `prisma/`, `src/`, `e2e/` ou `scripts/` rodam tudo.
+4. Só `docs` e `chore` são leves.
+5. No CI, mensagens, Prettier e `npm audit` sempre; o resto pela mesma regra.
 
 ## Perguntas (cada uma com uma proposta)
 
