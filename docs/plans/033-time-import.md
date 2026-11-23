@@ -1,6 +1,6 @@
 # 033 — Gestão de tempo: importação do histórico do `.md`
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-24**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/time-import`
 
 Último dos três planos da gestão de tempo (registro do dia no 031, analíticos no 032).
@@ -124,6 +124,28 @@ Rodam o `time-import.spec.ts`, o `time.spec.ts` e o `mobile.spec.ts`.
 - `npm run lint`, `npm run typecheck`, `npm test` e os e2e da área passando.
 - `npm run container:up` e `npm run container:check` passando (plano 025).
 - `CLAUDE.md` (regra; a gestão de tempo sai das Pendências, ficando registrado o que foi para depois) e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Linha de cada regra:** `parseRules` devolve a linha de cada regra (`WordRule.line`), para as mensagens sobre categoria inexistente ou arquivada apontarem a linha certa mesmo com linhas em branco ou mal escritas no meio.
+- **Nomes das regras** são comparados com os cadastrados sem diferenciar maiúsculas nem acentos e trocados pela grafia cadastrada (`projeto = …` vale para a categoria "Projeto").
+- **Categoria padrão inválida** (vazia, inexistente ou arquivada) para a conferência na hora, sem ler o texto.
+- **Texto sem nenhum dia** é recusado ("Nenhum dia encontrado no texto.").
+- **Campos de regras não controlados:** o valor salvo no navegador é posto direto no campo por uma ref no carregamento; um `setState` dentro do efeito é recusado pela regra `react-hooks/set-state-in-effect` do lint.
+- **Depois de confirmar**, a tela vai para o último dia importado (`/time?dia=…`).
+- **Verificações:**
+  - `npm run lint`, `npm run typecheck`, Prettier e `npm test` (605 testes);
+  - e2e: `time-import.spec.ts` (2), `time.spec.ts` (5) e `mobile.spec.ts` (6);
+  - `npm run container:up` (11 migrations, nenhuma pendente) e `npm run container:check` passando.
+
+## Decisões
+
+1. Marcos: entrada, saída e pausa com as palavras propostas.
+2. Categoria padrão no formulário mais regras por palavra (o trabalho exige categoria).
+3. Regras de projeto no mesmo formato, opcionais.
+4. Horário fora da grade recusa a linha.
+5. Dia já registrado recusa a importação inteira.
+6. O texto é colado.
 
 ## Perguntas (cada uma com uma proposta)
 
