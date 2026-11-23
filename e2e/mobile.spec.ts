@@ -18,6 +18,7 @@ const PAGES = [
   "/settings/categories",
   "/search?q=prumo",
   "/deadlines",
+  "/books",
   "/time",
   "/time/categories",
   "/time/projects",

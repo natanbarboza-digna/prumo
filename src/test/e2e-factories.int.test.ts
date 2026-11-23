@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { db } from "@/lib/db";
+import { getBook } from "@/modules/books/service";
 import { ensureDefaultCategories } from "@/modules/categories/defaults";
 import { getGoal } from "@/modules/goals/service";
 import { getCycle } from "@/modules/pdi/service";
@@ -13,6 +14,7 @@ import { getTrack } from "@/modules/tracks/service";
 
 import {
   categoryId,
+  insertBook,
   insertCycle,
   insertGoal,
   insertRoutine,
@@ -176,5 +178,33 @@ describe("e2e factories", () => {
     ]);
     expect(cycle.areas.map((area) => area.name)).toEqual(["Comunicação", "Liderança"]);
     expect(cycle.checkIns).toMatchObject([{ date: "2026-11-02", summary: "Alinhamento" }]);
+  });
+
+  it("write a book the app reads back (plan 035)", async () => {
+    const goal = await insertGoal({ title: "Ler mais" });
+    const id = await insertBook({
+      title: "Duna",
+      authors: "Frank Herbert",
+      format: "EBOOK",
+      pages: 600,
+      status: "READING",
+      reason: "WORK",
+      dueDate: "2026-12-01",
+      startedOn: "2026-11-10",
+      goalId: goal,
+    });
+
+    await expect(getBook(id)).resolves.toMatchObject({
+      title: "Duna",
+      authors: "Frank Herbert",
+      format: "EBOOK",
+      pages: 600,
+      status: "READING",
+      reason: "WORK",
+      dueDate: "2026-12-01",
+      startedOn: "2026-11-10",
+      finishedOn: null,
+      goal: { id: goal, title: "Ler mais" },
+    });
   });
 });

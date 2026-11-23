@@ -304,3 +304,35 @@ export function insertTimeDay(day: {
     return id;
   });
 }
+
+export type BookData = {
+  title: string;
+  authors?: string;
+  format?: "PHYSICAL" | "EBOOK" | "AUDIOBOOK";
+  pages?: number | null;
+  status?: "TO_READ" | "READING" | "READ" | "ABANDONED";
+  reason?: "PERSONAL" | "RECOMMENDATION" | "WORK" | "PDI";
+  /** "YYYY-MM-DD"; only for WORK or PDI books, like the form. */
+  dueDate?: string | null;
+  startedOn?: string | null;
+  finishedOn?: string | null;
+  goalId?: string | null;
+};
+
+/** A book of the library (plan 035). */
+export function insertBook(book: BookData): Promise<string> {
+  return run((client) =>
+    insert(client, "books", {
+      title: book.title,
+      authors: book.authors ?? "Autor",
+      format: book.format ?? "PHYSICAL",
+      pages: book.pages ?? null,
+      status: book.status ?? "TO_READ",
+      reason: book.reason ?? "PERSONAL",
+      due_date: book.dueDate ?? null,
+      started_on: book.startedOn ?? null,
+      finished_on: book.finishedOn ?? null,
+      goal_id: book.goalId ?? null,
+    }),
+  );
+}
