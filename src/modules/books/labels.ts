@@ -1,7 +1,10 @@
 import type { BookFormat, BookReason, BookStatus } from "@/generated/prisma/enums";
 import { formatDateForDisplay } from "@/lib/dates";
+import { durationText } from "@/modules/time/labels";
 import {
   type BookAction,
+  type BookProgress,
+  type ProgressUnit,
   type BookFilter,
   type ShelfGroup,
   shelfGroupOf,
@@ -84,4 +87,60 @@ export function bookDatesText(book: {
   if (startedOn) return `Começou em ${formatDateForDisplay(startedOn)}`;
   if (finishedOn) return `Terminou em ${formatDateForDisplay(finishedOn)}`;
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Reading progress (plan 036)
+// ---------------------------------------------------------------------------
+
+/** The log form's field, by unit. */
+export const positionLabels: Record<ProgressUnit, string> = {
+  PAGE: "Página",
+  PERCENT: "Porcentagem",
+  MINUTE: "Tempo ouvido (HH:MM)",
+};
+
+const hours = (minutes: number) => (minutes === 0 ? "0min" : durationText(minutes));
+
+/** "Página 72", "45%" or "3h20". */
+export function positionText(unit: ProgressUnit, position: number): string {
+  if (unit === "PAGE") return `Página ${position}`;
+  return unit === "PERCENT" ? `${position}%` : hours(position);
+}
+
+/** The position as the form field takes it: "72", "45" or "03:20". */
+export function positionInputValue(unit: ProgressUnit, position: number): string {
+  if (unit !== "MINUTE") return String(position);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${pad(Math.floor(position / 60))}:${pad(position % 60)}`;
+}
+
+/** "Página 120 de 456 (26%)", "45% lido" or "3h20 de 10h (33%)". */
+export function progressText({ unit, position, total, percent }: BookProgress): string {
+  if (position === 0) return "Nenhuma leitura registrada";
+  const share = percent === null ? "" : ` (${percent}%)`;
+  if (unit === "PERCENT") return `${position}% lido`;
+  if (unit === "PAGE")
+    return total === null ? `Página ${position}` : `Página ${position} de ${total}${share}`;
+  return total === null
+    ? `${hours(position)} ouvidos`
+    : `${hours(position)} de ${hours(total)}${share}`;
+}
+
+/** "+32 páginas", "+5%" or "+40min": what a day added. */
+export function amountText(unit: ProgressUnit, amount: number): string {
+  if (unit === "PAGE") return `+${amount} ${amount === 1 ? "página" : "páginas"}`;
+  return unit === "PERCENT" ? `+${amount}%` : `+${hours(amount)}`;
+}
+
+/** "Ritmo: 18 páginas por dia", "Ritmo: 2,3% por dia" or "Ritmo: 25min por dia". */
+export function paceText(unit: ProgressUnit, pace: number): string {
+  if (unit === "PAGE") {
+    const pages = Math.round(pace);
+    return `Ritmo: ${pages} ${pages === 1 ? "página" : "páginas"} por dia`;
+  }
+  if (unit === "PERCENT") {
+    return `Ritmo: ${pace.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% por dia`;
+  }
+  return `Ritmo: ${hours(Math.round(pace))} por dia`;
 }

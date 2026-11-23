@@ -4,9 +4,17 @@ import {
   type BookSummary,
   applyBookAction,
   bookActions,
+  bookProgress,
+  currentLogs,
+  finishForecast,
   groupBooks,
   isRequired,
+  logAmounts,
+  positionBounds,
+  readingPace,
   shelfGroupOf,
+  totalOf,
+  unitOf,
 } from "@/modules/books/rules";
 
 const today = "2026-11-24";
@@ -144,5 +152,111 @@ describe("groupBooks", () => {
       "ABANDONED",
     ]);
     expect(groupBooks([book({ status: "READ" })], "SHELF")).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reading progress (plan 036)
+// ---------------------------------------------------------------------------
+
+describe("unitOf and totalOf", () => {
+  it("measures each format in its own unit, with its total", () => {
+    expect(unitOf("PHYSICAL")).toBe("PAGE");
+    expect(unitOf("EBOOK")).toBe("PERCENT");
+    expect(unitOf("AUDIOBOOK")).toBe("MINUTE");
+    expect(totalOf({ format: "PHYSICAL", pages: 456, durationMinutes: null })).toBe(456);
+    expect(totalOf({ format: "PHYSICAL", pages: null, durationMinutes: 600 })).toBeNull();
+    expect(totalOf({ format: "EBOOK", pages: 300, durationMinutes: null })).toBe(100);
+    expect(totalOf({ format: "AUDIOBOOK", pages: 300, durationMinutes: 600 })).toBe(600);
+  });
+});
+
+const log = (date: string, position: number) => ({ id: date, date, position });
+
+describe("currentLogs and logAmounts", () => {
+  it("keeps the logs of the current reading, oldest first", () => {
+    const logs = [log("2026-11-20", 80), log("2026-09-01", 300), log("2026-11-18", 40)];
+    expect(currentLogs(logs, "2026-11-15").map((item) => item.date)).toEqual([
+      "2026-11-18",
+      "2026-11-20",
+    ]);
+    expect(currentLogs(logs, null)).toHaveLength(3);
+  });
+
+  it("gives what each day added to the one before", () => {
+    expect(
+      logAmounts([log("2026-11-18", 40), log("2026-11-20", 72)]).map((item) => item.amount),
+    ).toEqual([40, 32]);
+  });
+});
+
+describe("positionBounds", () => {
+  const logs = [log("2026-11-18", 40), log("2026-11-22", 100)];
+
+  it("keeps a log between the one before and the one after, up to the total", () => {
+    expect(positionBounds(logs, "2026-11-20", 456)).toEqual({ min: 40, max: 100 });
+    expect(positionBounds(logs, "2026-11-23", 456)).toEqual({ min: 100, max: 456 });
+    expect(positionBounds(logs, "2026-11-17", null)).toEqual({ min: 1, max: 40 });
+    expect(positionBounds([], "2026-11-17", null)).toEqual({ min: 1, max: null });
+  });
+
+  it("ignores the log of the same day, which the new one replaces", () => {
+    expect(positionBounds(logs, "2026-11-22", 456)).toEqual({ min: 40, max: 456 });
+  });
+});
+
+describe("readingPace", () => {
+  it("averages the last 14 days", () => {
+    // 70 pages from the 10th (before the window) to the 24th: 140 in 14 days.
+    const logs = [log("2026-11-05", 60), log("2026-11-10", 70), log("2026-11-24", 210)];
+    expect(readingPace(logs, "2026-11-01", today)).toBe(10);
+  });
+
+  it("counts from the start when the reading is shorter than 14 days", () => {
+    expect(readingPace([log("2026-11-23", 50)], "2026-11-20", today)).toBe(10);
+  });
+
+  it("is zero without logs", () => {
+    expect(readingPace([], "2026-11-20", today)).toBe(0);
+  });
+});
+
+describe("finishForecast", () => {
+  it("adds the days left at the pace, rounded up", () => {
+    expect(finishForecast({ position: 100, total: 456, pace: 18 }, today)).toBe("2026-12-14");
+  });
+
+  it("has no forecast without a total, without a pace or when the book is done", () => {
+    expect(finishForecast({ position: 100, total: null, pace: 18 }, today)).toBeNull();
+    expect(finishForecast({ position: 100, total: 456, pace: 0 }, today)).toBeNull();
+    expect(finishForecast({ position: 456, total: 456, pace: 10 }, today)).toBeNull();
+  });
+});
+
+describe("bookProgress", () => {
+  const book = { format: "PHYSICAL" as const, pages: 456, durationMinutes: null };
+
+  it("gives the position, the total and the percentage of the current reading", () => {
+    expect(
+      bookProgress({ ...book, status: "READING", startedOn: "2026-11-01" }, [
+        log("2026-11-20", 114),
+      ]),
+    ).toEqual({
+      unit: "PAGE",
+      position: 114,
+      total: 456,
+      percent: 25,
+    });
+  });
+
+  it("is complete for a read book, and without a percentage when there is no total", () => {
+    expect(bookProgress({ ...book, status: "READ", startedOn: "2026-11-01" }, [])).toMatchObject({
+      percent: 100,
+    });
+    expect(
+      bookProgress({ ...book, pages: null, status: "READING", startedOn: null }, [
+        log("2026-11-20", 30),
+      ]),
+    ).toMatchObject({ position: 30, total: null, percent: null });
   });
 });

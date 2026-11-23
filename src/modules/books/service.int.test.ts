@@ -32,6 +32,7 @@ function bookInput(overrides: Partial<BookInput> = {}): BookInput {
     goalId: null,
     startedOn: null,
     finishedOn: null,
+    durationMinutes: null,
     ...overrides,
   };
 }
@@ -60,6 +61,7 @@ describe("books (plan 035)", () => {
       // A book in the queue keeps no dates.
       startedOn: null,
       finishedOn: null,
+      durationMinutes: null,
     });
   });
 
@@ -99,6 +101,7 @@ describe("books (plan 035)", () => {
       startedOn: "2026-11-10",
       // Still reading: no end date.
       finishedOn: null,
+      durationMinutes: null,
     });
   });
 

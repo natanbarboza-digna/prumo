@@ -173,6 +173,7 @@ describe("books in the search (plan 035)", () => {
         goalId: null,
         startedOn: null,
         finishedOn: null,
+        durationMinutes: null,
       },
       today,
     );

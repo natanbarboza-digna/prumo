@@ -289,6 +289,7 @@ describe("books in the goal progress (plan 035)", () => {
           goalId: goal.id,
           startedOn: null,
           finishedOn: null,
+          durationMinutes: null,
         },
         today,
       );

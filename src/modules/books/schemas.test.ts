@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { bookFilterSchema, bookInputSchema } from "@/modules/books/schemas";
+import {
+  bookFilterSchema,
+  bookInputSchema,
+  bookLogSchema,
+  bookQuoteSchema,
+  bookRatingSchema,
+} from "@/modules/books/schemas";
 
 function fieldErrors(input: unknown) {
   const result = bookInputSchema.safeParse(input);
@@ -24,6 +30,7 @@ describe("bookInputSchema (plan 035)", () => {
       goalId: null,
       startedOn: null,
       finishedOn: null,
+      durationMinutes: null,
     });
   });
 
@@ -65,5 +72,57 @@ describe("bookFilterSchema", () => {
     expect(bookFilterSchema.parse("READ")).toBe("READ");
     expect(bookFilterSchema.parse(undefined)).toBe("SHELF");
     expect(bookFilterSchema.parse("LIDOS")).toBe("SHELF");
+  });
+});
+
+describe("book form: audiobook length (plan 036)", () => {
+  it("reads HH:MM as minutes, also past 24 hours", () => {
+    const parse = (durationMinutes: string) =>
+      bookInputSchema.parse({ title: "A", authors: "B", durationMinutes }).durationMinutes;
+    expect(parse("")).toBeNull();
+    expect(parse("10:30")).toBe(630);
+    expect(parse("31:05")).toBe(1865);
+    expect(
+      fieldErrors({ title: "A", authors: "B", durationMinutes: "10h" }).durationMinutes,
+    ).toEqual(["Use o formato HH:MM."]);
+  });
+});
+
+describe("bookLogSchema", () => {
+  it("reads a page, a percentage up to 100 or the time listened, by the unit", () => {
+    expect(bookLogSchema("PAGE").parse({ date: "2026-11-24", position: "72" })).toEqual({
+      date: "2026-11-24",
+      position: 72,
+    });
+    expect(
+      bookLogSchema("PERCENT").safeParse({ date: "2026-11-24", position: "101" }).success,
+    ).toBe(false);
+    expect(bookLogSchema("MINUTE").parse({ date: "2026-11-24", position: "3:20" }).position).toBe(
+      200,
+    );
+    expect(bookLogSchema("PAGE").safeParse({ date: "2026-11-24", position: "0" }).success).toBe(
+      false,
+    );
+    expect(bookLogSchema("PAGE").safeParse({ date: "", position: "10" }).success).toBe(false);
+  });
+});
+
+describe("bookRatingSchema and bookQuoteSchema", () => {
+  it("takes a rating from 1 to 5 or none, and a review", () => {
+    expect(bookRatingSchema.parse({ rating: "4", review: " Ótimo " })).toEqual({
+      rating: 4,
+      review: "Ótimo",
+    });
+    expect(bookRatingSchema.parse({ review: "" })).toEqual({ rating: null, review: null });
+    expect(bookRatingSchema.safeParse({ rating: "6" }).success).toBe(false);
+  });
+
+  it("requires the quote's text and limits its location", () => {
+    expect(bookQuoteSchema.parse({ text: " Trecho ", location: "p. 12" })).toEqual({
+      text: "Trecho",
+      location: "p. 12",
+    });
+    expect(bookQuoteSchema.safeParse({ text: "" }).success).toBe(false);
+    expect(bookQuoteSchema.safeParse({ text: "a", location: "x".repeat(21) }).success).toBe(false);
   });
 });

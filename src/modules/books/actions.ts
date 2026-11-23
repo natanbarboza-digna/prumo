@@ -6,21 +6,45 @@ import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { formatDateForDisplay } from "@/lib/dates";
 import { requireSession } from "@/modules/auth/session";
+import { positionInputValue } from "@/modules/books/labels";
+import { type ProgressUnit, unitOf } from "@/modules/books/rules";
 import {
   type BookFieldErrors,
   type BookFormValues,
+  type BookLogFormValues,
+  type BookQuoteFormValues,
+  type BookRatingFormValues,
   bookActionSchema,
   bookInputSchema,
+  bookLogSchema,
+  bookQuoteSchema,
+  bookRatingSchema,
 } from "@/modules/books/schemas";
 import {
   BookDateInFutureError,
+  BookFormatLockedError,
+  BookLogDateError,
+  BookLogNotFoundError,
+  BookLogPositionError,
   BookNotFoundError,
+  BookNotReadingError,
+  BookQuoteNotFoundError,
+  BookRatingNotAllowedError,
+  BookTotalTooSmallError,
   InvalidBookActionError,
   changeBookStatus,
   createBook,
+  createQuote,
   deleteBook,
+  deleteBookLog,
+  deleteQuote,
+  getBook,
+  logReading,
+  rateBook,
   updateBook,
+  updateQuote,
 } from "@/modules/books/service";
 import { GoalNotFoundError } from "@/modules/goals/service";
 
@@ -49,6 +73,7 @@ function readBookForm(formData: FormData): BookFormValues {
     goalId: readText(formData, "goalId"),
     startedOn: readText(formData, "startedOn"),
     finishedOn: readText(formData, "finishedOn"),
+    durationMinutes: readText(formData, "durationMinutes"),
   };
 }
 
@@ -59,6 +84,13 @@ function fieldError(error: unknown): BookFieldErrors | null {
   }
   if (error instanceof BookDateInFutureError) {
     return { [error.field]: ["A data não pode estar no futuro."] };
+  }
+  if (error instanceof BookFormatLockedError) {
+    return { format: ["Este livro tem registros de leitura; o formato não pode mudar."] };
+  }
+  if (error instanceof BookTotalTooSmallError) {
+    const message = ["O total não pode ser menor que a leitura já registrada."];
+    return { pages: message, durationMinutes: message };
   }
   return null;
 }
@@ -143,4 +175,172 @@ export async function deleteBookAction(id: string): Promise<void> {
   }
   revalidateBookScreens();
   redirect("/books");
+}
+
+// ---------------------------------------------------------------------------
+// Reading progress, rating and quotes (plan 036)
+// ---------------------------------------------------------------------------
+
+export type BookLogFormState = {
+  errors?: Partial<Record<keyof BookLogFormValues, string[]>>;
+  formError?: string;
+  values?: BookLogFormValues;
+};
+
+function positionRange(unit: ProgressUnit, min: number, max: number | null): string {
+  const show = (value: number) => positionInputValue(unit, value);
+  return max === null ? `Informe ${show(min)} ou mais.` : `Informe de ${show(min)} a ${show(max)}.`;
+}
+
+/** "Registrar" on the book page: where the reading stopped on a day. */
+export async function logReadingAction(
+  bookId: string,
+  _previous: BookLogFormState,
+  formData: FormData,
+): Promise<BookLogFormState> {
+  await requireSession();
+  const values = { date: readText(formData, "date"), position: readText(formData, "position") };
+  let unit: ProgressUnit;
+  try {
+    unit = unitOf((await getBook(bookId)).format);
+  } catch (error) {
+    if (error instanceof BookNotFoundError) return { formError: "Este livro não existe mais." };
+    throw error;
+  }
+  const parsed = bookLogSchema(unit).safeParse(values);
+  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
+
+  try {
+    await logReading(bookId, parsed.data);
+  } catch (error) {
+    if (error instanceof BookNotReadingError) {
+      return {
+        formError: "Só dá para registrar a leitura de um livro que você está lendo.",
+        values,
+      };
+    }
+    if (error instanceof BookLogDateError) {
+      const start = error.startedOn ? ` (${formatDateForDisplay(error.startedOn)})` : "";
+      return {
+        errors: { date: [`Use uma data entre o início da leitura${start} e hoje.`] },
+        values,
+      };
+    }
+    if (error instanceof BookLogPositionError) {
+      return { errors: { position: [positionRange(unit, error.min, error.max)] }, values };
+    }
+    throw error;
+  }
+  revalidateBookScreens();
+  refresh();
+  // A fresh form for the next day's log.
+  return {};
+}
+
+export async function deleteBookLogAction(id: string): Promise<void> {
+  await requireSession();
+  try {
+    await deleteBookLog(id);
+  } catch (error) {
+    if (!(error instanceof BookLogNotFoundError)) throw error;
+  }
+  revalidateBookScreens();
+  refresh();
+}
+
+export type BookRatingFormState = {
+  errors?: Partial<Record<keyof BookRatingFormValues, string[]>>;
+  formError?: string;
+  values?: BookRatingFormValues;
+  saved?: boolean;
+};
+
+export async function rateBookAction(
+  bookId: string,
+  _previous: BookRatingFormState,
+  formData: FormData,
+): Promise<BookRatingFormState> {
+  await requireSession();
+  const values = { rating: readText(formData, "rating"), review: readText(formData, "review") };
+  const parsed = bookRatingSchema.safeParse(values);
+  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
+
+  try {
+    await rateBook(bookId, parsed.data);
+  } catch (error) {
+    if (error instanceof BookRatingNotAllowedError) {
+      return {
+        formError: "A nota é só para livro lido; a resenha, para lido ou abandonado.",
+        values,
+      };
+    }
+    if (error instanceof BookNotFoundError) return { formError: "Este livro não existe mais." };
+    throw error;
+  }
+  revalidateBookScreens();
+  refresh();
+  return { values, saved: true };
+}
+
+export type BookQuoteFormState = {
+  errors?: Partial<Record<keyof BookQuoteFormValues, string[]>>;
+  formError?: string;
+  values?: BookQuoteFormValues;
+};
+
+function readQuoteForm(formData: FormData): BookQuoteFormValues {
+  return { text: readText(formData, "text"), location: readText(formData, "location") };
+}
+
+export async function createQuoteAction(
+  bookId: string,
+  _previous: BookQuoteFormState,
+  formData: FormData,
+): Promise<BookQuoteFormState> {
+  await requireSession();
+  const values = readQuoteForm(formData);
+  const parsed = bookQuoteSchema.safeParse(values);
+  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
+  try {
+    await createQuote(bookId, parsed.data);
+  } catch (error) {
+    if (error instanceof BookNotFoundError) return { formError: "Este livro não existe mais." };
+    throw error;
+  }
+  revalidateBookScreens();
+  refresh();
+  return {};
+}
+
+export async function updateQuoteAction(
+  quoteId: string,
+  bookId: string,
+  _previous: BookQuoteFormState,
+  formData: FormData,
+): Promise<BookQuoteFormState> {
+  await requireSession();
+  const values = readQuoteForm(formData);
+  const parsed = bookQuoteSchema.safeParse(values);
+  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values };
+  try {
+    await updateQuote(quoteId, parsed.data);
+  } catch (error) {
+    if (error instanceof BookQuoteNotFoundError) {
+      return { formError: "Este trecho não existe mais.", values };
+    }
+    throw error;
+  }
+  revalidateBookScreens();
+  redirect(`/books/${bookId}#trechos`);
+}
+
+export async function deleteQuoteAction(id: string): Promise<void> {
+  await requireSession();
+  try {
+    await deleteQuote(id);
+  } catch (error) {
+    if (!(error instanceof BookQuoteNotFoundError)) throw error;
+  }
+  revalidateBookScreens();
+  refresh();
 }
