@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { type Deadline, groupDeadlines, groupDeadlinesByWeek } from "@/modules/dashboard/rules";
+import {
+  DEADLINE_LIMIT,
+  type Deadline,
+  categoryShares,
+  groupDeadlines,
+  groupDeadlinesByWeek,
+  weekTimeBars,
+} from "@/modules/dashboard/rules";
 
 const today = "2026-11-16";
 
@@ -40,6 +47,10 @@ describe("groupDeadlines", () => {
       "Atraso antigo",
       "Atraso recente",
     ]);
+  });
+
+  it("lists 5 per group on the dashboard (plan 034)", () => {
+    expect(DEADLINE_LIMIT).toBe(5);
   });
 
   it("shows at most the limit per group and counts what was left out", () => {
@@ -128,5 +139,82 @@ describe("groupDeadlinesByWeek (plan 028)", () => {
 
     expect(groups.weeks.map((week) => week.monday)).toEqual(["2026-11-16", "2026-11-23"]);
     expect(dates(groups.weeks[0]!.items)).toEqual([sunday]);
+  });
+});
+
+describe("weekTimeBars (plan 034)", () => {
+  // Thursday.
+  const thursday = "2026-11-19";
+
+  it("gives Monday to Sunday with the hours worked, today marked and future days empty", () => {
+    const bars = weekTimeBars(
+      [
+        { date: "2026-11-16", worked: 480 },
+        { date: "2026-11-18", worked: 240 },
+        { date: thursday, worked: 120 },
+      ],
+      thursday,
+    );
+
+    expect(bars.map((bar) => bar.weekday)).toEqual([
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+    ]);
+    expect(bars.map((bar) => bar.minutes)).toEqual([480, 0, 240, 120, 0, 0, 0]);
+    expect(bars.map((bar) => bar.height)).toEqual([100, 0, 50, 25, 0, 0, 0]);
+    expect(bars.filter((bar) => bar.isToday).map((bar) => bar.date)).toEqual([thursday]);
+    expect(bars.map((bar) => bar.isFuture)).toEqual([false, false, false, false, true, true, true]);
+  });
+
+  it("ignores days outside the week and handles a week without records", () => {
+    const bars = weekTimeBars([{ date: "2026-11-13", worked: 300 }], thursday);
+
+    expect(bars.every((bar) => bar.minutes === 0 && bar.height === 0)).toBe(true);
+    expect(bars[0]!.date).toBe("2026-11-16");
+    expect(bars[6]!.date).toBe("2026-11-22");
+  });
+});
+
+describe("categoryShares (plan 034)", () => {
+  const share = (name: string, minutes: number) => ({ id: name, name, minutes, percent: 0 });
+
+  it("keeps up to five categories with their tone, in the given order", () => {
+    const shares = categoryShares([share("Projeto", 120), share("Chamados", 60)]);
+
+    expect(shares).toEqual([
+      { name: "Projeto", minutes: 120, percent: 67, tone: 1 },
+      { name: "Chamados", minutes: 60, percent: 33, tone: 2 },
+    ]);
+  });
+
+  it("sums the categories after the fifth into Outras, with percentages adding up to 100", () => {
+    const shares = categoryShares([
+      share("A", 300),
+      share("B", 200),
+      share("C", 100),
+      share("D", 100),
+      share("E", 50),
+      share("F", 30),
+      share("G", 20),
+    ]);
+
+    expect(shares.map((item) => [item.name, item.minutes, item.tone])).toEqual([
+      ["A", 300, 1],
+      ["B", 200, 2],
+      ["C", 100, 3],
+      ["D", 100, 4],
+      ["E", 50, 5],
+      ["Outras", 50, null],
+    ]);
+    expect(shares.reduce((total, item) => total + item.percent, 0)).toBe(100);
+  });
+
+  it("gives nothing without work", () => {
+    expect(categoryShares([])).toEqual([]);
   });
 });

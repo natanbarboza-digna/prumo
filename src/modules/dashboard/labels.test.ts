@@ -5,6 +5,7 @@ import {
   daysAgoText,
   deadlinesEmptyText,
   dueText,
+  kpiItems,
   recentAdherenceText,
   weekTitle,
 } from "@/modules/dashboard/labels";
@@ -67,5 +68,39 @@ describe("deadline page texts (plan 028)", () => {
     expect(deadlinesEmptyText("30")).toBe("Nenhum prazo atrasado nem nos próximos 30 dias.");
     expect(deadlinesEmptyText("7")).toBe("Nenhum prazo atrasado nem nos próximos 7 dias.");
     expect(deadlinesEmptyText("all")).toBe("Nenhum prazo em aberto.");
+  });
+});
+
+describe("kpiItems (plan 034)", () => {
+  const kpis = {
+    routinesToday: { done: 2, total: 3 },
+    adherence: { scheduled: 20, rate: 78 },
+    workedThisWeek: 1590,
+    overdue: 2,
+    pdi: { cycleId: "c1", percent: 40 },
+  };
+
+  it("gives the five numbers, each with its label and link", () => {
+    expect(kpiItems(kpis)).toEqual([
+      { label: "Rotinas hoje", value: "2 de 3", href: "/today", alert: false },
+      { label: "Adesão em 30 dias", value: "78%", href: "/routines", alert: false },
+      { label: "Trabalhado na semana", value: "26h30", href: "/time/analytics", alert: false },
+      { label: "Prazos atrasados", value: "2", href: "/deadlines", alert: true },
+      { label: "PDI concluído", value: "40%", href: "/pdi/c1", alert: false },
+    ]);
+  });
+
+  it("uses a dash when there is nothing to count, and no alert without overdue items", () => {
+    const values = kpiItems({
+      routinesToday: { done: 0, total: 0 },
+      adherence: { scheduled: 0, rate: 0 },
+      workedThisWeek: 0,
+      overdue: 0,
+      pdi: null,
+    });
+
+    expect(values.map((item) => item.value)).toEqual(["—", "—", "0h", "0", "—"]);
+    expect(values.some((item) => item.alert)).toBe(false);
+    expect(values[4]!.href).toBe("/pdi");
   });
 });

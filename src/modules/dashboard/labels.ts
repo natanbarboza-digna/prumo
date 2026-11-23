@@ -1,7 +1,8 @@
 import { addDays, daysBetween, formatDateForDisplay, mondayOf } from "@/lib/dates";
-import type { DeadlineKind } from "@/modules/dashboard/rules";
+import type { DashboardKpis, DeadlineKind } from "@/modules/dashboard/rules";
 import type { DeadlineKindFilter, DeadlinePeriod } from "@/modules/dashboard/schemas";
 import { ADHERENCE_DAYS, type Adherence } from "@/modules/routines/rules";
+import { durationText } from "@/modules/time/labels";
 
 export const deadlineKindLabels: Record<DeadlineKind, string> = {
   STEP: "Etapa",
@@ -70,4 +71,45 @@ export function weekTitle(monday: string, sunday: string, today: string): string
 export function deadlinesEmptyText(period: DeadlinePeriod): string {
   if (period === "all") return "Nenhum prazo em aberto.";
   return `Nenhum prazo atrasado nem nos próximos ${period} dias.`;
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard numbers (plan 034)
+// ---------------------------------------------------------------------------
+
+/** `alert`: shown in red (overdue items only). */
+export type KpiItem = { label: string; value: string; href: string; alert: boolean };
+
+const NOTHING = "—";
+
+export function kpiItems(kpis: DashboardKpis): KpiItem[] {
+  const { routinesToday, adherence, workedThisWeek, overdue, pdi } = kpis;
+  return [
+    {
+      label: "Rotinas hoje",
+      value:
+        routinesToday.total === 0 ? NOTHING : `${routinesToday.done} de ${routinesToday.total}`,
+      href: "/today",
+      alert: false,
+    },
+    {
+      label: `Adesão em ${ADHERENCE_DAYS} dias`,
+      value: adherence.scheduled === 0 ? NOTHING : `${adherence.rate}%`,
+      href: "/routines",
+      alert: false,
+    },
+    {
+      label: "Trabalhado na semana",
+      value: workedThisWeek === 0 ? "0h" : durationText(workedThisWeek),
+      href: "/time/analytics",
+      alert: false,
+    },
+    { label: "Prazos atrasados", value: String(overdue), href: "/deadlines", alert: overdue > 0 },
+    {
+      label: "PDI concluído",
+      value: pdi === null ? NOTHING : `${pdi.percent}%`,
+      href: pdi === null ? "/pdi" : `/pdi/${pdi.cycleId}`,
+      alert: false,
+    },
+  ];
 }

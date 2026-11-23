@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { db } from "@/lib/db";
 import { addDays } from "@/lib/dates";
 import { createCategory } from "@/modules/categories/service";
 import { getDashboard, listDeadlines } from "@/modules/dashboard/service";
@@ -15,6 +16,8 @@ import {
 } from "@/modules/pdi/service";
 import type { RoutineInput } from "@/modules/routines/schemas";
 import { createRoutine, logRoutine } from "@/modules/routines/service";
+import { ensureDefaultTimeCategories } from "@/modules/time/defaults";
+import { listTimeCategories, saveEntry, startDay } from "@/modules/time/service";
 import { archiveTrack, createStep, createTrack, setStepStatus } from "@/modules/tracks/service";
 
 // 2026-11-16 is a Monday.
@@ -369,5 +372,103 @@ describe("weekly adherence on the dashboard (plan 029)", () => {
       monday: addDays(today, -7),
       adherence: { scheduled: 7, done: 1 },
     });
+  });
+});
+
+describe("dashboard numbers and week time (plan 034)", () => {
+  // Wednesday, November 18, 12:00 in Fortaleza.
+  const wednesday = "2026-11-18";
+  const now = new Date("2026-11-18T15:00:00Z");
+  const noon = 12 * 60;
+
+  async function timeCategory(name: string) {
+    await ensureDefaultTimeCategories(db);
+    const found = (await listTimeCategories()).find((category) => category.name === name);
+    if (!found) throw new Error(`No category ${name}`);
+    return found.id;
+  }
+
+  async function work(date: string, slots: string[], categoryId: string) {
+    for (const slot of slots) {
+      await saveEntry(
+        date,
+        slot,
+        null,
+        { kind: "WORK", description: "Trabalho", categoryId, projectName: null },
+        now,
+      );
+    }
+  }
+
+  it("counts today's routines, the overdue deadlines past the list limit and the PDI", async () => {
+    await createRoutine(routineInput({ startDate: "2026-11-09" }));
+    const second = await createRoutine(routineInput({ title: "Outra", startDate: "2026-11-09" }));
+    await logRoutine(second.id, wednesday, done, wednesday);
+    // Seven overdue steps: the card shows 5, the number counts all of them.
+    await track(
+      "Atrasada",
+      Array.from({ length: 7 }, (_, index) => ({
+        title: `Etapa ${index}`,
+        dueDate: addDays(wednesday, -1 - index),
+      })),
+    );
+    const { addAction, cycle } = await cycleWithArea();
+    await addAction("Feita", { status: "DONE" });
+    await addAction("Aberta");
+
+    const dashboard = await getDashboard(wednesday, noon);
+
+    expect(dashboard.deadlines.overdue.items).toHaveLength(5);
+    expect(dashboard.kpis).toMatchObject({
+      routinesToday: { done: 1, total: 2 },
+      // Today without a log does not count yet: 10 + 9 days.
+      adherence: { scheduled: 19, rate: 5 },
+      overdue: 7,
+      pdi: { cycleId: cycle.id, percent: 50 },
+    });
+  });
+
+  it("has no PDI number without an active cycle", async () => {
+    await cycleWithArea({ status: "PLANNED", startDate: "2027-01-01", endDate: "2027-06-30" });
+
+    expect((await getDashboard(wednesday, noon)).kpis.pdi).toBeNull();
+  });
+
+  it("sums the week's time from Monday to today, by day, and the work by category", async () => {
+    const projeto = await timeCategory("Projeto");
+    const chamados = await timeCategory("Chamados");
+    // Last week's Friday does not count.
+    await startDay("2026-11-13", { startTime: "08:00", slotMinutes: 60, endTime: "10:00" }, now);
+    await work("2026-11-13", ["08:00", "09:00"], projeto);
+    await startDay("2026-11-16", { startTime: "08:00", slotMinutes: 60, endTime: "11:00" }, now);
+    await work("2026-11-16", ["08:00", "09:00"], projeto);
+    await work("2026-11-16", ["10:00"], chamados);
+    await startDay(wednesday, { startTime: "08:00", slotMinutes: 60, endTime: null }, now);
+    await work(wednesday, ["08:00"], chamados);
+
+    const { kpis, timeWeek } = await getDashboard(wednesday, noon);
+
+    // Worked is presence minus breaks (plan 031); today's open day counts up to noon.
+    expect(kpis.workedThisWeek).toBe(420);
+    expect(timeWeek.worked).toBe(420);
+    expect(timeWeek.bars.map((bar) => bar.minutes)).toEqual([180, 0, 240, 0, 0, 0, 0]);
+    expect(timeWeek.bars[2]).toMatchObject({ date: wednesday, isToday: true });
+    expect(timeWeek.categories).toEqual([
+      { name: "Chamados", minutes: 120, percent: 50, tone: 1 },
+      { name: "Projeto", minutes: 120, percent: 50, tone: 2 },
+    ]);
+  });
+
+  it("has an empty week without time records", async () => {
+    const { kpis, timeWeek } = await getDashboard(wednesday, noon);
+
+    expect(kpis.workedThisWeek).toBe(0);
+    expect(timeWeek).toMatchObject({ worked: 0, days: 0, categories: [] });
+  });
+
+  it("is not the first use when only time was recorded", async () => {
+    await startDay(wednesday, { startTime: "08:00", slotMinutes: 60, endTime: "09:00" }, now);
+
+    expect((await getDashboard(wednesday, noon)).firstUse).toBe(false);
   });
 });

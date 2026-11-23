@@ -76,7 +76,7 @@ function matches(entry: AnalyticsEntry, filters: AnalyticsFilters): boolean {
  * Whole percentages that add up to 100 (largest remainder): 66.7 / 33.3 gives
  * 67 / 33, never 67 / 34 or 66 / 33.
  */
-function percentages(values: readonly number[]): number[] {
+export function percentages(values: readonly number[]): number[] {
   const total = values.reduce((sum, value) => sum + value, 0);
   if (total === 0) return values.map(() => 0);
   const exact = values.map((value) => (value / total) * 100);

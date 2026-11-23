@@ -1,11 +1,18 @@
 // The home dashboard only reads: it composes the other modules' services.
 
 import { db } from "@/lib/db";
+import { mondayOf } from "@/lib/dates";
+import { minutesNowInAppTimeZone } from "@/lib/time-of-day";
 import {
+  type CategoryShare,
   DASHBOARD_LIST_LIMIT,
+  type DashboardKpis,
   type Deadline,
   type DeadlineGroups,
+  type WeekTimeBar,
+  categoryShares,
   groupDeadlines,
+  weekTimeBars,
 } from "@/modules/dashboard/rules";
 import { type Goal, type GoalProgress, getGoalsProgress, listGoals } from "@/modules/goals/service";
 import {
@@ -22,11 +29,14 @@ import {
   combineWeeklyAdherence,
 } from "@/modules/routines/rules";
 import { type RoutineDay, listRoutines, listRoutinesForDay } from "@/modules/routines/service";
+import { computeAnalytics } from "@/modules/time/analytics";
+import { listTimeDays } from "@/modules/time/service";
 import {
   type TrackSummary,
   deriveTrackStatus,
   listOpenStepsWithDueDate,
   listTracks,
+  progressPercent,
 } from "@/modules/tracks/service";
 
 export type DashboardPdi =
@@ -42,9 +52,21 @@ export type DashboardPdi =
   | { kind: "PLANNED"; cycle: PdiCycleSummary }
   | { kind: "NONE" };
 
+/** "Tempo da semana" (plan 034): Monday to today. */
+export type DashboardTimeWeek = {
+  bars: WeekTimeBar[];
+  categories: CategoryShare[];
+  /** Minutes worked in the week. */
+  worked: number;
+  /** Days with a record in the week. */
+  days: number;
+};
+
 export type Dashboard = {
   /** Nothing created yet: the page shows a welcome instead of the cards. */
   firstUse: boolean;
+  kpis: DashboardKpis;
+  timeWeek: DashboardTimeWeek;
   today: {
     items: RoutineDay[];
     done: number;
@@ -114,19 +136,35 @@ function toDeadlines(
   ];
 }
 
-export async function getDashboard(today: string): Promise<Dashboard> {
-  const [todayItems, activeRoutines, routineCount, goals, tracks, cycles, steps, actions] =
-    await Promise.all([
-      listRoutinesForDay(today),
-      listRoutines({ today, state: "active" }),
-      db.routine.count(),
-      listGoals(),
-      // All of them: archived tracks still mean this is not the first use (plan 024).
-      listTracks({ filter: "ALL" }),
-      listCycles(),
-      listOpenStepsWithDueDate(),
-      listOpenActionsWithDueDate(),
-    ]);
+/** `nowMinute`: the clock for today's open time day, which counts up to now. */
+export async function getDashboard(
+  today: string,
+  nowMinute: number = minutesNowInAppTimeZone(),
+): Promise<Dashboard> {
+  const [
+    todayItems,
+    activeRoutines,
+    routineCount,
+    goals,
+    tracks,
+    cycles,
+    steps,
+    actions,
+    timeDays,
+    timeDayCount,
+  ] = await Promise.all([
+    listRoutinesForDay(today),
+    listRoutines({ today, state: "active" }),
+    db.routine.count(),
+    listGoals(),
+    // All of them: archived tracks still mean this is not the first use (plan 024).
+    listTracks({ filter: "ALL" }),
+    listCycles(),
+    listOpenStepsWithDueDate(),
+    listOpenActionsWithDueDate(),
+    listTimeDays(mondayOf(today), today),
+    db.timeDay.count(),
+  ]);
 
   const goalsInProgress = goals
     .filter((goal) => goal.status === "IN_PROGRESS")
@@ -141,21 +179,51 @@ export async function getDashboard(today: string): Promise<Dashboard> {
     summarizePdi(cycles, actions, today),
   ]);
 
-  const deadlines = toDeadlines(steps, actions, goals);
+  const deadlines = groupDeadlines(toDeadlines(steps, actions, goals), today);
+  const done = todayItems.filter((item) => item.log?.status === "DONE").length;
+  const adherence = combineAdherence(activeRoutines.map((routine) => routine.adherence));
+  const time = computeAnalytics(
+    timeDays,
+    { categoryId: null, projectId: null },
+    { today, nowMinute },
+  );
 
   return {
     firstUse:
-      routineCount === 0 && goals.length === 0 && tracks.length === 0 && cycles.length === 0,
+      routineCount === 0 &&
+      goals.length === 0 &&
+      tracks.length === 0 &&
+      cycles.length === 0 &&
+      timeDayCount === 0,
+    kpis: {
+      routinesToday: { done, total: todayItems.length },
+      adherence: { scheduled: adherence.scheduled, rate: adherence.rate },
+      workedThisWeek: time.totals.worked,
+      overdue: deadlines.overdue.items.length + deadlines.overdue.hidden,
+      pdi:
+        pdi.kind === "ACTIVE"
+          ? {
+              cycleId: pdi.cycle.id,
+              percent: progressPercent(pdi.cycle.progress.done, pdi.cycle.progress.total),
+            }
+          : null,
+    },
+    timeWeek: {
+      bars: weekTimeBars(time.perDay, today),
+      categories: categoryShares(time.byCategory),
+      worked: time.totals.worked,
+      days: time.totals.days,
+    },
     today: {
       items: todayItems,
-      done: todayItems.filter((item) => item.log?.status === "DONE").length,
-      adherence: combineAdherence(activeRoutines.map((routine) => routine.adherence)),
+      done,
+      adherence,
       weekly: combineWeeklyAdherence(
         activeRoutines.map((routine) => routine.weekly),
         today,
       ),
     },
-    deadlines: groupDeadlines(deadlines, today),
+    deadlines,
     pdi,
     goals: {
       items: goalsInProgress.map((goal) => ({
