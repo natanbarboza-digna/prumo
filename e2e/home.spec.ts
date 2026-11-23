@@ -1,7 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { addDays, todayInAppTimeZone } from "../src/lib/dates";
-import { insertCycle, insertGoal, insertRoutine, insertTrack } from "./factories";
+import { insertCycle, insertGoal, insertRoutine, insertTimeDay, insertTrack } from "./factories";
 import { expectNoAxeViolations, resetDatabase } from "./helpers";
 
 test.beforeEach(resetDatabase);
@@ -17,6 +17,10 @@ async function openHome(page: Page) {
 
 function card(page: Page, name: string) {
   return page.getByRole("region", { name, exact: true });
+}
+
+function kpis(page: Page) {
+  return page.getByRole("region", { name: "Indicadores" });
 }
 
 test("sem dados, mostra por onde começar", async ({ page }) => {
@@ -50,7 +54,10 @@ test("com dados, cada bloco mostra o que importa", async ({ page }) => {
     areas: [
       {
         name: "Comunicação",
-        actions: [{ title: "Apresentar no time", category: "Curso", dueDate: addDays(today, -1) }],
+        actions: [
+          { title: "Apresentar no time", category: "Curso", dueDate: addDays(today, -1) },
+          { title: "Ler o livro", category: "Leitura", status: "DONE" },
+        ],
       },
     ],
   });
@@ -71,13 +78,20 @@ test("com dados, cada bloco mostra o que importa", async ({ page }) => {
   await expect(pdi.getByRole("link", { name: "PDI atual" })).toBeVisible();
   await expect(pdi.getByText("Faltam 60 dias")).toBeVisible();
   await expect(pdi.getByText("1 ação atrasada")).toBeVisible();
+  await expect(pdi.getByRole("img", { name: "50% das ações do ciclo concluídas" })).toBeVisible();
+  await expect(pdi.getByText("1 de 2 ações concluídas")).toBeVisible();
   await expect(pdi.getByText("Nenhum check-in ainda.")).toBeVisible();
 
+  const inProgress = card(page, "Objetivos e trilhas em andamento");
   await expect(
-    card(page, "Objetivos em andamento").getByRole("link", { name: "Falar inglês" }),
+    inProgress
+      .getByRole("list", { name: "Objetivos em andamento" })
+      .getByRole("link", { name: "Falar inglês" }),
   ).toBeVisible();
   await expect(
-    card(page, "Trilhas em andamento").getByRole("link", { name: "Inglês" }),
+    inProgress
+      .getByRole("list", { name: "Trilhas em andamento" })
+      .getByRole("link", { name: "Inglês" }),
   ).toBeVisible();
   await expectNoAxeViolations(page);
 
@@ -92,7 +106,8 @@ test("marcar a rotina no painel atualiza o resumo e a tela Hoje", async ({ page 
   const todayCard = card(page, "Hoje");
   await todayCard.getByRole("button", { name: "Feito: Ler 20 minutos" }).click();
   await expect(todayCard.getByRole("status")).toHaveText("1 de 1 feita");
-  await expect(todayCard.getByText("Adesão em 30 dias: 100%")).toBeVisible();
+  await expect(kpis(page).getByRole("link", { name: "Rotinas hoje 1 de 1" })).toBeVisible();
+  await expect(kpis(page).getByRole("link", { name: "Adesão em 30 dias 100%" })).toBeVisible();
 
   await page
     .getByRole("navigation", { name: "Principal" })
@@ -138,5 +153,93 @@ test("o bloco Hoje mostra a adesão das rotinas ativas por semana (plano 029)", 
   });
   await expect(chart).toBeVisible();
   await expect(chart.getByRole("row")).toHaveCount(13);
+  await expectNoAxeViolations(page);
+});
+
+test("os indicadores mostram os números e levam às telas (plano 034)", async ({ page }) => {
+  await insertRoutine({ title: "Ler 20 minutos", startDate: today });
+  await insertTrack({
+    title: "Inglês",
+    steps: [
+      { title: "Gramática", dueDate: addDays(today, -3) },
+      { title: "Conversação", dueDate: addDays(today, -2) },
+    ],
+  });
+  const { id: cycleId } = await insertCycle({
+    title: "PDI atual",
+    startDate: addDays(today, -30),
+    endDate: addDays(today, 60),
+    status: "ACTIVE",
+    areas: [
+      {
+        name: "Comunicação",
+        actions: [
+          { title: "Feita", category: "Curso", status: "DONE" },
+          { title: "Cancelada", category: "Curso", status: "CANCELLED" },
+          { title: "Aberta", category: "Curso" },
+          { title: "Outra", category: "Curso" },
+        ],
+      },
+    ],
+  });
+  await insertTimeDay({
+    date: today,
+    start: "08:00",
+    end: "10:30",
+    slotMinutes: 30,
+    entries: [{ start: "08:00", minutes: 150 }],
+  });
+
+  await openHome(page);
+
+  const strip = kpis(page);
+  const expected: [string, string][] = [
+    ["Rotinas hoje 0 de 1", "/today"],
+    ["Adesão em 30 dias —", "/routines"],
+    ["Trabalhado na semana 2h30", "/time/analytics"],
+    ["Prazos atrasados 2", "/deadlines"],
+    // Cancelled actions are left out: 1 of 3.
+    ["PDI concluído 33%", `/pdi/${cycleId}`],
+  ];
+  for (const [name, href] of expected) {
+    await expect(strip.getByRole("link", { name })).toHaveAttribute("href", href);
+  }
+
+  await strip.getByRole("link", { name: "Prazos atrasados 2" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Prazos" })).toBeVisible();
+});
+
+test("o bloco Tempo da semana mostra as horas por dia e por categoria (plano 034)", async ({
+  page,
+}) => {
+  await insertGoal({ title: "Falar inglês", status: "IN_PROGRESS" });
+  await openHome(page);
+  const time = card(page, "Tempo da semana");
+  await expect(time.getByText("Nenhum registro de tempo esta semana.")).toBeVisible();
+  await expect(time.getByRole("link", { name: "Abrir Tempo" })).toHaveAttribute("href", "/time");
+
+  await insertTimeDay({
+    date: today,
+    start: "08:00",
+    end: "11:00",
+    slotMinutes: 60,
+    entries: [
+      { start: "08:00", minutes: 60, category: "Projeto" },
+      { start: "09:00", minutes: 60, category: "Projeto" },
+      { start: "10:00", minutes: 60, category: "Chamados" },
+    ],
+  });
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1, name: "Prumo" })).toBeVisible();
+
+  await expect(time.getByText("trabalhadas em 1 dia")).toBeVisible();
+  const days = time.getByRole("figure", { name: "Horas trabalhadas por dia" });
+  // One row per day up to today, plus the header.
+  await expect(days.getByRole("row").filter({ hasText: "(hoje)" })).toContainText("3h");
+  const legend = time.getByRole("list", { name: "Trabalho por categoria" });
+  await expect(legend.getByRole("listitem")).toHaveText([
+    /Projeto\s*67% · 2h/,
+    /Chamados\s*33% · 1h/,
+  ]);
   await expectNoAxeViolations(page);
 });

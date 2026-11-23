@@ -1,7 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { todayInAppTimeZone } from "../src/lib/dates";
-import { insertRoutine } from "./factories";
+import { insertRoutine, insertTimeDay } from "./factories";
 import { expectNoAxeViolations, resetDatabase } from "./helpers";
 
 test.beforeEach(resetDatabase);
@@ -77,8 +77,20 @@ test.describe("em 375 px", () => {
 
   test("o painel com dados passa no axe", async ({ page }) => {
     await insertRoutine({ title: "Ler 20 minutos", startDate: todayInAppTimeZone() });
+    await insertTimeDay({
+      date: todayInAppTimeZone(),
+      start: "08:00",
+      end: "10:00",
+      entries: [{ start: "08:00", minutes: 60, category: "Atendimento" }],
+    });
     await open(page, "/");
 
+    // The dashboard with charts (plan 034) fits the width too.
+    const { scroll, width } = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      width: document.documentElement.clientWidth,
+    }));
+    expect(scroll).toBe(width);
     await expectNoAxeViolations(page);
   });
 });
@@ -95,6 +107,24 @@ test.describe("em 320 px", () => {
       }));
       expect(scroll, path).toBe(width);
     }
+  });
+
+  test("o painel com gráficos não rola para o lado (plano 034)", async ({ page }) => {
+    await insertRoutine({ title: "Ler 20 minutos", startDate: todayInAppTimeZone() });
+    await insertTimeDay({
+      date: todayInAppTimeZone(),
+      start: "08:00",
+      end: "10:00",
+      entries: [{ start: "08:00", minutes: 60, category: "Atendimento" }],
+    });
+    await open(page, "/");
+    await expect(page.getByRole("figure", { name: "Horas trabalhadas por dia" })).toBeVisible();
+
+    const { scroll, width } = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      width: document.documentElement.clientWidth,
+    }));
+    expect(scroll).toBe(width);
   });
 
   test("a página da rotina, com o gráfico de 12 semanas, não rola para o lado (plano 029)", async ({
