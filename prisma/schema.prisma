@@ -388,26 +388,62 @@ enum BookFormat {
 }
 
 model Book {
-  id            String     @id @default(uuid(7)) @db.Uuid
-  title         String     @db.VarChar(200)
-  authors       String     @db.VarChar(200)
-  format        BookFormat @default(PHYSICAL)
-  pages         Int?
-  genre         String?    @db.VarChar(60)
-  recommendedBy String?    @map("recommended_by") @db.VarChar(120)
-  notes         String?
-  status        BookStatus @default(TO_READ)
-  reason        BookReason @default(PERSONAL)
+  id              String      @id @default(uuid(7)) @db.Uuid
+  title           String      @db.VarChar(200)
+  authors         String      @db.VarChar(200)
+  format          BookFormat  @default(PHYSICAL)
+  pages           Int?
+  genre           String?     @db.VarChar(60)
+  recommendedBy   String?     @map("recommended_by") @db.VarChar(120)
+  notes           String?
+  status          BookStatus  @default(TO_READ)
+  reason          BookReason  @default(PERSONAL)
   /// Only for required books (WORK or PDI).
-  dueDate       DateTime?  @map("due_date") @db.Date
-  startedOn     DateTime?  @map("started_on") @db.Date
-  finishedOn    DateTime?  @map("finished_on") @db.Date
-  goalId        String?    @map("goal_id") @db.Uuid
+  dueDate         DateTime?   @map("due_date") @db.Date
+  startedOn       DateTime?   @map("started_on") @db.Date
+  finishedOn      DateTime?   @map("finished_on") @db.Date
+  goalId          String?     @map("goal_id") @db.Uuid
   // Deleting a goal keeps its books and only clears the link.
-  goal          Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
+  goal            Goal?       @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  /// Audiobook length (plan 036).
+  durationMinutes Int?        @map("duration_minutes")
+  /// 1 to 5, only for a read book (plan 036).
+  rating          Int?        @db.SmallInt
+  review          String?
+  logs            BookLog[]
+  quotes          BookQuote[]
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
 
   @@index([status])
   @@map("books")
+}
+
+// Reading progress (plan 036): one log per book and day, with the position
+// reached (page, percentage or minutes, by the book's format).
+model BookLog {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  bookId    String   @map("book_id") @db.Uuid
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  position  Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([bookId, date])
+  @@map("book_logs")
+}
+
+model BookQuote {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  bookId    String   @map("book_id") @db.Uuid
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  text      String
+  /// Page, percentage or "HH:MM", as typed.
+  location  String?  @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([bookId])
+  @@map("book_quotes")
 }
