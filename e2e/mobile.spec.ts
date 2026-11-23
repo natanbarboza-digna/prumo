@@ -1,7 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { todayInAppTimeZone } from "../src/lib/dates";
-import { insertBook, insertRoutine, insertTimeDay } from "./factories";
+import { insertBook, insertReadingGoal, insertRoutine, insertTimeDay } from "./factories";
 import { expectNoAxeViolations, resetDatabase } from "./helpers";
 
 test.beforeEach(resetDatabase);
@@ -19,6 +19,7 @@ const PAGES = [
   "/search?q=prumo",
   "/deadlines",
   "/books",
+  "/books/analytics",
   "/time",
   "/time/categories",
   "/time/projects",
@@ -120,6 +121,29 @@ test.describe("em 320 px", () => {
     });
     await open(page, "/");
     await expect(page.getByRole("figure", { name: "Horas trabalhadas por dia" })).toBeVisible();
+
+    const { scroll, width } = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      width: document.documentElement.clientWidth,
+    }));
+    expect(scroll).toBe(width);
+  });
+
+  test("os analíticos de leitura com dados não rolam para o lado (plano 037)", async ({ page }) => {
+    const today = todayInAppTimeZone();
+    await insertReadingGoal({ year: Number(today.slice(0, 4)), books: 12 });
+    await insertBook({
+      title: "Lido",
+      authors: "Um autor de nome bem comprido para ocupar a largura",
+      genre: "Romance",
+      pages: 300,
+      status: "READ",
+      startedOn: today,
+      finishedOn: today,
+      logs: [{ date: today, position: 300 }],
+    });
+    await open(page, "/books/analytics");
+    await expect(page.getByRole("figure", { name: "Livros lidos por mês" })).toBeVisible();
 
     const { scroll, width } = await page.evaluate(() => ({
       scroll: document.documentElement.scrollWidth,

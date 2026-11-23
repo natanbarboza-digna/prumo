@@ -1,7 +1,15 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { addDays, todayInAppTimeZone } from "../src/lib/dates";
-import { insertCycle, insertGoal, insertRoutine, insertTimeDay, insertTrack } from "./factories";
+import {
+  insertBook,
+  insertCycle,
+  insertGoal,
+  insertReadingGoal,
+  insertRoutine,
+  insertTimeDay,
+  insertTrack,
+} from "./factories";
 import { expectNoAxeViolations, resetDatabase } from "./helpers";
 
 test.beforeEach(resetDatabase);
@@ -241,5 +249,27 @@ test("o bloco Tempo da semana mostra as horas por dia e por categoria (plano 034
     /Projeto\s*67% · 2h/,
     /Chamados\s*33% · 1h/,
   ]);
+  await expectNoAxeViolations(page);
+});
+
+test("o bloco Leitura do ano mostra a meta e os livros lendo (plano 037)", async ({ page }) => {
+  await insertGoal({ title: "Falar inglês", status: "IN_PROGRESS" });
+  await insertReadingGoal({ year: Number(today.slice(0, 4)), books: 12 });
+  await insertBook({ title: "Lido", status: "READ", startedOn: today, finishedOn: today });
+  await insertBook({
+    title: "Refatoração",
+    pages: 400,
+    status: "READING",
+    startedOn: today,
+    logs: [{ date: today, position: 100 }],
+  });
+
+  await openHome(page);
+
+  const reading = card(page, "Leitura do ano");
+  await expect(reading.getByText("1 de 12 livros", { exact: true })).toBeVisible();
+  const books = reading.getByRole("list", { name: "Lendo agora" });
+  await expect(books.getByRole("link", { name: "Refatoração" })).toBeVisible();
+  await expect(books.getByText("25%")).toBeVisible();
   await expectNoAxeViolations(page);
 });

@@ -308,6 +308,7 @@ export function insertTimeDay(day: {
 export type BookData = {
   title: string;
   authors?: string;
+  genre?: string | null;
   format?: "PHYSICAL" | "EBOOK" | "AUDIOBOOK";
   pages?: number | null;
   status?: "TO_READ" | "READING" | "READ" | "ABANDONED";
@@ -332,6 +333,7 @@ export function insertBook(book: BookData): Promise<string> {
     const id = await insert(client, "books", {
       title: book.title,
       authors: book.authors ?? "Autor",
+      genre: book.genre ?? null,
       format: book.format ?? "PHYSICAL",
       pages: book.pages ?? null,
       status: book.status ?? "TO_READ",
@@ -356,4 +358,9 @@ export function insertBook(book: BookData): Promise<string> {
     }
     return id;
   });
+}
+
+/** The reading goal of a year (plan 037). */
+export function insertReadingGoal(goal: { year: number; books: number }): Promise<string> {
+  return run((client) => insert(client, "reading_goals", { year: goal.year, books: goal.books }));
 }

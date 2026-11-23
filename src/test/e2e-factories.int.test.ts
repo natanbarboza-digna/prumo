@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { db } from "@/lib/db";
-import { getBook } from "@/modules/books/service";
+import { getBook, getReadingGoal } from "@/modules/books/service";
 import { ensureDefaultCategories } from "@/modules/categories/defaults";
 import { getGoal } from "@/modules/goals/service";
 import { getCycle } from "@/modules/pdi/service";
@@ -17,6 +17,7 @@ import {
   insertBook,
   insertCycle,
   insertGoal,
+  insertReadingGoal,
   insertRoutine,
   insertTimeDay,
   insertTrack,
@@ -185,6 +186,7 @@ describe("e2e factories", () => {
     const id = await insertBook({
       title: "Duna",
       authors: "Frank Herbert",
+      genre: "Ficção científica",
       format: "EBOOK",
       pages: 600,
       status: "READING",
@@ -197,6 +199,7 @@ describe("e2e factories", () => {
     await expect(getBook(id)).resolves.toMatchObject({
       title: "Duna",
       authors: "Frank Herbert",
+      genre: "Ficção científica",
       format: "EBOOK",
       pages: 600,
       status: "READING",
@@ -229,5 +232,11 @@ describe("e2e factories", () => {
       logs: [{ date: "2026-11-05", position: 300 }],
       quotes: [{ text: "Um trecho", location: "2:10" }],
     });
+  });
+
+  it("write a reading goal (plan 037)", async () => {
+    await insertReadingGoal({ year: 2026, books: 12 });
+
+    await expect(getReadingGoal(2026)).resolves.toEqual({ year: 2026, books: 12 });
   });
 });
