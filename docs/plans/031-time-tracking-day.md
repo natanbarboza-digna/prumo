@@ -1,6 +1,6 @@
 # 031 — Gestão de tempo: registro do dia
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-23**, aprovado com as propostas das perguntas (ver "Decisões")
 Branch: `feat/time-tracking-day`
 
 Primeiro dos três planos da gestão de tempo (alinhada em 2026-11-23 e registrada nas Pendências do `CLAUDE.md`): (1) registro do dia, (2) analíticos, (3) importação do `.md`.
@@ -134,6 +134,31 @@ Rodam o `time.spec.ts`, o `mobile.spec.ts` e o `navigation.spec.ts` (menu novo).
 - Migration incluída e `npx prisma generate` rodado.
 - `npm run container:up` e `npm run container:check` passando (plano 025).
 - `CLAUDE.md` (modelo, regras, menu; tirar o item 1 da pendência) e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Dia passado pede também a saída** ao começar: sem ela, a grade de um dia em aberto que não é hoje iria até a meia-noite (o que continua valendo se a saída for apagada depois).
+- **Dividir um bloco vazio** não grava nada: o link "Dividir" leva a `/time?dia=…&dividir=HH:MM`, que mostra as duas metades; a divisão passa a existir no banco quando uma metade é salva. Num bloco já registrado, "Dividir" transforma o registro na primeira metade.
+- **Juntar:** uma metade sozinha cresce para o bloco inteiro; duas metades só se juntam se forem iguais (texto, categoria, projeto e tipo), senão a tela não muda (`JoinConflictError`).
+- **Pausa** é só o botão (sem campo de nota na tela); a nota existe no modelo e aparece quando houver (a importação do plano 033 vai usá-la para "almoço").
+- **Projeto arquivado digitado num bloco** é recusado com a mensagem "Este projeto está arquivado. Desarquive em Projetos." (não é reativado sozinho).
+- **"Categorias em uso"** (para esconder o botão de excluir) ficou numa função do service, `timeCategoryIdsInUse`, em vez de uma consulta na página.
+- **Campos com sugestões são `combobox`:** um `<input list>` tem esse papel na acessibilidade, então os e2e localizam texto, categoria e projeto por `getByRole("combobox")`, com o horário do bloco no nome de cada campo ("O que foi feito (08:00–08:30)").
+- **Menu com cinco itens:** em 375 px a faixa do menu rola para o lado; o teste do cabeçalho em 375 px deixou de exigir todos os itens visíveis ao mesmo tempo (continua exigindo uma linha só, abaixo da marca, dentro do cabeçalho), e o de 320 px passou a clicar em "Tempo", o último item.
+- **Verificação visual:** capturas de um dia preenchido (bloco dividido, pausa, projeto) em 900 e 320 px, sem rolagem lateral, por um teste temporário que foi apagado.
+- **Verificações:**
+  - `npm run lint`, `npm run typecheck`, Prettier e `npm test` (574 testes);
+  - e2e: `time.spec.ts` (5), `mobile.spec.ts` (6) e `navigation.spec.ts` (3);
+  - `npm run container:up` (11 migrations, nenhuma pendente: a nova já tinha sido aplicada no banco de desenvolvimento) e `npm run container:check` passando.
+
+## Decisões
+
+1. Blocos alinhados ao relógio, com bloco curto na entrada ou na saída fora da grade.
+2. Duração dos blocos escolhida ao começar cada dia e guardada nele.
+3. Categorias padrão: Atendimento, Chamados, Projeto, Reunião e Estudo.
+4. Projeto novo criado pelo nome ao salvar o bloco.
+5. Bloco vazio permitido ("sem registro").
+6. Divisão só em duas metades iguais.
 
 ## Perguntas (cada uma com uma proposta)
 
