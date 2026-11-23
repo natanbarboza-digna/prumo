@@ -6,7 +6,7 @@ import { expectNoAxeViolations, resetDatabase } from "./helpers";
 
 test.beforeEach(resetDatabase);
 
-const NAV_LINKS = ["Hoje", "Objetivos", "Desenvolvimento", "Rotinas"];
+const NAV_LINKS = ["Hoje", "Objetivos", "Desenvolvimento", "Rotinas", "Tempo"];
 const PAGES = [
   "/",
   "/today",
@@ -18,6 +18,9 @@ const PAGES = [
   "/settings/categories",
   "/search?q=prumo",
   "/deadlines",
+  "/time",
+  "/time/categories",
+  "/time/projects",
 ];
 
 function nav(page: Page) {
@@ -33,7 +36,7 @@ async function open(page: Page, path: string) {
 test.describe("em 375 px", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
-  test("o cabeçalho mostra a navegação inteira numa linha, abaixo da marca", async ({ page }) => {
+  test("o cabeçalho mostra a navegação numa linha, abaixo da marca", async ({ page }) => {
     await open(page, "/");
 
     const brand = await page.getByRole("link", { name: "Prumo, página inicial" }).boundingBox();
@@ -41,7 +44,9 @@ test.describe("em 375 px", () => {
     const boxes = [];
     for (const name of NAV_LINKS) {
       const link = nav(page).getByRole("link", { name, exact: true });
-      await expect(link).toBeInViewport({ ratio: 1 });
+      // With five items (plan 031) the strip scrolls sideways at 375 px too, so
+      // the last ones may start out of view: the line and the header still hold.
+      await expect(link).toBeVisible();
       boxes.push(await link.boundingBox());
     }
 
@@ -107,10 +112,11 @@ test.describe("em 320 px", () => {
   test("o último link da navegação pode ser alcançado e clicado", async ({ page }) => {
     await open(page, "/");
 
-    // At 320 px "Desenvolvimento" does not leave room for all four items: the
-    // strip scrolls sideways (the page itself does not, see the test above).
-    await nav(page).getByRole("link", { name: "Rotinas", exact: true }).click();
+    // The five items do not fit: the strip scrolls sideways (the page itself
+    // does not, see the test above), and "Tempo" (the last one, plan 031) is
+    // still reachable.
+    await nav(page).getByRole("link", { name: "Tempo", exact: true }).click();
 
-    await expect(page.getByRole("heading", { level: 1, name: "Rotinas" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Tempo" })).toBeVisible();
   });
 });

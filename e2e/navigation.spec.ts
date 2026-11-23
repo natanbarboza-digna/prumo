@@ -21,7 +21,7 @@ function currentMenuItem(page: Page) {
   return mainNav(page).locator('[aria-current="page"]');
 }
 
-test("o menu principal tem Hoje, Objetivos, Desenvolvimento e Rotinas", async ({ page }) => {
+test("o menu principal tem Hoje, Objetivos, Desenvolvimento, Rotinas e Tempo", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: "Prumo" })).toBeVisible();
 
@@ -30,6 +30,7 @@ test("o menu principal tem Hoje, Objetivos, Desenvolvimento e Rotinas", async ({
     "Objetivos",
     "Desenvolvimento",
     "Rotinas",
+    "Tempo",
   ]);
 });
 

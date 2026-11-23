@@ -239,3 +239,68 @@ export function insertCycle(
     return { id, areaIds, actionIds };
   });
 }
+
+/** "08:15" → 495, the way time_days and time_entries store times of day. */
+const minutesOf = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+
+export type TimeEntryData = {
+  /** "HH:MM". */
+  start: string;
+  minutes: number;
+  kind?: "WORK" | "BREAK";
+  description?: string | null;
+  /** Name of a time category (the seed creates the defaults). */
+  category?: string;
+  /** Name of a project, created when new. */
+  project?: string;
+};
+
+/** A time tracking day with its entries (plan 031). */
+export function insertTimeDay(day: {
+  date: string;
+  start: string;
+  end?: string | null;
+  slotMinutes?: 15 | 30 | 60;
+  entries?: TimeEntryData[];
+}): Promise<string> {
+  return run(async (client) => {
+    const id = await insert(client, "time_days", {
+      date: day.date,
+      start_minute: minutesOf(day.start),
+      end_minute: day.end ? minutesOf(day.end) : null,
+      slot_minutes: day.slotMinutes ?? 30,
+    });
+    for (const entry of day.entries ?? []) {
+      const kind = entry.kind ?? "WORK";
+      let categoryIdValue: string | null = null;
+      if (kind === "WORK") {
+        const { rows } = await client.query<{ id: string }>(
+          "SELECT id FROM time_categories WHERE name = $1",
+          [entry.category ?? "Projeto"],
+        );
+        categoryIdValue = rows[0]?.id ?? null;
+        if (!categoryIdValue) throw new Error(`No time category named ${entry.category}`);
+      }
+      let projectId: string | null = null;
+      if (entry.project) {
+        const { rows } = await client.query<{ id: string }>(
+          "SELECT id FROM time_projects WHERE name = $1",
+          [entry.project],
+        );
+        projectId =
+          rows[0]?.id ??
+          (await insert(client, "time_projects", { name: entry.project, archived: false }));
+      }
+      await insert(client, "time_entries", {
+        day_id: id,
+        start_minute: minutesOf(entry.start),
+        minutes: entry.minutes,
+        kind,
+        description: entry.description ?? (kind === "WORK" ? "Trabalho" : null),
+        category_id: categoryIdValue,
+        project_id: projectId,
+      });
+    }
+    return id;
+  });
+}

@@ -7,6 +7,8 @@ import { ensureDefaultCategories } from "@/modules/categories/defaults";
 import { getGoal } from "@/modules/goals/service";
 import { getCycle } from "@/modules/pdi/service";
 import { getRoutine, getRoutineHistory } from "@/modules/routines/service";
+import { ensureDefaultTimeCategories } from "@/modules/time/defaults";
+import { getTimeDay } from "@/modules/time/service";
 import { getTrack } from "@/modules/tracks/service";
 
 import {
@@ -14,6 +16,7 @@ import {
   insertCycle,
   insertGoal,
   insertRoutine,
+  insertTimeDay,
   insertTrack,
 } from "../../e2e/factories";
 
@@ -99,6 +102,36 @@ describe("e2e factories", () => {
     await expect(getRoutine(weekly)).resolves.toMatchObject({
       timesPerWeek: 3,
       weekdays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+    });
+  });
+
+  it("write a time tracking day with work, a break and a project (plan 031)", async () => {
+    await ensureDefaultTimeCategories(db);
+    await insertTimeDay({
+      date: "2026-11-16",
+      start: "08:15",
+      end: "18:30",
+      entries: [
+        { start: "08:30", minutes: 30, description: "E-mail", category: "Chamados" },
+        { start: "12:30", minutes: 60, kind: "BREAK", description: "Almoço" },
+        { start: "14:00", minutes: 15, description: "AD", project: "Digna" },
+      ],
+    });
+
+    await expect(getTimeDay("2026-11-16")).resolves.toMatchObject({
+      startTime: "08:15",
+      endTime: "18:30",
+      slotMinutes: 30,
+      entries: [
+        { startTime: "08:30", minutes: 30, kind: "WORK", category: { name: "Chamados" } },
+        { startTime: "12:30", minutes: 60, kind: "BREAK", category: null, description: "Almoço" },
+        {
+          startTime: "14:00",
+          minutes: 15,
+          project: { name: "Digna" },
+          category: { name: "Projeto" },
+        },
+      ],
     });
   });
 
