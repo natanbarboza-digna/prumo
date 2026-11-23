@@ -180,6 +180,9 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 
 ## Pendências
 
-Nenhuma no momento.
+- **Grupo Conta** (alinhado em 2026-11-23, adiado pelo dono do projeto; falta escrever os planos):
+  - **Autenticação em dois fatores (TOTP)**, a fazer primeiro: ativação em "Minha conta" com QR code e confirmação por código; o login pede o código depois da senha; 8 códigos de recuperação de uso único (só o hash no banco); desativação pela tela (senha e código) ou por um comando de emergência no terminal. Código calculado com o `crypto` do Node; segredo cifrado com uma chave nova no `.env` (`AUTH_ENCRYPTION_KEY`). Muda o modelo (segredo e data de ativação no usuário, tabela de códigos de recuperação). **Decisões em aberto:** aprovar a dependência `qrcode` (sem ela, a chave aparece em texto para digitar no app) e se vai em um plano ou em dois (ativação e login; depois os códigos de recuperação).
+  - **Sessões ativas em "Minha conta"**, depois dos dois fatores: lista dos aparelhos logados com o último uso, "Encerrar" em cada um e "Encerrar todas as outras". Sem dependência nova; talvez um campo de último uso e o navegador de origem na tabela `sessions`.
+  - **Descartados:** recuperação de senha por e-mail (pediria serviço de envio e dependência; o reset pelo terminal resolve para uma conta só) e login com Google ou GitHub (descartado no plano 014).
 
 Melhorias deixadas fora de escopo ficam registradas na seção "Fora de escopo" de cada plano em `docs/plans/`.
