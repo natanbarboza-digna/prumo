@@ -205,7 +205,7 @@ Não implemente nada fora do plano aprovado. Se surgir uma melhoria ou um proble
 - **Biblioteca de livros** (alinhada em 2026-11-24, todas as propostas aceitas): situações Na fila, Lendo, Lido e Abandonado; "preciso ler" é o livro na fila com motivo Trabalho ou PDI (com prazo opcional), "quero ler" é o de vontade própria ou indicação; cadastro manual, sem capa nem ISBN; aba Leituras em Desenvolvimento. Três planos, nesta ordem:
   1. ~~Cadastro, situações e lista com filtros~~ (plano 035, feito), com vínculo a objetivo, busca e prazos.
   2. ~~Progresso por registros de leitura~~ (plano 036, feito) (páginas por dia; minutos no audiolivro, porcentagem no e-book), previsão de término, conclusão com avaliação de 1 a 5, resenha e trechos.
-  3. **Meta anual e analíticos** (lidos por mês, páginas por semana, tempo médio por livro, autores e gêneros mais lidos).
+  3. **Meta anual e analíticos** (plano 037, escrito) (lidos por mês, páginas por semana, tempo médio por livro, autores e gêneros mais lidos).
   - **Depois dos três:** ligar livro a rotina e a ação de PDI (concluir o livro como evidência) e importar um histórico (perguntar ao dono se existe lista no Goodreads, Skoob, planilha ou `.md`).
 - **Gestão de tempo: o que ficou para depois** (planos 031 a 033 feitos): horas extras sobre uma jornada esperada e comparação com o período anterior nos analíticos (plano 032); ligar registros de tempo a objetivos ou ações de PDI, com o tempo como evidência; enviar o `.md` como arquivo e mesclar com dias já registrados na importação (plano 033).
 
