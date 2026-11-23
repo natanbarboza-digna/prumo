@@ -4,6 +4,7 @@ import { DeadlinesCard } from "@/components/dashboard/deadlines-card";
 import { GoalsTracksCard } from "@/components/dashboard/goals-tracks-card";
 import { KpiStrip } from "@/components/dashboard/kpi-strip";
 import { PdiCard } from "@/components/dashboard/pdi-card";
+import { ReadingCard } from "@/components/dashboard/reading-card";
 import { TimeWeekCard } from "@/components/dashboard/time-week-card";
 import { TodayCard } from "@/components/dashboard/today-card";
 import { Welcome } from "@/components/dashboard/welcome";
@@ -43,9 +44,13 @@ export default async function HomePage() {
               <TimeWeekCard week={dashboard.timeWeek} />
             </div>
             <PdiCard pdi={dashboard.pdi} today={today} />
-            <div className="lg:col-span-3">
+            {/* With the reading block (plan 037), goals and tracks take two columns of three. */}
+            <div className={dashboard.reading.visible ? "lg:col-span-2" : "lg:col-span-3"}>
               <GoalsTracksCard goals={dashboard.goals} tracks={dashboard.tracks} today={today} />
             </div>
+            {dashboard.reading.visible && (
+              <ReadingCard reading={dashboard.reading} year={Number(today.slice(0, 4))} />
+            )}
           </div>
         </div>
       )}
