@@ -33,6 +33,7 @@ model Goal {
   tracks      Track[]
   routines    Routine[]
   pdiActions  PdiAction[]
+  books       Book[]
 
   @@index([status])
   @@map("goals")
@@ -355,4 +356,58 @@ model TimeProject {
   updatedAt DateTime    @updatedAt @map("updated_at")
 
   @@map("time_projects")
+}
+
+// Book library (plan 035). "Preciso ler" is a book in the queue whose reason is
+// WORK or PDI; "quero ler", one whose reason is PERSONAL or RECOMMENDATION.
+
+enum BookStatus {
+  TO_READ
+  READING
+  READ
+  ABANDONED
+
+  @@map("book_status")
+}
+
+enum BookReason {
+  PERSONAL
+  RECOMMENDATION
+  WORK
+  PDI
+
+  @@map("book_reason")
+}
+
+enum BookFormat {
+  PHYSICAL
+  EBOOK
+  AUDIOBOOK
+
+  @@map("book_format")
+}
+
+model Book {
+  id            String     @id @default(uuid(7)) @db.Uuid
+  title         String     @db.VarChar(200)
+  authors       String     @db.VarChar(200)
+  format        BookFormat @default(PHYSICAL)
+  pages         Int?
+  genre         String?    @db.VarChar(60)
+  recommendedBy String?    @map("recommended_by") @db.VarChar(120)
+  notes         String?
+  status        BookStatus @default(TO_READ)
+  reason        BookReason @default(PERSONAL)
+  /// Only for required books (WORK or PDI).
+  dueDate       DateTime?  @map("due_date") @db.Date
+  startedOn     DateTime?  @map("started_on") @db.Date
+  finishedOn    DateTime?  @map("finished_on") @db.Date
+  goalId        String?    @map("goal_id") @db.Uuid
+  // Deleting a goal keeps its books and only clears the link.
+  goal          Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("books")
 }
