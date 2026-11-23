@@ -13,8 +13,42 @@ env:
   DATABASE_URL: postgresql://prumo:ci-only@localhost:5432/prumo_test?schema=public
 
 jobs:
+  # Plan 038: pushes and pull requests of only docs and chore commits that touch
+  # no code skip lint, types and all tests, like the git hooks.
+  scope:
+    name: Escopo
+    runs-on: ubuntu-latest
+    outputs:
+      full: ${{ steps.scope.outputs.full }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The SHAs come in through env, never interpolated into the command.
+      - id: scope
+        name: O que precisa rodar
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ "$EVENT" = "push" ] && [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            # A new branch has no "before": take what it adds to main (empty means run everything).
+            RANGE="origin/main..$HEAD"
+          else
+            RANGE="$BASE..$HEAD"
+          fi
+          # Exit 10 means "light"; the decision goes out through GITHUB_OUTPUT either way.
+          npx tsx scripts/hook-scope.ts --range "$RANGE" || [ $? -eq 10 ]
+
   checks:
     name: Mensagens de commit, formatação, lint, tipos, unidade e audit
+    needs: scope
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,12 +76,17 @@ jobs:
           fi
       - run: npm run format:check
       - run: npm run lint
+        if: needs.scope.outputs.full == 'true'
       - run: npm run typecheck
+        if: needs.scope.outputs.full == 'true'
       - run: npx vitest run --project unit
+        if: needs.scope.outputs.full == 'true'
       - run: npm audit --audit-level=moderate
 
   tests:
     name: Integração e e2e
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
