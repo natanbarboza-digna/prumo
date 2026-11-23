@@ -32,7 +32,9 @@ export function SearchResults({ term, results }: { term: string; results: Result
                     <Link href={item.href} className="font-medium break-words hover:underline">
                       {item.title}
                     </Link>
-                    {item.stored && <Badge variant="outline">{storedBadge[key]}</Badge>}
+                    {item.stored && (
+                      <Badge variant="outline">{item.storedText ?? storedBadge[key]}</Badge>
+                    )}
                   </div>
                   {item.context && (
                     <p className="text-muted-foreground text-sm break-words">{item.context}</p>

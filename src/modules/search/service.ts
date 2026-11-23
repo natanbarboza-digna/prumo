@@ -1,5 +1,5 @@
 // The single search page (plan 027): one term, looked up at once in goals,
-// tracks and steps, routines and the PDI. Read only, like the dashboard.
+// tracks and steps, routines, the PDI and books (plan 035). Read only, like the dashboard.
 //
 // The comparison is `unaccent(lower(column)) LIKE unaccent(lower(pattern))`,
 // so neither case nor accents matter. Prisma's `contains` cannot drop accents,
@@ -7,8 +7,10 @@
 // the query, and its own % and _ are escaped (likePattern).
 
 import { Prisma } from "@/generated/prisma/client";
+import type { BookStatus } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { formatDateForDisplay, formatDateOnly } from "@/lib/dates";
+import { shelfGroupLabels } from "@/modules/books/labels";
 import { goalStatusLabels } from "@/modules/goals/labels";
 import type { SearchGroupKey } from "@/modules/search/labels";
 import { likePattern } from "@/modules/search/schemas";
@@ -22,8 +24,10 @@ export type SearchItem = {
   href: string;
   /** One line under the title: the step's track, the action's cycle and area… */
   context: string | null;
-  /** Put away: archived goal or track, ended routine, closed cycle. */
+  /** Put away: archived goal or track, ended routine, closed cycle, read or abandoned book. */
   stored: boolean;
+  /** The badge, when it depends on the item (books); null uses the group's badge. */
+  storedText: string | null;
 };
 
 export type SearchGroup = { items: SearchItem[]; total: number };
@@ -46,7 +50,7 @@ export async function search(term: string, today: string): Promise<SearchResults
     );
   const limit = SEARCH_GROUP_LIMIT;
 
-  const [goals, tracks, steps, routines, cycles, actions] = await Promise.all([
+  const [goals, tracks, steps, routines, cycles, actions, books] = await Promise.all([
     db.$queryRaw<
       (Counted & { id: string; title: string; status: keyof typeof goalStatusLabels })[]
     >`
@@ -115,6 +119,12 @@ export async function search(term: string, today: string): Promise<SearchResults
       WHERE ${matches("a.title", "a.description", "a.expected_result")}
       ORDER BY a.created_at DESC, a.id DESC
       LIMIT ${limit}`,
+    db.$queryRaw<(Counted & { id: string; title: string; authors: string; status: BookStatus })[]>`
+      SELECT id, title, authors, status, COUNT(*) OVER () AS total
+      FROM books
+      WHERE ${matches("title", "authors")}
+      ORDER BY created_at DESC, id DESC
+      LIMIT ${limit}`,
   ]);
 
   return {
@@ -124,6 +134,7 @@ export async function search(term: string, today: string): Promise<SearchResults
       href: `/goals/${row.id}`,
       context: goalStatusLabels[row.status],
       stored: row.status === "ARCHIVED",
+      storedText: null,
     })),
     TRACKS: group(tracks, (row) => ({
       id: row.id,
@@ -131,6 +142,7 @@ export async function search(term: string, today: string): Promise<SearchResults
       href: `/tracks/${row.id}`,
       context: row.goal ? `Objetivo: ${row.goal}` : null,
       stored: row.archived,
+      storedText: null,
     })),
     STEPS: group(steps, (row) => ({
       id: row.id,
@@ -138,6 +150,7 @@ export async function search(term: string, today: string): Promise<SearchResults
       href: `/tracks/${row.track_id}`,
       context: `Trilha: ${row.track}`,
       stored: row.archived,
+      storedText: null,
     })),
     ROUTINES: group(routines, (row) => ({
       id: row.id,
@@ -145,6 +158,7 @@ export async function search(term: string, today: string): Promise<SearchResults
       href: `/routines/${row.id}`,
       context: null,
       stored: row.ended,
+      storedText: null,
     })),
     CYCLES: group(cycles, (row) => ({
       id: row.id,
@@ -152,6 +166,7 @@ export async function search(term: string, today: string): Promise<SearchResults
       href: `/pdi/${row.id}`,
       context: `${formatDateForDisplay(formatDateOnly(row.start_date))} a ${formatDateForDisplay(formatDateOnly(row.end_date))}`,
       stored: row.closed,
+      storedText: null,
     })),
     ACTIONS: group(actions, (row) => ({
       id: row.id,
@@ -159,7 +174,19 @@ export async function search(term: string, today: string): Promise<SearchResults
       href: `/pdi/${row.cycle_id}/actions/${row.id}`,
       context: `Ciclo: ${row.cycle} · Área: ${row.area}`,
       stored: row.closed,
+      storedText: null,
     })),
+    BOOKS: group(books, (row) => {
+      const stored = row.status === "READ" || row.status === "ABANDONED";
+      return {
+        id: row.id,
+        title: row.title,
+        href: `/books/${row.id}`,
+        context: row.authors,
+        stored,
+        storedText: stored ? shelfGroupLabels[row.status as "READ" | "ABANDONED"] : null,
+      };
+    }),
   };
 }
 

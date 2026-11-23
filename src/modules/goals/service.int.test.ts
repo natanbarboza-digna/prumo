@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { db } from "@/lib/db";
+import { changeBookStatus, createBook } from "@/modules/books/service";
 import type { GoalInput } from "@/modules/goals/schemas";
 import {
   GoalNotFoundError,
@@ -37,6 +38,7 @@ describe("getGoalProgress", () => {
       total: 0,
       steps: { done: 0, total: 0 },
       actions: { done: 0, total: 0 },
+      books: { done: 0, total: 0 },
     });
   });
 
@@ -83,6 +85,7 @@ describe("getGoalProgress", () => {
       total: 4,
       steps: { done: 1, total: 2 },
       actions: { done: 1, total: 2 },
+      books: { done: 0, total: 0 },
     });
   });
 });
@@ -264,5 +267,43 @@ describe("getGoalsProgress", () => {
 
   it("is empty for no goals", async () => {
     await expect(getGoalsProgress([])).resolves.toEqual(new Map());
+  });
+});
+
+describe("books in the goal progress (plan 035)", () => {
+  it("counts read books as done and leaves abandoned ones out", async () => {
+    const goal = await createGoal(input());
+    const today = "2026-11-24";
+    const book = (title: string) =>
+      createBook(
+        {
+          title,
+          authors: "Autor",
+          format: "PHYSICAL",
+          pages: null,
+          genre: null,
+          recommendedBy: null,
+          notes: null,
+          reason: "PERSONAL",
+          dueDate: null,
+          goalId: goal.id,
+          startedOn: null,
+          finishedOn: null,
+        },
+        today,
+      );
+    await book("Na fila");
+    const read = await book("Lido");
+    await changeBookStatus(read.id, "START", today);
+    await changeBookStatus(read.id, "FINISH", today);
+    const abandoned = await book("Largado");
+    await changeBookStatus(abandoned.id, "START", today);
+    await changeBookStatus(abandoned.id, "ABANDON", today);
+
+    await expect(getGoalProgress(goal.id)).resolves.toMatchObject({
+      done: 1,
+      total: 2,
+      books: { done: 1, total: 2 },
+    });
   });
 });

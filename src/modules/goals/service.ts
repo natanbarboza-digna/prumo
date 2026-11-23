@@ -69,20 +69,22 @@ export async function deleteGoal(id: string): Promise<void> {
 export type Progress = { done: number; total: number };
 
 /** Overall progress plus the share of each kind of item. */
-export type GoalProgress = Progress & { steps: Progress; actions: Progress };
+export type GoalProgress = Progress & { steps: Progress; actions: Progress; books: Progress };
 
 /**
  * Aggregated progress of what is linked to the goal: the steps of its tracks
- * and its PDI actions (cancelled actions leave the count). Routines repeat and
+ * its PDI actions (cancelled actions leave the count) and its books (read ones
+ * are done, abandoned ones leave the count, plan 035). Routines repeat and
  * have no "done", so they show adherence on the goal page instead.
  */
 export async function getGoalProgress(goalId: string): Promise<GoalProgress> {
   const progress = await getGoalsProgress([goalId]);
-  return progress.get(goalId) ?? toGoalProgress({ done: 0, total: 0 }, { done: 0, total: 0 });
+  const none = { done: 0, total: 0 };
+  return progress.get(goalId) ?? toGoalProgress(none, none, none);
 }
 
 /**
- * The same as getGoalProgress for several goals at once, with two queries in
+ * The same as getGoalProgress for several goals at once, with three queries in
  * total instead of a few per goal (the dashboard lists many goals).
  */
 export async function getGoalsProgress(
@@ -90,13 +92,17 @@ export async function getGoalsProgress(
 ): Promise<Map<string, GoalProgress>> {
   if (goalIds.length === 0) return new Map();
   const ids = [...goalIds];
-  const [steps, actions] = await Promise.all([
+  const [steps, actions, books] = await Promise.all([
     db.trackStep.findMany({
       where: { track: { goalId: { in: ids } } },
       select: { status: true, track: { select: { goalId: true } } },
     }),
     db.pdiAction.findMany({
       where: { goalId: { in: ids }, status: { not: "CANCELLED" } },
+      select: { status: true, goalId: true },
+    }),
+    db.book.findMany({
+      where: { goalId: { in: ids }, status: { not: "ABANDONED" } },
       select: { status: true, goalId: true },
     }),
   ]);
@@ -113,17 +119,22 @@ export async function getGoalsProgress(
     goalId: action.goalId,
     done: action.status === "DONE",
   }));
+  const bookItems = books.map((book) => ({ goalId: book.goalId, done: book.status === "READ" }));
   return new Map(
-    ids.map((id) => [id, toGoalProgress(count(stepItems, id), count(actionItems, id))]),
+    ids.map((id) => [
+      id,
+      toGoalProgress(count(stepItems, id), count(actionItems, id), count(bookItems, id)),
+    ]),
   );
 }
 
-function toGoalProgress(steps: Progress, actions: Progress): GoalProgress {
+function toGoalProgress(steps: Progress, actions: Progress, books: Progress): GoalProgress {
   return {
-    done: steps.done + actions.done,
-    total: steps.total + actions.total,
+    done: steps.done + actions.done + books.done,
+    total: steps.total + actions.total + books.total,
     steps,
     actions,
+    books,
   };
 }
 

@@ -8,6 +8,7 @@ export const deadlineKindLabels: Record<DeadlineKind, string> = {
   STEP: "Etapa",
   ACTION: "Ação de PDI",
   GOAL: "Objetivo",
+  BOOK: "Livro",
 };
 
 /** "Vence hoje", "Vence em 20/11/2026" or "Venceu em 10/11/2026". */
@@ -56,6 +57,7 @@ export const deadlineKindFilterLabels: Record<DeadlineKindFilter, string> = {
   STEP: "Etapas",
   ACTION: "Ações de PDI",
   GOAL: "Objetivos",
+  BOOK: "Livros",
 };
 
 /** "Esta semana", "Próxima semana" or "Semana de 30/11 a 06/12". */

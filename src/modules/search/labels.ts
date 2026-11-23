@@ -1,5 +1,13 @@
 /** The groups of the search page (plan 027), in screen order. */
-export const SEARCH_GROUPS = ["GOALS", "TRACKS", "STEPS", "ROUTINES", "CYCLES", "ACTIONS"] as const;
+export const SEARCH_GROUPS = [
+  "GOALS",
+  "TRACKS",
+  "STEPS",
+  "ROUTINES",
+  "CYCLES",
+  "ACTIONS",
+  "BOOKS",
+] as const;
 
 export type SearchGroupKey = (typeof SEARCH_GROUPS)[number];
 
@@ -10,9 +18,10 @@ const names: Record<SearchGroupKey, { title: string; one: string; many: string }
   ROUTINES: { title: "Rotinas", one: "rotina", many: "rotinas" },
   CYCLES: { title: "Ciclos de PDI", one: "ciclo", many: "ciclos" },
   ACTIONS: { title: "Ações de PDI", one: "ação", many: "ações" },
+  BOOKS: { title: "Livros", one: "livro", many: "livros" },
 };
 
-/** The badge of an item that is put away (archived, ended or in a closed cycle). */
+/** The badge of an item that is put away (archived, ended or in a closed cycle); books say their own. */
 export const storedBadge: Record<SearchGroupKey, string> = {
   GOALS: "Arquivado",
   TRACKS: "Arquivada",
@@ -20,6 +29,7 @@ export const storedBadge: Record<SearchGroupKey, string> = {
   ROUTINES: "Encerrada",
   CYCLES: "Encerrado",
   ACTIONS: "Ciclo encerrado",
+  BOOKS: "Lido",
 };
 
 /** "Trilhas (2)". */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { changeBookStatus, createBook } from "@/modules/books/service";
 import { createGoal } from "@/modules/goals/service";
 import { closeCycle, createAction } from "@/modules/pdi/service";
 import type { RoutineInput } from "@/modules/routines/schemas";
@@ -153,5 +154,48 @@ describe("search (plan 027)", () => {
 
     expect(titles((await search("50%", today)).GOALS)).toEqual(["Bater 50% da meta"]);
     expect(titles((await search("o_f", today)).GOALS)).toEqual(["arquivo_final"]);
+  });
+});
+
+describe("books in the search (plan 035)", () => {
+  const book = (title: string, authors: string) =>
+    createBook(
+      {
+        title,
+        authors,
+        format: "PHYSICAL",
+        pages: null,
+        genre: null,
+        recommendedBy: null,
+        notes: null,
+        reason: "PERSONAL",
+        dueDate: null,
+        goalId: null,
+        startedOn: null,
+        finishedOn: null,
+      },
+      today,
+    );
+
+  it("finds books by title or authors, regardless of case and accents, with a badge when put away", async () => {
+    await book("Código Limpo", "Robert Martin");
+    const read = await book("Arquitetura Limpa", "Robert Martin");
+    await changeBookStatus(read.id, "START", today);
+    await changeBookStatus(read.id, "FINISH", today);
+    const abandoned = await book("Domain-Driven Design", "Eric Evans");
+    await changeBookStatus(abandoned.id, "START", today);
+    await changeBookStatus(abandoned.id, "ABANDON", today);
+
+    expect(titles((await search("codigo", today)).BOOKS)).toEqual(["Código Limpo"]);
+    const byAuthor = (await search("MARTIN", today)).BOOKS;
+    expect(byAuthor.items.map((item) => [item.title, item.context, item.storedText])).toEqual([
+      ["Arquitetura Limpa", "Robert Martin", "Lido"],
+      ["Código Limpo", "Robert Martin", null],
+    ]);
+    expect((await search("evans", today)).BOOKS.items[0]).toMatchObject({
+      href: `/books/${abandoned.id}`,
+      stored: true,
+      storedText: "Abandonado",
+    });
   });
 });

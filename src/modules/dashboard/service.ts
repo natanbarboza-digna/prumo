@@ -1,6 +1,7 @@
 // The home dashboard only reads: it composes the other modules' services.
 
 import { db } from "@/lib/db";
+import { type OpenBook, listOpenBooksWithDueDate } from "@/modules/books/service";
 import { mondayOf } from "@/lib/dates";
 import { minutesNowInAppTimeZone } from "@/lib/time-of-day";
 import {
@@ -85,22 +86,25 @@ type OpenAction = Awaited<ReturnType<typeof listOpenActionsWithDueDate>>[number]
 
 /**
  * Every open item with a date (plan 028): steps of active tracks, actions of
- * cycles that are not closed and goals not started or in progress. The
+ * cycles that are not closed, goals not started or in progress and required
+ * books not finished yet (plan 035). The
  * dashboard groups them in its card; the deadlines page by week.
  */
 export async function listDeadlines(): Promise<Deadline[]> {
-  const [steps, actions, goals] = await Promise.all([
+  const [steps, actions, goals, books] = await Promise.all([
     listOpenStepsWithDueDate(),
     listOpenActionsWithDueDate(),
     listGoals(),
+    listOpenBooksWithDueDate(),
   ]);
-  return toDeadlines(steps, actions, goals);
+  return toDeadlines(steps, actions, goals, books);
 }
 
 function toDeadlines(
   steps: readonly OpenStep[],
   actions: readonly OpenAction[],
   goals: readonly Goal[],
+  books: readonly OpenBook[],
 ): Deadline[] {
   return [
     ...steps.map((step) => ({
@@ -133,6 +137,14 @@ function toDeadlines(
           ]
         : [],
     ),
+    ...books.map((book) => ({
+      kind: "BOOK" as const,
+      id: book.id,
+      title: book.title,
+      date: book.dueDate,
+      href: `/books/${book.id}`,
+      source: null,
+    })),
   ];
 }
 
@@ -152,6 +164,7 @@ export async function getDashboard(
     actions,
     timeDays,
     timeDayCount,
+    books,
   ] = await Promise.all([
     listRoutinesForDay(today),
     listRoutines({ today, state: "active" }),
@@ -164,6 +177,7 @@ export async function getDashboard(
     listOpenActionsWithDueDate(),
     listTimeDays(mondayOf(today), today),
     db.timeDay.count(),
+    listOpenBooksWithDueDate(),
   ]);
 
   const goalsInProgress = goals
@@ -179,7 +193,7 @@ export async function getDashboard(
     summarizePdi(cycles, actions, today),
   ]);
 
-  const deadlines = groupDeadlines(toDeadlines(steps, actions, goals), today);
+  const deadlines = groupDeadlines(toDeadlines(steps, actions, goals, books), today);
   const done = todayItems.filter((item) => item.log?.status === "DONE").length;
   const adherence = combineAdherence(activeRoutines.map((routine) => routine.adherence));
   const time = computeAnalytics(
@@ -245,6 +259,7 @@ const emptyProgress: GoalProgress = {
   total: 0,
   steps: { done: 0, total: 0 },
   actions: { done: 0, total: 0 },
+  books: { done: 0, total: 0 },
 };
 
 /** Target date first (goals without one last), then title. */

@@ -13,7 +13,7 @@ export function periodDays(period: DeadlinePeriod): number | null {
 }
 
 /** `?tipo=` of the deadlines page: one kind of item, or all of them. */
-export const DEADLINE_KIND_FILTERS = ["ALL", "STEP", "ACTION", "GOAL"] as const;
+export const DEADLINE_KIND_FILTERS = ["ALL", "STEP", "ACTION", "GOAL", "BOOK"] as const;
 
 export type DeadlineKindFilter = (typeof DEADLINE_KIND_FILTERS)[number];
 

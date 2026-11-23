@@ -4,9 +4,9 @@ import type { Weekday } from "@/generated/prisma/enums";
 import { addDays, mondayOf, weekdayOf } from "@/lib/dates";
 import { type Share, percentages } from "@/modules/time/analytics";
 
-export type DeadlineKind = "STEP" | "ACTION" | "GOAL";
+export type DeadlineKind = "STEP" | "ACTION" | "GOAL" | "BOOK";
 
-/** Something with a due date: a track step, a PDI action or a goal's target date. */
+/** Something with a due date: a track step, a PDI action, a goal's target date or a required book (plan 035). */
 export type Deadline = {
   kind: DeadlineKind;
   id: string;

@@ -3,7 +3,7 @@ import type { GoalProgress } from "@/modules/goals/service";
 import { itemProgressText } from "@/modules/pdi/labels";
 import { progressPercent } from "@/modules/tracks/service";
 
-/** Overall progress of a goal (track steps + PDI actions), with the share of each. */
+/** Overall progress of a goal (track steps, PDI actions and books), with the share of each. */
 export function GoalProgressSummary({
   progress,
   goalTitle,
@@ -26,7 +26,8 @@ export function GoalProgressSummary({
       <p className="text-sm">{text}</p>
       <p className="text-muted-foreground text-sm">
         Etapas de trilha: {progress.steps.done} de {progress.steps.total} · Ações de PDI:{" "}
-        {progress.actions.done} de {progress.actions.total}
+        {progress.actions.done} de {progress.actions.total} · Livros: {progress.books.done} de{" "}
+        {progress.books.total}
       </p>
     </section>
   );

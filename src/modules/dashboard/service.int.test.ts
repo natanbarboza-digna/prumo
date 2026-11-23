@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { db } from "@/lib/db";
+import { changeBookStatus, createBook } from "@/modules/books/service";
 import { addDays } from "@/lib/dates";
 import { createCategory } from "@/modules/categories/service";
 import { getDashboard, listDeadlines } from "@/modules/dashboard/service";
@@ -221,6 +222,7 @@ describe("getDashboard", () => {
       total: 0,
       steps: { done: 0, total: 0 },
       actions: { done: 0, total: 0 },
+      books: { done: 0, total: 0 },
     });
   });
 
@@ -352,6 +354,48 @@ describe("listDeadlines (plan 028)", () => {
         expect.objectContaining({ kind: "GOAL", id: goal.id, href: `/goals/${goal.id}` }),
       ]),
     );
+  });
+});
+
+describe("books in the deadlines (plan 035)", () => {
+  const book = (title: string, dueDate: string | null) =>
+    createBook(
+      {
+        title,
+        authors: "Autor",
+        format: "PHYSICAL",
+        pages: null,
+        genre: null,
+        recommendedBy: null,
+        notes: null,
+        reason: "WORK",
+        dueDate,
+        goalId: null,
+        startedOn: null,
+        finishedOn: null,
+      },
+      today,
+    );
+
+  it("adds required books with a due date that are not finished", async () => {
+    const late = await book("Livro atrasado", addDays(today, -2));
+    const reading = await book("Livro lendo", addDays(today, 5));
+    await changeBookStatus(reading.id, "START", today);
+    const read = await book("Livro lido", addDays(today, 3));
+    await changeBookStatus(read.id, "START", today);
+    await changeBookStatus(read.id, "FINISH", today);
+    await book("Livro sem prazo", null);
+
+    const deadlines = await listDeadlines();
+
+    expect(deadlines.map((item) => [item.kind, item.title, item.href, item.source])).toEqual([
+      ["BOOK", "Livro atrasado", `/books/${late.id}`, null],
+      ["BOOK", "Livro lendo", `/books/${reading.id}`, null],
+    ]);
+    const { deadlines: card, kpis } = await getDashboard(today);
+    expect(card.overdue.items.map((item) => item.title)).toEqual(["Livro atrasado"]);
+    expect(card.upcoming.items.map((item) => item.title)).toEqual(["Livro lendo"]);
+    expect(kpis.overdue).toBe(1);
   });
 });
 
