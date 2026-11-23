@@ -7,6 +7,8 @@ import type { RoutineLogStatus } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { addDays, eachDay } from "@/lib/dates";
 import { APP_TABLES_QUERY, truncateStatement } from "@/lib/truncate";
+import { bookInputSchema } from "@/modules/books/schemas";
+import { changeBookStatus, createBook } from "@/modules/books/service";
 import { ensureDefaultCategories } from "@/modules/categories/defaults";
 import { ensureDefaultTimeCategories } from "@/modules/time/defaults";
 import { listCategories } from "@/modules/categories/service";
@@ -41,6 +43,7 @@ export type DemoSummary = {
   areas: number;
   actions: number;
   checkIns: number;
+  books: number;
 };
 
 export class DemoDataExistsError extends Error {
@@ -95,6 +98,7 @@ export async function seedDemo(today: string): Promise<DemoSummary> {
     areas: 0,
     actions: 0,
     checkIns: 0,
+    books: 0,
   };
 
   await ensureDefaultCategories(db);
@@ -353,6 +357,50 @@ export async function seedDemo(today: string): Promise<DemoSummary> {
   });
 
   await cycle({ title: "PDI 2026/2", startDate: day(121), endDate: day(300), status: "PLANNED" });
+
+  // --- Books (plan 035): one in each state of the shelf ----------------------
+
+  const book = async (
+    fields: Record<string, string | undefined>,
+    actions: { action: "START" | "FINISH" | "ABANDON"; on: string }[] = [],
+  ) => {
+    summary.books++;
+    const created = await createBook(bookInputSchema.parse(fields), today);
+    for (const { action, on } of actions) await changeBookStatus(created.id, action, on);
+  };
+  await book(
+    {
+      title: "Refatoração",
+      authors: "Martin Fowler",
+      pages: "456",
+      reason: "WORK",
+      goalId: nextjs.id,
+    },
+    [{ action: "START", on: day(-10) }],
+  );
+  await book({
+    title: "Comunicação Não-Violenta",
+    authors: "Marshall Rosenberg",
+    reason: "PDI",
+    // Past the dashboard's 14 days, so the demo's deadline card stays as it is.
+    dueDate: day(40),
+  });
+  await book({
+    title: "O Hobbit",
+    authors: "J. R. R. Tolkien",
+    format: "EBOOK",
+    reason: "RECOMMENDATION",
+    recommendedBy: "Ana",
+    genre: "Fantasia",
+  });
+  await book({ title: "Hábitos Atômicos", authors: "James Clear", pages: "320" }, [
+    { action: "START", on: day(-60) },
+    { action: "FINISH", on: day(-30) },
+  ]);
+  await book({ title: "Guerra e Paz", authors: "Liev Tolstói", format: "AUDIOBOOK" }, [
+    { action: "START", on: day(-90) },
+    { action: "ABANDON", on: day(-70) },
+  ]);
 
   return summary;
 }

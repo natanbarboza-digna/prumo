@@ -32,6 +32,7 @@ async function main(): Promise<void> {
   console.log(
     `  ${summary.cycles} ciclos de PDI com ${summary.areas} áreas, ${summary.actions} ações e ${summary.checkIns} check-ins`,
   );
+  console.log(`  ${summary.books} livros`);
 }
 
 main()

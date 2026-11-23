@@ -28,6 +28,7 @@ describe("seedDemo", () => {
       areas: 3,
       actions: 7,
       checkIns: 3,
+      books: 5,
     });
     expect(summary.logs).toBeGreaterThan(50);
     await expect(db.goal.count()).resolves.toBe(4);
@@ -36,6 +37,14 @@ describe("seedDemo", () => {
     await expect(db.routineLog.count()).resolves.toBe(summary.logs);
     await expect(db.pdiAction.count()).resolves.toBe(7);
     await expect(db.pdiCheckIn.count()).resolves.toBe(3);
+    await expect(
+      db.book.groupBy({ by: ["status"], _count: true, orderBy: { status: "asc" } }),
+    ).resolves.toEqual([
+      { status: "TO_READ", _count: 2 },
+      { status: "READING", _count: 1 },
+      { status: "READ", _count: 1 },
+      { status: "ABANDONED", _count: 1 },
+    ]);
   });
 
   it("fills every dashboard card", async () => {
