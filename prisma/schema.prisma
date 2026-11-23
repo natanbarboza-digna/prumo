@@ -447,3 +447,14 @@ model BookQuote {
   @@index([bookId])
   @@map("book_quotes")
 }
+
+// Annual reading goal (plan 037): how many books to read in a year.
+model ReadingGoal {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  year      Int      @unique
+  books     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("reading_goals")
+}
