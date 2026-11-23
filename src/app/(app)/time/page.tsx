@@ -99,6 +99,9 @@ export default async function TimePage({ searchParams }: PageProps<"/time">) {
         <Link href="/time/projects" className="underline-offset-4 hover:underline">
           Projetos e clientes
         </Link>
+        <Link href="/time/import" className="underline-offset-4 hover:underline">
+          Importar histórico
+        </Link>
       </p>
     </div>
   );
