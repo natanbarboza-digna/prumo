@@ -21,6 +21,7 @@ const PAGES = [
   "/time",
   "/time/categories",
   "/time/projects",
+  "/time/analytics",
 ];
 
 function nav(page: Page) {
