@@ -1,7 +1,8 @@
 #!/bin/sh
-# Runs before every `git push` (plan 030): what pre-commit leaves out because it
-# is slow or needs the database. The e2e tests stay with CI, and the container
-# build is part of each feature's "done" (plan 025).
+# Runs before every `git push` (plan 030): what the commit hooks leave out
+# because it is slow or needs the database. The e2e tests stay with CI, and the
+# container build is part of each feature's "done" (plan 025). A push of only
+# docs and chore commits that touch no code skips the tests (plan 038).
 
 run() {
   label="$1"
@@ -14,11 +15,17 @@ run() {
   fi
 }
 
-# The integration tests need the test database: say so plainly when it is down.
-if ! docker compose exec -T db pg_isready -q >/dev/null 2>&1; then
-  echo "pre-push: o banco não está respondendo. Suba o banco: docker compose up -d"
-  exit 1
+# Git writes the refs being pushed on stdin; the scope script reads them.
+npx --no-install tsx scripts/hook-scope.ts --push
+if [ $? -eq 10 ]; then
+  echo "pre-push: só commits de docs e chore sem código; testes pulados."
+else
+  # The integration tests need the test database: say so plainly when it is down.
+  if ! docker compose exec -T db pg_isready -q >/dev/null 2>&1; then
+    echo "pre-push: o banco não está respondendo. Suba o banco: docker compose up -d"
+    exit 1
+  fi
+  run "testes de unidade e integração (Vitest)" npm test --silent
 fi
 
-run "testes de unidade e integração (Vitest)" npm test --silent
 run "dependências (npm audit)" npm audit --audit-level=moderate

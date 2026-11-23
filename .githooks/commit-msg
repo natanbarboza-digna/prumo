@@ -1,4 +1,28 @@
 #!/bin/sh
-# Checks the commit message (plan 030): Conventional Commits, as in CLAUDE.md.
+# Checks the commit message (plan 030), then the code (plan 038): lint, types
+# and unit tests, except for docs and chore commits that touch no code.
 # Git passes the path of the file with the message as $1.
-exec npx --no-install tsx scripts/check-commit-message.ts "$1"
+
+run() {
+  label="$1"
+  shift
+  echo "commit-msg: $label"
+  if ! "$@"; then
+    echo ""
+    echo "commit-msg: \"$label\" falhou. Corrija e tente o commit de novo."
+    echo "Só em emergência: git commit --no-verify (o CI vai conferir do mesmo jeito)."
+    exit 1
+  fi
+}
+
+npx --no-install tsx scripts/check-commit-message.ts "$1" || exit 1
+
+npx --no-install tsx scripts/hook-scope.ts --commit "$1"
+if [ $? -eq 10 ]; then
+  echo "commit-msg: commit de docs ou chore sem código; lint, tipos e testes pulados."
+  exit 0
+fi
+
+run "lint (ESLint)" npm run --silent lint
+run "tipos (TypeScript)" npm run --silent typecheck
+run "testes de unidade (Vitest)" npx vitest run --project unit --silent

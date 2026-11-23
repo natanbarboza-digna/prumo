@@ -1,20 +1,12 @@
 #!/bin/sh
 # Runs before every commit (enabled by `npm install`, see "prepare" in package.json).
-# The quick checks only: integration and e2e tests need the database and run in CI.
+# Only Prettier: the message does not exist yet, so lint, types and unit tests
+# run in commit-msg, which knows the commit type (plan 038).
 
-run() {
-  label="$1"
-  shift
-  echo "pre-commit: $label"
-  if ! "$@"; then
-    echo ""
-    echo "pre-commit: \"$label\" falhou. Corrija e tente o commit de novo."
-    echo "Só em emergência: git commit --no-verify (o CI vai conferir do mesmo jeito)."
-    exit 1
-  fi
-}
-
-run "formatação (Prettier)" npm run --silent format:check
-run "lint (ESLint)" npm run --silent lint
-run "tipos (TypeScript)" npm run --silent typecheck
-run "testes de unidade (Vitest)" npx vitest run --project unit --silent
+echo "pre-commit: formatação (Prettier)"
+if ! npm run --silent format:check; then
+  echo ""
+  echo "pre-commit: \"formatação (Prettier)\" falhou. Rode npm run format e tente o commit de novo."
+  echo "Só em emergência: git commit --no-verify (o CI vai conferir do mesmo jeito)."
+  exit 1
+fi
