@@ -7,6 +7,7 @@ import { Client } from "pg";
 
 // Relative import: this file also runs in Playwright's process.
 import { DEFAULT_CATEGORIES } from "../modules/categories/defaults";
+import { DEFAULT_TIME_CATEGORIES } from "../modules/time/defaults";
 import { APP_TABLES_QUERY, truncateStatement } from "../lib/truncate";
 import { hashPassword } from "../modules/auth/password";
 import { hashSessionToken } from "../modules/auth/tokens";
@@ -76,6 +77,14 @@ export async function seedTestDatabase(url: string): Promise<void> {
          VALUES (uuidv7(), $1, $2, false, now(), now())
          ON CONFLICT (name) DO NOTHING`,
         [category.name, category.allowsRoutine],
+      );
+    }
+    for (const name of DEFAULT_TIME_CATEGORIES) {
+      await client.query(
+        `INSERT INTO time_categories (id, name, archived, created_at, updated_at)
+         VALUES (uuidv7(), $1, false, now(), now())
+         ON CONFLICT (name) DO NOTHING`,
+        [name],
       );
     }
     // The single account and a long session with a fixed token, so the e2e

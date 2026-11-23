@@ -3,9 +3,11 @@ import "dotenv/config";
 
 import { db } from "../src/lib/db";
 import { ensureDefaultCategories } from "../src/modules/categories/defaults";
+import { ensureDefaultTimeCategories } from "../src/modules/time/defaults";
 
 async function main(): Promise<void> {
   await ensureDefaultCategories(db);
+  await ensureDefaultTimeCategories(db);
   console.log("Categorias padrão conferidas.");
 }
 

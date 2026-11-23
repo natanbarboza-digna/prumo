@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { addDays, eachDay } from "@/lib/dates";
 import { APP_TABLES_QUERY, truncateStatement } from "@/lib/truncate";
 import { ensureDefaultCategories } from "@/modules/categories/defaults";
+import { ensureDefaultTimeCategories } from "@/modules/time/defaults";
 import { listCategories } from "@/modules/categories/service";
 import { goalInputSchema } from "@/modules/goals/schemas";
 import { createGoal } from "@/modules/goals/service";
@@ -66,6 +67,7 @@ export async function resetAllData(): Promise<void> {
   const statement = truncateStatement(rows.map(({ tablename }) => tablename));
   if (statement !== null) await db.$executeRawUnsafe(statement);
   await ensureDefaultCategories(db);
+  await ensureDefaultTimeCategories(db);
 }
 
 /**
@@ -96,6 +98,7 @@ export async function seedDemo(today: string): Promise<DemoSummary> {
   };
 
   await ensureDefaultCategories(db);
+  await ensureDefaultTimeCategories(db);
   const categories = await listCategories();
   const categoryId = (name: string) => {
     const category = categories.find((item) => item.name === name);

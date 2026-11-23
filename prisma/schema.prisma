@@ -283,3 +283,76 @@ model Session {
   @@index([userId])
   @@map("sessions")
 }
+
+// ---------------------------------------------------------------------------
+// Time tracking (plan 031). Times of day are minutes since midnight (Int), in
+// the app's time zone, and travel through the app as "HH:MM".
+// ---------------------------------------------------------------------------
+
+enum TimeEntryKind {
+  WORK
+  BREAK
+
+  @@map("time_entry_kind")
+}
+
+/// One day of time tracking: when it started and ended, and the block size.
+model TimeDay {
+  id          String      @id @default(uuid(7)) @db.Uuid
+  date        DateTime    @unique @db.Date
+  startMinute Int         @map("start_minute")
+  /// Null while the day is open.
+  endMinute   Int?        @map("end_minute")
+  /// 15, 30 or 60, chosen when the day starts.
+  slotMinutes Int         @map("slot_minutes")
+  entries     TimeEntry[]
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@map("time_days")
+}
+
+/// A block (or half a block) of a day: work with a category, or a break.
+model TimeEntry {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  dayId       String        @map("day_id") @db.Uuid
+  day         TimeDay       @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  startMinute Int           @map("start_minute")
+  minutes     Int
+  kind        TimeEntryKind
+  description String?       @db.VarChar(300)
+  /// Required for WORK, null for BREAK.
+  categoryId  String?       @map("category_id") @db.Uuid
+  category    TimeCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  projectId   String?       @map("project_id") @db.Uuid
+  project     TimeProject?  @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@unique([dayId, startMinute])
+  @@index([categoryId])
+  @@index([projectId])
+  @@map("time_entries")
+}
+
+model TimeCategory {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  name      String      @unique @db.VarChar(60)
+  archived  Boolean     @default(false)
+  entries   TimeEntry[]
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@map("time_categories")
+}
+
+model TimeProject {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  name      String      @unique @db.VarChar(80)
+  archived  Boolean     @default(false)
+  entries   TimeEntry[]
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@map("time_projects")
+}
