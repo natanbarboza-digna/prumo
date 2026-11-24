@@ -75,3 +75,16 @@ test("trocar a senha faz a senha nova valer no próximo login", async ({ page })
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Prumo" })).toBeVisible();
 });
+
+test("as respostas trazem os cabeçalhos de segurança, mesmo sem o Caddy (plano 039)", async ({
+  request,
+}) => {
+  const response = await request.get("/login");
+
+  expect(response.status()).toBe(200);
+  expect(response.headers()).toMatchObject({
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "strict-origin-when-cross-origin",
+  });
+});

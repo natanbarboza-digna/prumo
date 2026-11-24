@@ -15,6 +15,20 @@ const nextConfig: NextConfig = {
     },
   },
   partialPrefetching: true,
+  // Security headers on every response (plan 039), with or without Caddy in
+  // front. HSTS stays in the Caddyfile: it only makes sense over HTTPS.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {
