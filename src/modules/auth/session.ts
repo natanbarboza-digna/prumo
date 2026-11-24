@@ -4,6 +4,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { sessionCookieSecure } from "@/modules/auth/cookie";
 import { LOGIN_PATH } from "@/modules/auth/redirect";
 import { type CurrentSession, validateSession } from "@/modules/auth/service";
 
@@ -42,7 +43,7 @@ export async function setSessionCookie(token: string, expiresAt: Date): Promise<
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionCookieSecure(process.env),
     path: "/",
     expires: expiresAt,
   });
