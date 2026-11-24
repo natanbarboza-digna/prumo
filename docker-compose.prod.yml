@@ -1,7 +1,12 @@
-# Production on a VPS (plan 014; see docs/deploy.md). Run with:
+# Production on a VPS (plans 014 and 039; see docs/deploy.md).
+#
+# Without a domain, the app answers by the server's IP over plain HTTP:
 #   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-# Only Caddy is reachable from outside (ports 80 and 443); the database and the
-# app talk over the internal network.
+# With a domain, Caddy adds HTTPS and takes the app's public port away:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml --env-file .env.production up -d --build
+#
+# Both use the same project and database volume: switching keeps the data. The
+# database is never reachable from outside.
 name: prumo-prod
 
 services:
@@ -40,28 +45,28 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      # "false" only while the server has no domain (plain HTTP by its IP);
+      # empty keeps the session cookie Secure (plan 039).
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-}
+    ports:
+      # http://SERVER-IP without Caddy; docker-compose.caddy.yml removes it.
+      - "${APP_PORT:-80}:3000"
     depends_on:
       migrate:
         condition: service_completed_successfully
-
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    environment:
-      DOMAIN: ${DOMAIN:?set DOMAIN in .env.production}
-      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env.production}
-    volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - app
+    healthcheck:
+      # The slim Node image has no curl; Node's own fetch does the request.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/login').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
 
 volumes:
   pgdata:
-  caddy_data:
-  caddy_config:
