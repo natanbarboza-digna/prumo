@@ -1,6 +1,6 @@
 # 039 — Produção sem Caddy, pelo IP do servidor
 
-Status: **proposto**, aguardando aprovação
+Status: **implementado em 2026-11-24**, aprovado com as propostas das quatro perguntas (ver "Decisões")
 Branch: `feat/prod-without-caddy`
 
 Pedido do dono do projeto: colocar o Prumo em produção num VPS **antes de ter um domínio**, com o app buildado e **sem o Caddy**. Perguntado sobre o acesso, escolheu **pelo IP do servidor, em HTTP aberto**, sabendo que senha e sessão passam sem criptografia.
@@ -90,6 +90,24 @@ docs/deploy.md, README.md, CLAUDE.md
 - `npm run lint`, `npm run typecheck`, `npm test` e o `auth.spec.ts` passando.
 - `npm run container:up` e `npm run container:check` passando (plano 025).
 - Verificações manuais acima registradas; `CLAUDE.md`, `docs/deploy.md`, `README.md` e este plano atualizados.
+
+## Mudanças durante a implementação
+
+- **Atalho no guia:** `docs/deploy.md` define um `alias prumo` (um para cada jeito) e todos os comandos passam a usá-lo, em vez de repetir os arquivos do Compose.
+- **`backup.sh`** não mudou: usa só o arquivo base, onde está o banco, e vale para os dois jeitos.
+- **Verificações manuais** (num projeto de teste separado, `prumo-prodcheck`, depois removido com o volume dele):
+  - `docker compose config`: sem Caddy, serviços `db`, `migrate` e `app`, com o app na porta escolhida e `SESSION_COOKIE_SECURE=false`; com Caddy, mais o `caddy` (80 e 443) e o app sem porta;
+  - produção sem Caddy na porta 3300: os três contêineres saudáveis e `/login` com 200 e os três cabeçalhos;
+  - login com uma conta descartável: o cookie `prumo_session` sai com `Path, Expires, HttpOnly, SameSite` com a variável, e com `Secure` a mais sem ela.
+- **Pendente:** o login pelo IP do VPS de verdade, depois do deploy (do dono do projeto).
+- **Verificações:** `npm run lint`, `npm run typecheck`, Prettier, `npm test` (725 testes) e `e2e/auth.spec.ts` (5), `npm run container:up` e `npm run container:check` passando. Na primeira rodada, logo depois de reiniciar o Docker, 4 testes do seed de demonstração estouraram o tempo de 5 s (sem relação com este plano); a segunda rodada passou inteira. Registrado nas Pendências do `CLAUDE.md`.
+
+## Decisões
+
+1. Porta 80 no servidor, com `APP_PORT` para trocar.
+2. Cookie sem `Secure` só com `SESSION_COOKIE_SECURE=false` explícito.
+3. Cabeçalhos de segurança no próprio Next, com e sem Caddy (o HSTS fica no Caddy).
+4. Base sem Caddy e o Caddy num arquivo à parte.
 
 ## Perguntas (cada uma com uma proposta)
 

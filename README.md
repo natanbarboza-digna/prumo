@@ -32,7 +32,7 @@ npm run test:e2e:dev -- e2e/<área>.spec.ts    # e2e de uma área
 
 ## Build de produção
 
-`npm run container:up` constrói a imagem e sobe o app em `http://localhost:3200`; `npm run container:check` confere se ele responde. Para publicar num servidor, veja [docs/deploy.md](docs/deploy.md).
+`npm run container:up` constrói a imagem e sobe o app em `http://localhost:3200`; `npm run container:check` confere se ele responde. Para publicar num servidor, veja [docs/deploy.md](docs/deploy.md): pelo IP, sem domínio e sem HTTPS (`docker-compose.prod.yml`), ou com domínio e HTTPS pelo Caddy (somando `docker-compose.caddy.yml`).
 
 ## Mais
 
