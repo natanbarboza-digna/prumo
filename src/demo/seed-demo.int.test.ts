@@ -10,11 +10,16 @@ import { DEFAULT_CATEGORIES, ensureDefaultCategories } from "@/modules/categorie
 
 import { DemoDataExistsError, assertCanSeed, resetAllData, seedDemo } from "./seed-demo";
 
+// Seeding the whole demo through the services creates hundreds of rows one by
+// one: 2 to 5 s per test, above Vitest's default 5 s on a slow or just-started
+// database. Every test that seeds gets this limit instead.
+const SEED_TIMEOUT = 20_000;
+
 // 2026-11-16 is a Monday; 2026-11-22 is a Sunday.
 const monday = "2026-11-16";
 const sunday = "2026-11-22";
 
-describe("seedDemo", () => {
+describe("seedDemo", { timeout: SEED_TIMEOUT }, () => {
   it("creates the demo data and reports how much", async () => {
     const summary = await seedDemo(monday);
 
@@ -146,19 +151,23 @@ describe("assertCanSeed", () => {
 
 describe("resetAllData", () => {
   // Seeds the demo twice (about 90 logs each), so it needs more than the 5 s default.
-  it("deletes everything but keeps the default categories, so the demo can run again", async () => {
-    await seedDemo(monday);
+  it(
+    "deletes everything but keeps the default categories, so the demo can run again",
+    async () => {
+      await seedDemo(monday);
 
-    await resetAllData();
+      await resetAllData();
 
-    await expect(db.goal.count()).resolves.toBe(0);
-    await expect(db.routineLog.count()).resolves.toBe(0);
-    await expect(db.pdiCycle.count()).resolves.toBe(0);
-    const categories = await listCategories();
-    expect(categories.map((category) => category.name).sort()).toEqual(
-      DEFAULT_CATEGORIES.map((category) => category.name).sort(),
-    );
-    await expect(assertCanSeed()).resolves.toBeUndefined();
-    await expect(seedDemo(monday)).resolves.toMatchObject({ goals: 4 });
-  }, 20_000);
+      await expect(db.goal.count()).resolves.toBe(0);
+      await expect(db.routineLog.count()).resolves.toBe(0);
+      await expect(db.pdiCycle.count()).resolves.toBe(0);
+      const categories = await listCategories();
+      expect(categories.map((category) => category.name).sort()).toEqual(
+        DEFAULT_CATEGORIES.map((category) => category.name).sort(),
+      );
+      await expect(assertCanSeed()).resolves.toBeUndefined();
+      await expect(seedDemo(monday)).resolves.toMatchObject({ goals: 4 });
+    },
+    SEED_TIMEOUT,
+  );
 });
